@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade Marketing Chopp Costa - Comodatos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --brand: #003366;
+      --brand-2: #0f4c81;
+      --bg: #eef2f7;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --border: #d1d5db;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
+    }
+
+    .section-card {
+      background: var(--card);
+      border: 1px solid #dbe3ec;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    .section-title {
+      background: linear-gradient(90deg, var(--brand), var(--brand-2));
+      color: white;
+      border-radius: 14px 14px 0 0;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 0.35rem;
+    }
+
+    .field-input,
+    .field-select,
+    .field-textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.78rem 0.85rem;
+      font-size: 0.95rem;
+      outline: none;
+      background: white;
+      box-sizing: border-box;
+    }
+
+    .field-input:focus,
+    .field-select:focus,
+    .field-textarea:focus {
+      border-color: var(--brand-2);
+      box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.12);
+    }
+
+    .field-textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .readonly {
+      background: #f3f4f6;
+      color: #374151;
+      font-weight: 700;
+    }
+
+    .qty-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    @media (min-width: 768px) {
+      .qty-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    .submit-btn {
+      background: var(--brand);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 1rem 1.2rem;
+      width: 100%;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .submit-btn:hover {
+      background: #00264d;
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .secondary-btn {
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #111827;
+      border-radius: 10px;
+      padding: 0.7rem 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .status-box {
+      border-radius: 14px;
+      padding: 1rem;
+      display: none;
+    }
+
+    .status-ok {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+    }
+
+    .status-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .signature-wrap {
+      border: 1px dashed #9ca3af;
+      border-radius: 14px;
+      background: #fafafa;
+      padding: 0.75rem;
+    }
+
+    #signatureCanvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+      background: white;
+      border-radius: 10px;
+      touch-action: none;
+      border: 1px solid #d1d5db;
+    }
+
+    .small-note {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .terms-box {
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      background: #f9fafb;
+      padding: 16px;
+      max-height: 220px;
+      overflow: auto;
+      line-height: 1.55;
+      font-size: 0.92rem;
+      color: #374151;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      margin-top: 4px;
+      transform: scale(1.15);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PANTALLA DE LOGIN -->
+  <div id="loginScreen" style="position:fixed; inset:0; background:#eef2f7; display:flex; align-items:center; justify-content:center; z-index:9999; font-family:Arial;">
+    <div style="background:white; padding:40px; border-radius:12px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.15); text-align:center;">
+      <h2 style="margin-bottom:20px;font-size:20px;font-weight:bold">Acceso Sistema Comodatos</h2>
+      <input id="passwordInput" type="password" placeholder="Contraseña" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:15px;" />
+      <button onclick="checkPassword()" style="width:100%; padding:10px; background:#003366; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Ingresar</button>
+      <p id="loginError" style="color:red;margin-top:10px;font-size:14px"></p>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 py-6 md:py-8">
+    <div class="mb-6">
+      <div class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Trade Marketing Chopp Costa</h1>
+          <p class="mt-1 text-sm md:text-base text-blue-100">Sistema digital de gestión de comodatos</p>
+        </div>
+        <div class="px-5 py-4 bg-white">
+          <p class="text-sm text-gray-600">Region Costa</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="statusBox" class="status-box mb-5"></div>
+
+    <form id="comodatoForm" class="space-y-6">
+      
+      <!-- 1. LOGÍSTICA -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">1. Logística</h2>
+        </div>
+        <div class="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="field-label" for="fecha">Fecha</label>
+            <input id="fecha" name="fecha" type="date" class="field-input" required />
+          </div>
+          <div>
+            <label class="field-label" for="comodatoNumero">Comodato N°</label>
+            <div class="flex gap-2">
+              <input id="comodatoNumero" name="comodatoNumero" type="text" class="field-input readonly" value="Cargando..." readonly />
+              <button type="button" id="refreshNumberBtn" class="secondary-btn">Actualizar</button>
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="tecnico">Técnico</label>
+            <input id="tecnico" name="tecnico" type="text" class="field-input" required />
+          </div>
+          <div>
+            <label class="field-label" for="distribuidor">Distribuidor</label>
+            <select id="distribuidor" name="distribuidor" class="field-select" required>
+              <option value="">Seleccionar...</option>
+              <option>BEBIDAS DEL MAR S.A.</option>
+              <option>BEER TAN S.A.</option>
+              <option>CLOMAR LOGISTICS S.A.</option>
+              <option>COMERCIAL DE LOS ARROYOS S.A.</option>
+              <option>COMERCIAL DEL MAR SA</option>
+              <option>DEL PALACIO S.A.</option>
+              <option>GALUPO S.A.</option>
+              <option>GRUPO PEREZ SRL</option>
+              <option>NECOCHEA PAMPA ALTA S.A.</option>
+              <option>P D B SRL</option>
+              <option>PAGANI RUBEN OSVALDO</option>
+              <option>PUERTA DEL SUR S.A.</option>
+              <option>VALPARAISO EMB. S.A</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="codCliente">Cod. Cliente</label>
+            <input id="codCliente" name="codCliente" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="cuit">CUIT</label>
+            <input id="cuit" name="cuit" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="nombreFantasia">Nombre Fantasía</label>
+            <input id="nombreFantasia" name="nombreFantasia" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="razonSocial">Razón Social</label>
+            <input id="razonSocial" name="razonSocial" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="domicilio">Domicilio</label>
+            <input id="domicilio" name="domicilio" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="localidad">Localidad</label>
+            <input id="localidad" name="localidad" type="text" class="field-input" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. EQUIPO/S DINÁMICOS -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">2. Equipo/s</h2>
+        </div>
+        <div class="p-4 md:p-5">
+          <div class="mb-5 md:w-1/2">
+            <label class="field-label" for="cantidadEquipos">Cantidad de Equipos de Chopp</label>
+            <input id="cantidadEquipos" type="number" min="1" value="1" class="field-input" onchange="renderEquipos()" />
+          </div>
+          <div id="equiposContainer" class="space-y-6">
+            <!-- Los campos de los equipos se inyectarán aquí con JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. MATERIALES -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">3. Materiales (Cantidades)</h2>
+        </div>
+        <div class="p-4 md:p-5 qty-grid">
+          <div><label class="field-label" for="regCornelius">Reg. Cornelius</label><input id="regCornelius" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="regMafridis">Reg. Mafridis</label><input id="regMafridis" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="llaveMixta">Llave Mixta</label><input id="llaveMixta" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="cabezalMM">Cabezal MM</label><input id="cabezalMM" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="mangueraCerveza">Manguera Cerveza</label><input id="mangueraCerveza" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="mangueraPython">Manguera Python</label><input id="mangueraPython" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="canillaNiquelada">Canilla Niquelada</label><input id="canillaNiquelada" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="canillaAgua">Canilla Agua</label><input id="canillaAgua" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="transformador">Transformador</label><input id="transformador" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="separadoresCanilla">Separadores Canilla</label><input id="separadoresCanilla" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="conectorVasera">Conector Vasera</label><input id="conectorVasera" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="cantPicos">Cant. Picos</label><input id="cantPicos" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="medallones">Medallones</label><input id="medallones" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="tuboGas">Tubo Gas</label><input id="tuboGas" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="vaseraRinser">Vasera Rinser</label><input id="vaseraRinser" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="rinser">Rinser</label><input id="rinser" type="number" min="0" value="0" class="field-input" /></div>
+          <div><label class="field-label" for="mangueraDesague">Manguera Desagüe</label><input id="mangueraDesague" type="number" min="0" value="0" class="field-input" /></div>
+        </div>
+      </section>
+
+      <!-- 4. ESPECIALES / PILONES DINÁMICOS -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">4. Especiales</h2>
+        </div>
+        <div class="p-4 md:p-5">
+          <!-- Campos generales de Especiales -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
+            <div>
+              <label class="field-label" for="handle">Handle</label>
+              <input id="handle" type="text" class="field-input" />
+            </div>
+            <div>
+              <label class="field-label" for="celli">Celli</label>
+              <select id="celli" class="field-select">
+                <option value="">Seleccionar...</option>
+                <option>DORADA</option>
+                <option>NIQUELADA</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="vasera">Vasera</label>
+              <select id="vasera" class="field-select">
+                <option value="">Seleccionar...</option>
+                <option>Cervecera</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Selector de cantidad de pilones -->
+          <div class="mb-5 md:w-1/2">
+            <label class="field-label" for="cantidadPilones">Cantidad de Pilones</label>
+            <select id="cantidadPilones" class="field-select" onchange="renderPilones()">
+              <option value="0">0</option>
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </div>
+          
+          <div id="pilonesContainer" class="space-y-6 mb-6">
+            <!-- Los campos de los pilones se inyectarán aquí con JavaScript -->
+          </div>
+
+          <div>
+            <label class="field-label" for="descripcion">Descripción / Observaciones Generales</label>
+            <textarea id="descripcion" class="field-textarea"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- REGISTRO FOTOGRÁFICO -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">Registro Fotográfico</h2>
+        </div>
+        <div class="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="field-label" for="fotoEquipos">Fotos de Equipo/s</label>
+            <p class="text-xs text-gray-500 mb-2">Sube o toma fotos de los equipos instalados.</p>
+            <input type="file" id="fotoEquipos" accept="image/*" multiple capture="environment" class="field-input p-2" />
+          </div>
+          <div>
+            <label class="field-label" for="fotoPilones">Fotos de Pilón/es</label>
+            <p class="text-xs text-gray-500 mb-2">Sube o toma fotos de los pilones instalados.</p>
+            <input type="file" id="fotoPilones" accept="image/*" multiple capture="environment" class="field-input p-2" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. CIERRE Y FIRMA -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">5. Cierre</h2>
+        </div>
+        <div class="p-4 md:p-5 space-y-4">
+          <div>
+            <label class="field-label">Términos y Condiciones</label>
+            <div class="terms-box">
+              El cliente declara recibir en carácter de comodato el equipo y/o los materiales detallados en el presente formulario. Se compromete a utilizar dichos elementos de manera correcta, mantenerlos en buen estado de conservación y restituirlos cuando le sean requeridos por la empresa o distribuidor correspondiente. El firmante manifiesta que los datos consignados son correctos y que cuenta con facultades suficientes para recibir los bienes detallados. La firma digital incorporada en este documento tendrá validez como constancia de conformidad, recepción y aceptación de las condiciones aquí expuestas.
+            </div>
+            <label class="checkbox-row">
+              <input type="checkbox" id="acceptTerms" />
+              <span class="text-sm text-gray-700">
+                He leído y acepto los términos y condiciones del comodato.
+              </span>
+            </label>
+          </div>
+
+          <div>
+            <label class="field-label">Firma Digital</label>
+            <div class="signature-wrap">
+              <canvas id="signatureCanvas"></canvas>
+              <div class="flex flex-wrap gap-2 mt-3">
+                <button type="button" id="clearSignatureBtn" class="secondary-btn">Limpiar firma</button>
+              </div>
+              <p class="small-note mt-2">
+                Firmá con el dedo o mouse. La firma es obligatoria.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="field-label" for="aclaracion">Aclaración</label>
+              <input id="aclaracion" type="text" class="field-input" required />
+            </div>
+            <div>
+              <label class="field-label" for="dni">DNI</label>
+              <input id="dni" type="text" class="field-input" required />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div>
+        <button id="submitBtn" type="submit" class="submit-btn">
+          Guardar comodato con firma
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // --- VARIABLES Y CONFIGURACIÓN ---
+    const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFcNsPIMtdUd19hsKHlhuyxLw_0vmXJ8zPnj87EyPqIDLyKkcpnQuoeVOsoLCl2nra/exec";
+    const DEBUG_MODE = false;
+
+    const form = document.getElementById("comodatoForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusBox = document.getElementById("statusBox");
+    const comodatoNumeroInput = document.getElementById("comodatoNumero");
+    const refreshNumberBtn = document.getElementById("refreshNumberBtn");
+    const acceptTerms = document.getElementById("acceptTerms");
+
+    const canvas = document.getElementById("signatureCanvas");
+    const clearSignatureBtn = document.getElementById("clearSignatureBtn");
+    const ctx = canvas.getContext("2d");
+
+    let drawing = false;
+    let hasSignature = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // --- FUNCIONES DE UTILIDAD ---
+    function debugLog(label, data) {
+      if (!DEBUG_MODE) return;
+      console.log("[DEBUG]", label, data);
+    }
+
+    function setDebugError(error) {
+      if (!DEBUG_MODE) return;
+      console.log("[DEBUG ERROR]", error);
+    }
+
+    function showStatus(message, isError = false) {
+      statusBox.style.display = "block";
+      statusBox.className = "status-box mb-5 " + (isError ? "status-error" : "status-ok");
+      statusBox.textContent = message;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function hideStatus() {
+      statusBox.style.display = "none";
+      statusBox.textContent = "";
+    }
+
+    function setToday() {
+      const fechaInput = document.getElementById("fecha");
+      const today = new Date();
+      const offset = today.getTimezoneOffset();
+      const localDate = new Date(today.getTime() - offset * 60000).toISOString().split("T")[0];
+      fechaInput.value = localDate;
+    }
+
+    async function fetchNextNumber() {
+      try {
+        const response = await fetch(APP_SCRIPT_URL + "?action=nextNumber");
+        const result = await response.json();
+        debugLog("NEXT_NUMBER_RESPONSE", result);
+
+        if (result.ok && result.comodatoNumero) {
+          comodatoNumeroInput.value = result.comodatoNumero;
+        } else {
+          comodatoNumeroInput.value = "TCC-00001";
+        }
+      } catch (error) {
+        comodatoNumeroInput.value = "TCC-00001";
+        setDebugError({
+          stage: "next-number",
+          message: error.message
+        });
+      }
+    }
+
+    function value(id) {
+      return document.getElementById(id).value.trim();
+    }
+
+    function numberValue(id) {
+      const raw = document.getElementById(id).value;
+      const n = Number(raw);
+      return Number.isNaN(n) ? 0 : n;
+    }
+
+    // --- FUNCIONES PARA FORMULARIOS DINÁMICOS ---
+    function renderEquipos() {
+      const container = document.getElementById("equiposContainer");
+      const cantidad = parseInt(document.getElementById("cantidadEquipos").value) || 1;
+      container.innerHTML = ""; 
+
+      for (let i = 1; i <= cantidad; i++) {
+        const div = document.createElement("div");
+        div.className = "p-4 bg-gray-50 border border-gray-200 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 equipo-item";
+        div.innerHTML = `
+          <div class="md:col-span-2 font-bold text-gray-700 border-b pb-2 mb-2">Equipo #${i}</div>
+          <div><label class="field-label">Marca</label><input type="text" class="field-input eq-marca" /></div>
+          <div><label class="field-label">Modelo</label><input type="text" class="field-input eq-modelo" /></div>
+          <div><label class="field-label">Activo Fijo</label><input type="text" class="field-input eq-activo" /></div>
+          <div><label class="field-label">Serie</label><input type="text" class="field-input eq-serie" /></div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function renderPilones() {
+      const container = document.getElementById("pilonesContainer");
+      const cantidad = parseInt(document.getElementById("cantidadPilones").value) || 0;
+      container.innerHTML = "";
+
+      for (let i = 1; i <= cantidad; i++) {
+        const div = document.createElement("div");
+        div.className = "p-4 bg-gray-50 border border-gray-200 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 pilon-item";
+        div.innerHTML = `
+          <div class="md:col-span-2 font-bold text-gray-700 border-b pb-2 mb-2">Pilón #${i}</div>
+          <div>
+            <label class="field-label">Tipo de Pilón</label>
+            <select class="field-select pil-tipo" onchange="togglePilonOtros(this)">
+              <option value="">Seleccionar...</option>
+              <option>BRAHAUS 3 VIAS</option>
+              <option>BRAHAUS 4 VIAS</option>
+              <option>BRAHAUS 6 VIAS</option>
+              <option>EOS 3 VIAS</option>
+              <option>EOS 1 VIA</option>
+              <option>HAVANNA</option>
+              <option>MAGIC</option>
+              <option>ROMANTIC</option>
+              <option>AZUR</option>
+              <option>CUELLO CISNE</option>
+              <option>CERAMICO</option>
+              <option value="OTROS">OTROS</option>
+            </select>
+          </div>
+          <div class="hidden pil-otros-wrap">
+            <label class="field-label">Pilón - Otros</label>
+            <input type="text" class="field-input pil-otros" />
+          </div>
+          <div>
+            <label class="field-label">Cabezal</label>
+            <input type="text" class="field-input pil-cabezal" />
+          </div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function togglePilonOtros(selectElement) {
+      const isOtros = selectElement.value === "OTROS";
+      const wrapDiv = selectElement.parentElement.nextElementSibling;
+      wrapDiv.classList.toggle("hidden", !isOtros);
+      if (!isOtros) wrapDiv.querySelector('.pil-otros').value = "";
+    }
+
+    async function getBase64Files(inputId) {
+      const input = document.getElementById(inputId);
+      const files = input.files;
+      if (!files || files.length === 0) return [];
+      
+      const base64Promises = Array.from(files).map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ nombre: file.name, tipo: file.type, data: reader.result.split(',')[1] });
+          reader.onerror = error => reject(error);
+          reader.readAsDataURL(file);
+        });
+      });
+      return Promise.all(base64Promises);
+    }
+
+    // --- FUNCIONES DE FIRMA ---
+    function resizeCanvas() {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const dataUrl = hasSignature ? canvas.toDataURL("image/png") : null;
+
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * ratio;
+      canvas.height = rect.height * ratio;
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#111827";
+
+      if (dataUrl) {
+        const img = new Image();
+        img.onload = function () {
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        };
+        img.src = dataUrl;
+      }
+    }
+
+    function getPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      const point = event.touches ? event.touches[0] : event;
+      return {
+        x: point.clientX - rect.left,
+        y: point.clientY - rect.top
+      };
+    }
+
+    function startDrawing(event) {
+      event.preventDefault();
+      drawing = true;
+      const pos = getPosition(event);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(event) {
+      if (!drawing) return;
+      event.preventDefault();
+      const pos = getPosition(event);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+      hasSignature = true;
+    }
+
+    function stopDrawing(event) {
+      if (event) event.preventDefault();
+      drawing = false;
+    }
+
+    function clearSignature() {
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      hasSignature = false;
+    }
+
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", draw);
+    window.addEventListener("mouseup", stopDrawing);
+
+    canvas.addEventListener("touchstart", startDrawing, { passive: false });
+    canvas.addEventListener("touchmove", draw, { passive: false });
+    canvas.addEventListener("touchend", stopDrawing, { passive: false });
+
+    clearSignatureBtn.addEventListener("click", clearSignature);
+    window.addEventListener("resize", resizeCanvas);
+
+    // --- RECOPILACIÓN Y ENVÍO DE DATOS ---
+    async function getPayload() {
+      const equipos = [];
+      document.querySelectorAll('.equipo-item').forEach(item => {
+        equipos.push({
+          marca: item.querySelector('.eq-marca').value.trim(),
+          modelo: item.querySelector('.eq-modelo').value.trim(),
+          activoFijo: item.querySelector('.eq-activo').value.trim(),
+          serie: item.querySelector('.eq-serie').value.trim()
+        });
+      });
+
+      const pilones = [];
+      document.querySelectorAll('.pilon-item').forEach(item => {
+        pilones.push({
+          tipo: item.querySelector('.pil-tipo').value,
+          otros: item.querySelector('.pil-otros').value.trim(),
+          cabezal: item.querySelector('.pil-cabezal').value.trim()
+        });
+      });
+
+      const fotosEquiposData = await getBase64Files("fotoEquipos");
+      const fotosPilonesData = await getBase64Files("fotoPilones");
+
+      return {
+        comodatoNumero: value("comodatoNumero"),
+        fecha: value("fecha"),
+        tecnico: value("tecnico"),
+        distribuidor: value("distribuidor"),
+        codCliente: value("codCliente"),
+        cuit: value("cuit"),
+        nombreFantasia: value("nombreFantasia"),
+        razonSocial: value("razonSocial"),
+        domicilio: value("domicilio"),
+        localidad: value("localidad"),
+
+        equipos: equipos,
+        pilones: pilones,
+
+        regCornelius: numberValue("regCornelius"),
+        regMafridis: numberValue("regMafridis"),
+        llaveMixta: numberValue("llaveMixta"),
+        cabezalMM: numberValue("cabezalMM"),
+        mangueraCerveza: numberValue("mangueraCerveza"),
+        mangueraPython: numberValue("mangueraPython"),
+        canillaNiquelada: numberValue("canillaNiquelada"),
+        canillaAgua: numberValue("canillaAgua"),
+        transformador: numberValue("transformador"),
+        separadoresCanilla: numberValue("separadoresCanilla"),
+        conectorVasera: numberValue("conectorVasera"),
+        cantPicos: numberValue("cantPicos"),
+        medallones: numberValue("medallones"),
+        tuboGas: numberValue("tuboGas"),
+        vaseraRinser: numberValue("vaseraRinser"),
+        rinser: numberValue("rinser"),
+        mangueraDesague: numberValue("mangueraDesague"),
+
+        handle: value("handle"),
+        celli: value("celli"),
+        vasera: value("vasera"),
+        descripcion: value("descripcion"),
+
+        fotosEquipos: fotosEquiposData,
+        fotosPilones: fotosPilonesData,
+
+        aclaracion: value("aclaracion"),
+        dni: value("dni"),
+        firmaDataUrl: hasSignature ? canvas.toDataURL("image/png") : "",
+        aceptaTerminos: acceptTerms.checked
+      };
+    }
+
+    function validateBeforeSend(payload) {
+      if (!payload.fecha) return "La fecha es obligatoria.";
+      if (!payload.tecnico) return "El técnico es obligatorio.";
+      if (!payload.distribuidor) return "El distribuidor es obligatorio.";
+      if (!payload.aclaracion) return "La aclaración es obligatoria.";
+      if (!payload.dni) return "El DNI es obligatorio.";
+      if (!payload.comodatoNumero || !/^TCC-\d{5}$/.test(payload.comodatoNumero)) return "El número de comodato no es válido.";
+      if (!acceptTerms.checked) return "Debés aceptar los términos y condiciones.";
+      if (!payload.firmaDataUrl) return "La firma digital es obligatoria.";
+      
+      // Validar pilones dinámicos
+      for (let i = 0; i < payload.pilones.length; i++) {
+        if (payload.pilones[i].tipo === "OTROS" && !payload.pilones[i].otros) {
+          return `Debés completar la opción 'Otros' en el Pilón #${i + 1}.`;
+        }
+      }
+      return "";
+    }
+
+    refreshNumberBtn.addEventListener("click", fetchNextNumber);
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      hideStatus();
+
+      const payload = await getPayload();
+      const validationMessage = validateBeforeSend(payload);
+
+      if (validationMessage) {
+        showStatus(validationMessage, true);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Guardando...";
+
+      try {
+        const response = await fetch(APP_SCRIPT_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        debugLog("RESPONSE", result);
+
+        if (!result.ok) {
+          throw new Error(result.message || "No se pudo guardar.");
+        }
+
+        showStatus(
+          "Comodato guardado correctamente." +
+          (result.comodatoNumero ? " Número: " + result.comodatoNumero : "") +
+          (result.firmaUrl ? " Firma guardada en Drive." : "")
+        );
+
+        form.reset();
+        setToday();
+        clearSignature();
+        renderEquipos(); // Resetea a 1 equipo
+        renderPilones(); // Resetea a 1 pilón
+        await fetchNextNumber();
+      } catch (error) {
+        setDebugError({
+          stage: "fetch-or-backend",
+          message: error.message,
+          stack: error.stack || ""
+        });
+        showStatus("Error al guardar: " + error.message, true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Guardar comodato con firma";
+      }
+    });
+
+    // --- INICIALIZACIÓN ---
+    window.addEventListener('DOMContentLoaded', () => {
+      setToday();
+      fetchNextNumber();
+      renderEquipos();
+      renderPilones();
+      requestAnimationFrame(resizeCanvas);
+    });
+  </script>
+
+  <!-- SCRIPT LOGIN -->
+  <script>
+    const PAGE_PASSWORD = "ChoppCosta2026"; 
+
+    function checkPassword() {
+      const pass = document.getElementById("passwordInput").value;
+      if(pass === PAGE_PASSWORD){
+        document.getElementById("loginScreen").style.display = "none";
+        sessionStorage.setItem("comodatosAuth","ok");
+      }else{
+        document.getElementById("loginError").innerText = "Contraseña incorrecta";
+      }
+    }
+
+    window.onload = function(){
+      const auth = sessionStorage.getItem("comodatosAuth");
+      if(auth === "ok"){
+        document.getElementById("loginScreen").style.display = "none";
+      }
+    }
+  </script>
+</body>
+</html>
