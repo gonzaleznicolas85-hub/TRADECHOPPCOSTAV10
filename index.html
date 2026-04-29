@@ -14,7 +14,6 @@
       --muted: #6b7280;
       --border: #d1d5db;
     }
-
     html, body {
       margin: 0;
       padding: 0;
@@ -22,20 +21,17 @@
       font-family: Arial, Helvetica, sans-serif;
       color: #111827;
     }
-
     .section-card {
       background: var(--card);
       border: 1px solid #dbe3ec;
       border-radius: 16px;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
     }
-
     .section-title {
       background: linear-gradient(90deg, var(--brand), var(--brand-2));
       color: white;
       border-radius: 14px 14px 0 0;
     }
-
     .field-label {
       display: block;
       font-size: 0.88rem;
@@ -43,10 +39,7 @@
       color: #1f2937;
       margin-bottom: 0.35rem;
     }
-
-    .field-input,
-    .field-select,
-    .field-textarea {
+    .field-input, .field-select, .field-textarea {
       width: 100%;
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -56,37 +49,27 @@
       background: white;
       box-sizing: border-box;
     }
-
-    .field-input:focus,
-    .field-select:focus,
-    .field-textarea:focus {
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
       border-color: var(--brand-2);
       box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.12);
     }
-
     .field-textarea {
       min-height: 110px;
       resize: vertical;
     }
-
     .readonly {
       background: #f3f4f6;
       color: #374151;
       font-weight: 700;
     }
-
     .qty-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
     }
-
     @media (min-width: 768px) {
-      .qty-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
+      .qty-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
     .submit-btn {
       background: var(--brand);
       color: white;
@@ -99,16 +82,8 @@
       cursor: pointer;
       transition: 0.2s ease;
     }
-
-    .submit-btn:hover {
-      background: #00264d;
-    }
-
-    .submit-btn:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
-    }
-
+    .submit-btn:hover { background: #00264d; }
+    .submit-btn:disabled { opacity: 0.65; cursor: not-allowed; }
     .secondary-btn {
       border: 1px solid #cbd5e1;
       background: white;
@@ -119,32 +94,27 @@
       cursor: pointer;
       white-space: nowrap;
     }
-
     .status-box {
       border-radius: 14px;
       padding: 1rem;
       display: none;
     }
-
     .status-ok {
       background: #ecfdf5;
       border: 1px solid #a7f3d0;
       color: #065f46;
     }
-
     .status-error {
       background: #fef2f2;
       border: 1px solid #fecaca;
       color: #991b1b;
     }
-
     .signature-wrap {
       border: 1px dashed #9ca3af;
       border-radius: 14px;
       background: #fafafa;
       padding: 0.75rem;
     }
-
     #signatureCanvas {
       width: 100%;
       height: 220px;
@@ -154,12 +124,7 @@
       touch-action: none;
       border: 1px solid #d1d5db;
     }
-
-    .small-note {
-      font-size: 0.82rem;
-      color: var(--muted);
-    }
-
+    .small-note { font-size: 0.82rem; color: var(--muted); }
     .terms-box {
       border: 1px solid #d1d5db;
       border-radius: 12px;
@@ -171,14 +136,12 @@
       font-size: 0.92rem;
       color: #374151;
     }
-
     .checkbox-row {
       display: flex;
       align-items: flex-start;
       gap: 10px;
       margin-top: 12px;
     }
-
     .checkbox-row input[type="checkbox"] {
       margin-top: 4px;
       transform: scale(1.15);
@@ -292,7 +255,7 @@
             <input id="cantidadEquipos" type="number" min="1" value="1" class="field-input" onchange="renderEquipos()" />
           </div>
           <div id="equiposContainer" class="space-y-6">
-            <!-- Los campos de los equipos se inyectarán aquí con JavaScript -->
+            <!-- Campos inyectados con JS -->
           </div>
         </div>
       </section>
@@ -314,7 +277,6 @@
           <div><label class="field-label" for="transformador">Transformador</label><input id="transformador" type="number" min="0" value="0" class="field-input" /></div>
           <div><label class="field-label" for="separadoresCanilla">Separadores Canilla</label><input id="separadoresCanilla" type="number" min="0" value="0" class="field-input" /></div>
           <div><label class="field-label" for="conectorVasera">Conector Vasera</label><input id="conectorVasera" type="number" min="0" value="0" class="field-input" /></div>
-          <div><label class="field-label" for="cantPicos">Cant. Picos</label><input id="cantPicos" type="number" min="0" value="0" class="field-input" /></div>
           <div><label class="field-label" for="medallones">Medallones</label><input id="medallones" type="number" min="0" value="0" class="field-input" /></div>
           <div><label class="field-label" for="tuboGas">Tubo Gas</label><input id="tuboGas" type="number" min="0" value="0" class="field-input" /></div>
           <div><label class="field-label" for="vaseraRinser">Vasera Rinser</label><input id="vaseraRinser" type="number" min="0" value="0" class="field-input" /></div>
@@ -329,7 +291,6 @@
           <h2 class="text-lg md:text-xl font-bold">4. Especiales</h2>
         </div>
         <div class="p-4 md:p-5">
-          <!-- Campos generales de Especiales -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
             <div>
               <label class="field-label" for="handle">Handle</label>
@@ -350,9 +311,12 @@
                 <option>Cervecera</option>
               </select>
             </div>
+            <div>
+              <label class="field-label" for="cantPicos">Cantidad de Picos</label>
+              <input id="cantPicos" type="number" min="0" value="0" class="field-input" />
+            </div>
           </div>
 
-          <!-- Selector de cantidad de pilones -->
           <div class="mb-5 md:w-1/2">
             <label class="field-label" for="cantidadPilones">Cantidad de Pilones</label>
             <select id="cantidadPilones" class="field-select" onchange="renderPilones()">
@@ -366,7 +330,7 @@
           </div>
           
           <div id="pilonesContainer" class="space-y-6 mb-6">
-            <!-- Los campos de los pilones se inyectarán aquí con JavaScript -->
+            <!-- Campos inyectados con JS -->
           </div>
 
           <div>
@@ -408,9 +372,7 @@
             </div>
             <label class="checkbox-row">
               <input type="checkbox" id="acceptTerms" />
-              <span class="text-sm text-gray-700">
-                He leído y acepto los términos y condiciones del comodato.
-              </span>
+              <span class="text-sm text-gray-700">He leído y acepto los términos y condiciones del comodato.</span>
             </label>
           </div>
 
@@ -421,9 +383,7 @@
               <div class="flex flex-wrap gap-2 mt-3">
                 <button type="button" id="clearSignatureBtn" class="secondary-btn">Limpiar firma</button>
               </div>
-              <p class="small-note mt-2">
-                Firmá con el dedo o mouse. La firma es obligatoria.
-              </p>
+              <p class="small-note mt-2">Firmá con el dedo o mouse. La firma es obligatoria.</p>
             </div>
           </div>
 
@@ -451,8 +411,7 @@
   <script>
     // --- VARIABLES Y CONFIGURACIÓN ---
     const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw7V9HwxNkYLjzTVYcG5uH_DPry3nn1-D6mq-Gt132P9ky3lK_GWGwcGMmX5RUBsX72Pg/exec";
-    const DEBUG_MODE = false;
-
+    
     const form = document.getElementById("comodatoForm");
     const submitBtn = document.getElementById("submitBtn");
     const statusBox = document.getElementById("statusBox");
@@ -469,27 +428,16 @@
     let lastX = 0;
     let lastY = 0;
 
-    // --- FUNCIONES DE UTILIDAD ---
-    function debugLog(label, data) {
-      if (!DEBUG_MODE) return;
-      console.log("[DEBUG]", label, data);
-    }
-
-    function setDebugError(error) {
-      if (!DEBUG_MODE) return;
-      console.log("[DEBUG ERROR]", error);
-    }
-
     function showStatus(message, isError = false) {
       statusBox.style.display = "block";
       statusBox.className = "status-box mb-5 " + (isError ? "status-error" : "status-ok");
-      statusBox.textContent = message;
+      statusBox.innerHTML = message;
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function hideStatus() {
       statusBox.style.display = "none";
-      statusBox.textContent = "";
+      statusBox.innerHTML = "";
     }
 
     function setToday() {
@@ -504,8 +452,6 @@
       try {
         const response = await fetch(APP_SCRIPT_URL + "?action=nextNumber");
         const result = await response.json();
-        debugLog("NEXT_NUMBER_RESPONSE", result);
-
         if (result.ok && result.comodatoNumero) {
           comodatoNumeroInput.value = result.comodatoNumero;
         } else {
@@ -513,29 +459,16 @@
         }
       } catch (error) {
         comodatoNumeroInput.value = "TCC-00001";
-        setDebugError({
-          stage: "next-number",
-          message: error.message
-        });
       }
     }
 
-    function value(id) {
-      return document.getElementById(id).value.trim();
-    }
+    function value(id) { return document.getElementById(id).value.trim(); }
+    function numberValue(id) { const raw = document.getElementById(id).value; const n = Number(raw); return Number.isNaN(n) ? 0 : n; }
 
-    function numberValue(id) {
-      const raw = document.getElementById(id).value;
-      const n = Number(raw);
-      return Number.isNaN(n) ? 0 : n;
-    }
-
-    // --- FUNCIONES PARA FORMULARIOS DINÁMICOS ---
     function renderEquipos() {
       const container = document.getElementById("equiposContainer");
       const cantidad = parseInt(document.getElementById("cantidadEquipos").value) || 1;
       container.innerHTML = ""; 
-
       for (let i = 1; i <= cantidad; i++) {
         const div = document.createElement("div");
         div.className = "p-4 bg-gray-50 border border-gray-200 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 equipo-item";
@@ -554,7 +487,6 @@
       const container = document.getElementById("pilonesContainer");
       const cantidad = parseInt(document.getElementById("cantidadPilones").value) || 0;
       container.innerHTML = "";
-
       for (let i = 1; i <= cantidad; i++) {
         const div = document.createElement("div");
         div.className = "p-4 bg-gray-50 border border-gray-200 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 pilon-item";
@@ -614,27 +546,21 @@
       return Promise.all(base64Promises);
     }
 
-    // --- FUNCIONES DE FIRMA ---
     function resizeCanvas() {
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
       const dataUrl = hasSignature ? canvas.toDataURL("image/png") : null;
-
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width * ratio;
       canvas.height = rect.height * ratio;
-
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(ratio, ratio);
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = "#111827";
-
       if (dataUrl) {
         const img = new Image();
-        img.onload = function () {
-          ctx.drawImage(img, 0, 0, rect.width, rect.height);
-        };
+        img.onload = function () { ctx.drawImage(img, 0, 0, rect.width, rect.height); };
         img.src = dataUrl;
       }
     }
@@ -642,56 +568,34 @@
     function getPosition(event) {
       const rect = canvas.getBoundingClientRect();
       const point = event.touches ? event.touches[0] : event;
-      return {
-        x: point.clientX - rect.left,
-        y: point.clientY - rect.top
-      };
+      return { x: point.clientX - rect.left, y: point.clientY - rect.top };
     }
 
     function startDrawing(event) {
-      event.preventDefault();
-      drawing = true;
+      event.preventDefault(); drawing = true;
       const pos = getPosition(event);
-      lastX = pos.x;
-      lastY = pos.y;
+      lastX = pos.x; lastY = pos.y;
     }
 
     function draw(event) {
-      if (!drawing) return;
-      event.preventDefault();
+      if (!drawing) return; event.preventDefault();
       const pos = getPosition(event);
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-      lastX = pos.x;
-      lastY = pos.y;
-      hasSignature = true;
+      ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+      lastX = pos.x; lastY = pos.y; hasSignature = true;
     }
 
-    function stopDrawing(event) {
-      if (event) event.preventDefault();
-      drawing = false;
-    }
-
-    function clearSignature() {
-      const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      hasSignature = false;
-    }
+    function stopDrawing(event) { if (event) event.preventDefault(); drawing = false; }
+    function clearSignature() { const rect = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, rect.width, rect.height); hasSignature = false; }
 
     canvas.addEventListener("mousedown", startDrawing);
     canvas.addEventListener("mousemove", draw);
     window.addEventListener("mouseup", stopDrawing);
-
     canvas.addEventListener("touchstart", startDrawing, { passive: false });
     canvas.addEventListener("touchmove", draw, { passive: false });
     canvas.addEventListener("touchend", stopDrawing, { passive: false });
-
     clearSignatureBtn.addEventListener("click", clearSignature);
     window.addEventListener("resize", resizeCanvas);
 
-    // --- RECOPILACIÓN Y ENVÍO DE DATOS ---
     async function getPayload() {
       const equipos = [];
       document.querySelectorAll('.equipo-item').forEach(item => {
@@ -716,50 +620,23 @@
       const fotosPilonesData = await getBase64Files("fotoPilones");
 
       return {
-        comodatoNumero: value("comodatoNumero"),
-        fecha: value("fecha"),
-        tecnico: value("tecnico"),
-        distribuidor: value("distribuidor"),
-        codCliente: value("codCliente"),
-        cuit: value("cuit"),
-        nombreFantasia: value("nombreFantasia"),
-        razonSocial: value("razonSocial"),
-        domicilio: value("domicilio"),
-        localidad: value("localidad"),
-
-        equipos: equipos,
-        pilones: pilones,
-
-        regCornelius: numberValue("regCornelius"),
-        regMafridis: numberValue("regMafridis"),
-        llaveMixta: numberValue("llaveMixta"),
-        cabezalMM: numberValue("cabezalMM"),
-        mangueraCerveza: numberValue("mangueraCerveza"),
-        mangueraPython: numberValue("mangueraPython"),
-        canillaNiquelada: numberValue("canillaNiquelada"),
-        canillaAgua: numberValue("canillaAgua"),
-        transformador: numberValue("transformador"),
-        separadoresCanilla: numberValue("separadoresCanilla"),
-        conectorVasera: numberValue("conectorVasera"),
-        cantPicos: numberValue("cantPicos"),
-        medallones: numberValue("medallones"),
-        tuboGas: numberValue("tuboGas"),
-        vaseraRinser: numberValue("vaseraRinser"),
-        rinser: numberValue("rinser"),
-        mangueraDesague: numberValue("mangueraDesague"),
-
-        handle: value("handle"),
-        celli: value("celli"),
-        vasera: value("vasera"),
-        descripcion: value("descripcion"),
-
-        fotosEquipos: fotosEquiposData,
-        fotosPilones: fotosPilonesData,
-
-        aclaracion: value("aclaracion"),
-        dni: value("dni"),
-        firmaDataUrl: hasSignature ? canvas.toDataURL("image/png") : "",
-        aceptaTerminos: acceptTerms.checked
+        comodatoNumero: value("comodatoNumero"), fecha: value("fecha"), tecnico: value("tecnico"),
+        distribuidor: value("distribuidor"), codCliente: value("codCliente"), cuit: value("cuit"),
+        nombreFantasia: value("nombreFantasia"), razonSocial: value("razonSocial"), domicilio: value("domicilio"),
+        localidad: value("localidad"), equipos: equipos, pilones: pilones,
+        regCornelius: numberValue("regCornelius"), regMafridis: numberValue("regMafridis"),
+        llaveMixta: numberValue("llaveMixta"), cabezalMM: numberValue("cabezalMM"),
+        mangueraCerveza: numberValue("mangueraCerveza"), mangueraPython: numberValue("mangueraPython"),
+        canillaNiquelada: numberValue("canillaNiquelada"), canillaAgua: numberValue("canillaAgua"),
+        transformador: numberValue("transformador"), separadoresCanilla: numberValue("separadoresCanilla"),
+        conectorVasera: numberValue("conectorVasera"), cantPicos: numberValue("cantPicos"),
+        medallones: numberValue("medallones"), tuboGas: numberValue("tuboGas"),
+        vaseraRinser: numberValue("vaseraRinser"), rinser: numberValue("rinser"),
+        mangueraDesague: numberValue("mangueraDesague"), handle: value("handle"),
+        celli: value("celli"), vasera: value("vasera"), descripcion: value("descripcion"),
+        fotosEquipos: fotosEquiposData, fotosPilones: fotosPilonesData,
+        aclaracion: value("aclaracion"), dni: value("dni"),
+        firmaDataUrl: hasSignature ? canvas.toDataURL("image/png") : "", aceptaTerminos: acceptTerms.checked
       };
     }
 
@@ -773,7 +650,6 @@
       if (!acceptTerms.checked) return "Debés aceptar los términos y condiciones.";
       if (!payload.firmaDataUrl) return "La firma digital es obligatoria.";
       
-      // Validar pilones dinámicos
       for (let i = 0; i < payload.pilones.length; i++) {
         if (payload.pilones[i].tipo === "OTROS" && !payload.pilones[i].otros) {
           return `Debés completar la opción 'Otros' en el Pilón #${i + 1}.`;
@@ -802,37 +678,38 @@
       try {
         const response = await fetch(APP_SCRIPT_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(payload)
         });
 
         const result = await response.json();
-        debugLog("RESPONSE", result);
 
-        if (!result.ok) {
-          throw new Error(result.message || "No se pudo guardar.");
-        }
+        if (!result.ok) throw new Error(result.message || "No se pudo guardar.");
 
-        showStatus(
-          "Comodato guardado correctamente." +
-          (result.comodatoNumero ? " Número: " + result.comodatoNumero : "") +
-          (result.firmaUrl ? " Firma guardada en Drive." : "")
+        // Botón WhatsApp
+        const nombreFantasiaCliente = result.nombreFantasia ? result.nombreFantasia : "";
+        const mensajeWA = encodeURIComponent(
+          `Hola, te comparto el registro del comodato de la chopera. N° ${result.comodatoNumero} ${nombreFantasiaCliente}. Puedes ver el PDF aquí: ${result.pdfUrl}`
         );
+        const urlWhatsApp = `https://wa.me/?text=${mensajeWA}`;
 
-        form.reset();
-        setToday();
-        clearSignature();
-        renderEquipos(); // Resetea a 1 equipo
-        renderPilones(); // Resetea a 1 pilón
+        const mensajeExito = `
+          <div class="mb-3">
+            <strong>Comodato guardado correctamente.</strong><br>
+            Número: ${result.comodatoNumero}
+          </div>
+          <a href="${urlWhatsApp}" target="_blank" style="text-decoration: none;" class="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="mr-2" viewBox="0 0 16 16">
+              <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.004-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+            </svg>
+            Compartir por WhatsApp
+          </a>
+        `;
+        showStatus(mensajeExito);
+
+        form.reset(); setToday(); clearSignature(); renderEquipos(); renderPilones();
         await fetchNextNumber();
       } catch (error) {
-        setDebugError({
-          stage: "fetch-or-backend",
-          message: error.message,
-          stack: error.stack || ""
-        });
         showStatus("Error al guardar: " + error.message, true);
       } finally {
         submitBtn.disabled = false;
@@ -840,20 +717,14 @@
       }
     });
 
-    // --- INICIALIZACIÓN ---
     window.addEventListener('DOMContentLoaded', () => {
-      setToday();
-      fetchNextNumber();
-      renderEquipos();
-      renderPilones();
-      requestAnimationFrame(resizeCanvas);
+      setToday(); fetchNextNumber(); renderEquipos(); renderPilones(); requestAnimationFrame(resizeCanvas);
     });
   </script>
 
   <!-- SCRIPT LOGIN -->
   <script>
     const PAGE_PASSWORD = "ChoppCosta2026"; 
-
     function checkPassword() {
       const pass = document.getElementById("passwordInput").value;
       if(pass === PAGE_PASSWORD){
@@ -863,10 +734,8 @@
         document.getElementById("loginError").innerText = "Contraseña incorrecta";
       }
     }
-
     window.onload = function(){
-      const auth = sessionStorage.getItem("comodatosAuth");
-      if(auth === "ok"){
+      if(sessionStorage.getItem("comodatosAuth") === "ok"){
         document.getElementById("loginScreen").style.display = "none";
       }
     }
