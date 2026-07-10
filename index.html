@@ -841,6 +841,12 @@
       return div.innerHTML;
     }
 
+    function formatFecha_(fecha) {
+      const d = new Date(fecha);
+      if (isNaN(d.getTime())) return fecha;
+      return d.toLocaleDateString("es-AR");
+    }
+
     function renderMisComodatos(lista) {
       if (!lista.length) {
         misComodatosResultado.innerHTML = `<p class="small-note">No se encontraron comodatos para ese técnico.</p>`;
@@ -854,7 +860,7 @@
         );
         return `
           <div class="comodato-card">
-            <div class="num">${escapeHtml_(c.comodatoNumero)} — ${escapeHtml_(c.fecha)}</div>
+            <div class="num">${escapeHtml_(c.comodatoNumero)} — ${escapeHtml_(formatFecha_(c.fecha))}</div>
             <div class="text-sm text-gray-700">${escapeHtml_(cliente)}${c.distribuidor ? " · " + escapeHtml_(c.distribuidor) : ""}</div>
             ${ubicacion ? `<div class="text-xs text-gray-500">${escapeHtml_(ubicacion)}</div>` : ""}
             <div class="comodato-actions">
