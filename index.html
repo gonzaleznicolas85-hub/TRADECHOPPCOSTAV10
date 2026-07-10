@@ -146,6 +146,55 @@
       margin-top: 4px;
       transform: scale(1.15);
     }
+    .main-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .nav-btn {
+      flex: 1;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #374151;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font-weight: 800;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+    .nav-btn.active {
+      background: var(--brand);
+      color: white;
+      border-color: var(--brand);
+    }
+    .comodato-card {
+      background: white;
+      border: 1px solid #dbe3ec;
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .comodato-card .num {
+      font-weight: 800;
+      color: var(--brand);
+    }
+    .comodato-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .comodato-actions a {
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.45rem 0.8rem;
+      border-radius: 8px;
+    }
+    .link-pdf { background: #eff6ff; color: #1d4ed8; }
+    .link-wa { background: #ecfdf5; color: #047857; }
   </style>
 </head>
 <body>
@@ -173,7 +222,30 @@
       </div>
     </div>
 
+    <nav class="main-nav">
+      <button type="button" id="navNuevoBtn" class="nav-btn active">Nuevo Comodato</button>
+      <button type="button" id="navMisComodatosBtn" class="nav-btn">Mis Comodatos</button>
+    </nav>
+
     <div id="statusBox" class="status-box mb-5"></div>
+
+    <section id="viewMisComodatos" class="section-card overflow-hidden" style="display:none;">
+      <div class="section-title px-5 py-4">
+        <h2 class="text-lg md:text-xl font-bold">Mis Comodatos</h2>
+      </div>
+      <div class="p-4 md:p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+          <div>
+            <label class="field-label" for="misComodatosTecnico">Técnico</label>
+            <input id="misComodatosTecnico" list="misComodatosTecnicosList" type="text" class="field-input" placeholder="Escribí o elegí tu nombre" />
+            <datalist id="misComodatosTecnicosList"></datalist>
+          </div>
+          <button type="button" id="buscarMisComodatosBtn" class="submit-btn" style="width:auto;">Buscar</button>
+        </div>
+        <p class="small-note">Se guarda tu nombre en este dispositivo para la próxima vez.</p>
+        <div id="misComodatosResultado" class="space-y-3"></div>
+      </div>
+    </section>
 
     <form id="comodatoForm" class="space-y-6">
       
@@ -719,6 +791,112 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       setToday(); fetchNextNumber(); renderEquipos(); renderPilones(); requestAnimationFrame(resizeCanvas);
+    });
+
+    // --- NAVEGACIÓN ENTRE VISTAS ---
+    const navNuevoBtn = document.getElementById("navNuevoBtn");
+    const navMisComodatosBtn = document.getElementById("navMisComodatosBtn");
+    const viewMisComodatos = document.getElementById("viewMisComodatos");
+    const misComodatosTecnicoInput = document.getElementById("misComodatosTecnico");
+    const misComodatosTecnicosList = document.getElementById("misComodatosTecnicosList");
+    const buscarMisComodatosBtn = document.getElementById("buscarMisComodatosBtn");
+    const misComodatosResultado = document.getElementById("misComodatosResultado");
+    const TECNICO_STORAGE_KEY = "comodatos_tecnico_nombre";
+
+    function mostrarVista(vista) {
+      hideStatus();
+      if (vista === "misComodatos") {
+        form.style.display = "none";
+        viewMisComodatos.style.display = "block";
+        navMisComodatosBtn.classList.add("active");
+        navNuevoBtn.classList.remove("active");
+      } else {
+        form.style.display = "";
+        viewMisComodatos.style.display = "none";
+        navNuevoBtn.classList.add("active");
+        navMisComodatosBtn.classList.remove("active");
+      }
+    }
+
+    navNuevoBtn.addEventListener("click", () => mostrarVista("nuevo"));
+    navMisComodatosBtn.addEventListener("click", () => mostrarVista("misComodatos"));
+
+    async function cargarListaTecnicos() {
+      try {
+        const response = await fetch(APP_SCRIPT_URL + "?action=listTecnicos");
+        const result = await response.json();
+        if (result.ok && Array.isArray(result.tecnicos)) {
+          misComodatosTecnicosList.innerHTML = result.tecnicos
+            .map(t => `<option value="${escapeHtml_(t)}"></option>`)
+            .join("");
+        }
+      } catch (error) {
+        // silencioso: el datalist queda vacío, el input sigue siendo usable a mano
+      }
+    }
+
+    function escapeHtml_(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderMisComodatos(lista) {
+      if (!lista.length) {
+        misComodatosResultado.innerHTML = `<p class="small-note">No se encontraron comodatos para ese técnico.</p>`;
+        return;
+      }
+      misComodatosResultado.innerHTML = lista.map(c => {
+        const cliente = c.nombreFantasia || c.razonSocial || "Cliente sin nombre";
+        const ubicacion = [c.domicilio, c.localidad].filter(Boolean).join(", ");
+        const mensajeWA = encodeURIComponent(
+          `Hola, te comparto el registro del comodato de la chopera. N° ${c.comodatoNumero} ${cliente}. Puedes ver el PDF aquí: ${c.pdfUrl}`
+        );
+        return `
+          <div class="comodato-card">
+            <div class="num">${escapeHtml_(c.comodatoNumero)} — ${escapeHtml_(c.fecha)}</div>
+            <div class="text-sm text-gray-700">${escapeHtml_(cliente)}${c.distribuidor ? " · " + escapeHtml_(c.distribuidor) : ""}</div>
+            ${ubicacion ? `<div class="text-xs text-gray-500">${escapeHtml_(ubicacion)}</div>` : ""}
+            <div class="comodato-actions">
+              ${c.pdfUrl ? `<a class="link-pdf" href="${c.pdfUrl}" target="_blank">Ver PDF</a>` : ""}
+              ${c.pdfUrl ? `<a class="link-wa" href="https://wa.me/?text=${mensajeWA}" target="_blank">Compartir WhatsApp</a>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function buscarMisComodatos() {
+      const tecnico = misComodatosTecnicoInput.value.trim();
+      if (!tecnico) {
+        misComodatosResultado.innerHTML = `<p class="small-note">Ingresá tu nombre de técnico para buscar.</p>`;
+        return;
+      }
+      localStorage.setItem(TECNICO_STORAGE_KEY, tecnico);
+      misComodatosResultado.innerHTML = `<p class="small-note">Buscando...</p>`;
+      try {
+        const response = await fetch(APP_SCRIPT_URL + "?action=comodatosPorTecnico&tecnico=" + encodeURIComponent(tecnico));
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.message || "No se pudo obtener el listado.");
+        renderMisComodatos(result.comodatos || []);
+      } catch (error) {
+        misComodatosResultado.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      }
+    }
+
+    buscarMisComodatosBtn.addEventListener("click", buscarMisComodatos);
+    document.getElementById("tecnico").addEventListener("change", (e) => {
+      const nombre = e.target.value.trim();
+      if (nombre) localStorage.setItem(TECNICO_STORAGE_KEY, nombre);
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const tecnicoGuardado = localStorage.getItem(TECNICO_STORAGE_KEY);
+      if (tecnicoGuardado) {
+        misComodatosTecnicoInput.value = tecnicoGuardado;
+        document.getElementById("tecnico").value = tecnicoGuardado;
+      }
+      cargarListaTecnicos();
     });
   </script>
 
