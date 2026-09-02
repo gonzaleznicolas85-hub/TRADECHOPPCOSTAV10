@@ -203,6 +203,44 @@
     .link-wa { background: #ecfdf5; color: #047857; }
 
     /* --- MÓDULO SANITIZACIONES --- */
+    .tecnico-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tecnico-btn {
+      flex: 1 1 auto;
+      min-width: 0;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #374151;
+      border-radius: 999px;
+      padding: 0.55rem 0.9rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      line-height: 1.15;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    .tecnico-btn:hover { border-color: var(--brand); }
+    .tecnico-btn.is-active {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: white;
+    }
+    .tecnico-btn:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+    .tecnico-btn.btn-todos {
+      flex: 0 0 auto;
+      font-weight: 800;
+    }
+    @media (max-width: 480px) {
+      .tecnico-btn { font-size: 0.8rem; padding: 0.5rem 0.7rem; }
+    }
+
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -478,7 +516,8 @@
         <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
           <div>
             <label class="field-label" for="misComodatosTecnico">Técnico</label>
-            <select id="misComodatosTecnico" class="field-select"></select>
+            <input type="hidden" id="misComodatosTecnico" />
+            <div class="tecnico-picker" id="misComodatosTecnicoBotones" role="group" aria-label="Técnico"></div>
           </div>
           <button type="button" id="buscarMisComodatosBtn" class="submit-btn" style="width:auto;">Buscar</button>
         </div>
@@ -496,7 +535,8 @@
         <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
           <div>
             <label class="field-label" for="sanitTecnico">Técnico</label>
-            <select id="sanitTecnico" class="field-select"></select>
+            <input type="hidden" id="sanitTecnico" />
+            <div class="tecnico-picker" id="sanitTecnicoBotones" role="group" aria-label="Técnico"></div>
           </div>
           <button type="button" id="sanitRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
         </div>
@@ -627,7 +667,8 @@
           </div>
           <div>
             <label class="field-label" for="tecnico">Técnico</label>
-            <select id="tecnico" name="tecnico" class="field-select" required></select>
+            <input type="hidden" id="tecnico" name="tecnico" />
+            <div class="tecnico-picker" id="tecnicoBotones" role="group" aria-label="Técnico"></div>
           </div>
           <div>
             <label class="field-label" for="distribuidor">Distribuidor</label>
@@ -1139,6 +1180,10 @@
         showStatus(mensajeExito);
 
         form.reset(); setToday(); clearSignature(); renderEquipos(); renderPilones();
+        // reset() vacia el input oculto, pero el tecnico no cambia entre cargas
+        const tecnicoActivo = localStorage.getItem(TECNICO_STORAGE_KEY);
+        if (tecnicoActivo && TECNICOS.indexOf(tecnicoActivo) !== -1) fijarTecnico_(tecnicoActivo);
+        else sincronizarBotonesTecnico_();
         await fetchNextNumber();
       } catch (error) {
         showStatus("Error al guardar: " + error.message, true);
@@ -1196,20 +1241,74 @@
       "Ramon Lazarte"
     ];
 
-    /** Llena un <select> con los tecnicos y respeta el valor ya elegido. */
-    function poblarSelectTecnicos_(select, placeholder) {
-      if (!select) return;
-      const previo = select.value;
-      const opciones = [`<option value="">${escapeHtml_(placeholder)}</option>`]
-        .concat(TECNICOS.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`));
-      select.innerHTML = opciones.join("");
-      if (previo) select.value = previo;
+    /**
+     * Selector de tecnico como botones. Son seis nombres fijos, asi que se
+     * elige de un toque en vez de abrir un desplegable.
+     *
+     * El valor vive en un <input type="hidden"> con el id de siempre, y al
+     * cambiarlo se dispara "change", para que todo lo que ya escuchaba al
+     * selector siga funcionando igual.
+     *
+     * "todos" agrega un boton de valor vacio, que en Sanitizaciones es el que
+     * muestra el resumen general.
+     */
+    function montarBotonesTecnico_(inputId, contenedorId, opciones) {
+      const input = document.getElementById(inputId);
+      const contenedor = document.getElementById(contenedorId);
+      if (!input || !contenedor) return;
+
+      const config = opciones || {};
+      const lista = config.todos
+        ? [{ valor: "", etiqueta: config.etiquetaTodos || "Todos", clase: " btn-todos" }].concat(
+            TECNICOS.map(t => ({ valor: t, etiqueta: t, clase: "" })))
+        : TECNICOS.map(t => ({ valor: t, etiqueta: t, clase: "" }));
+
+      contenedor.innerHTML = lista.map(o => `
+        <button type="button" class="tecnico-btn${o.clase}" data-tecnico-valor="${escapeHtml_(o.valor)}"
+                aria-pressed="false">${escapeHtml_(o.etiqueta)}</button>
+      `).join("");
+
+      contenedor.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-tecnico-valor]");
+        if (!btn) return;
+        const valor = btn.getAttribute("data-tecnico-valor");
+        if (valor === input.value) return;
+        input.value = valor;
+        sincronizarBotonesTecnico_();
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+
+    /** Deja marcado en cada grupo el boton que coincide con su input. */
+    function sincronizarBotonesTecnico_() {
+      [["tecnico", "tecnicoBotones"],
+       ["misComodatosTecnico", "misComodatosTecnicoBotones"],
+       ["sanitTecnico", "sanitTecnicoBotones"]].forEach(par => {
+        const input = document.getElementById(par[0]);
+        const contenedor = document.getElementById(par[1]);
+        if (!input || !contenedor) return;
+        contenedor.querySelectorAll("[data-tecnico-valor]").forEach(btn => {
+          const activo = btn.getAttribute("data-tecnico-valor") === input.value;
+          btn.classList.toggle("is-active", activo);
+          btn.setAttribute("aria-pressed", String(activo));
+        });
+      });
+    }
+
+    /** Fija el tecnico en los tres grupos a la vez. */
+    function fijarTecnico_(nombre) {
+      ["tecnico", "misComodatosTecnico", "sanitTecnico"].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = nombre;
+      });
+      sincronizarBotonesTecnico_();
     }
 
     function cargarListaTecnicos() {
-      poblarSelectTecnicos_(document.getElementById("tecnico"), "Seleccionar...");
-      poblarSelectTecnicos_(misComodatosTecnicoInput, "Elegí tu nombre");
-      poblarSelectTecnicos_(document.getElementById("sanitTecnico"), "Elegí tu nombre");
+      montarBotonesTecnico_("tecnico", "tecnicoBotones", {});
+      montarBotonesTecnico_("misComodatosTecnico", "misComodatosTecnicoBotones", {});
+      montarBotonesTecnico_("sanitTecnico", "sanitTecnicoBotones", { todos: true, etiquetaTodos: "Todos" });
+      sincronizarBotonesTecnico_();
     }
 
     function escapeHtml_(text) {
@@ -1268,6 +1367,8 @@
     }
 
     buscarMisComodatosBtn.addEventListener("click", buscarMisComodatos);
+    // Con botones, elegir el nombre ya es la accion: no hace falta apretar Buscar
+    misComodatosTecnicoInput.addEventListener("change", buscarMisComodatos);
     document.getElementById("tecnico").addEventListener("change", (e) => {
       const nombre = e.target.value.trim();
       if (nombre) localStorage.setItem(TECNICO_STORAGE_KEY, nombre);
@@ -1277,9 +1378,7 @@
       cargarListaTecnicos();
       const tecnicoGuardado = localStorage.getItem(TECNICO_STORAGE_KEY);
       if (tecnicoGuardado && TECNICOS.indexOf(tecnicoGuardado) !== -1) {
-        misComodatosTecnicoInput.value = tecnicoGuardado;
-        document.getElementById("tecnico").value = tecnicoGuardado;
-        document.getElementById("sanitTecnico").value = tecnicoGuardado;
+        fijarTecnico_(tecnicoGuardado);
       }
     });
 
@@ -1800,8 +1899,10 @@
     // --- Listeners del módulo ---
     /** Abre el técnico elegido desde la vista general. */
     function sanitAbrirTecnico(nombre) {
-      sanitTecnicoSelect.value = nombre;
+      fijarTecnico_(nombre);
       localStorage.setItem(TECNICO_STORAGE_KEY, nombre);
+      sanitAbiertas = {};
+      sanitFiltroEstado.value = "PENDIENTES";
       cargarSanitizaciones();
     }
 
@@ -1840,7 +1941,10 @@
     });
 
     sanitTecnicoSelect.addEventListener("change", () => {
-      if (sanitTecnicoSelect.value) localStorage.setItem(TECNICO_STORAGE_KEY, sanitTecnicoSelect.value);
+      if (sanitTecnicoSelect.value) {
+        localStorage.setItem(TECNICO_STORAGE_KEY, sanitTecnicoSelect.value);
+        fijarTecnico_(sanitTecnicoSelect.value);
+      }
       sanitHistorialBox.innerHTML = "";
       sanitAbiertas = {};
       sanitFiltroEstado.value = "PENDIENTES";
