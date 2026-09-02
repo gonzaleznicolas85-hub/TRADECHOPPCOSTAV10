@@ -26,6 +26,30 @@ const CONFIG = {
   SANIT_PHOTOS_FOLDER_NAME: 'Fotos Sanitizaciones',
   SANIT_CICLO_DIAS: 28,
   SANIT_AVISO_DIAS: 7,
+  INTERVENCIONES_SHEET_NAME: 'Intervenciones',
+
+  // Por que no se pudo sanitizar. La visita queda registrada pero NO cuenta
+  // como sanitizacion: el ciclo de 28 dias sigue corriendo desde la ultima
+  // que si se hizo.
+  MOTIVOS_FALLA: [
+    'PDV cerrado',
+    'Equipo fuera de servicio',
+    'No autorizaron el ingreso',
+    'Falta de repuesto',
+    'Otro'
+  ],
+
+  TIPOS_INTERVENCION: [
+    'Arreglo de equipo',
+    'Cambio de manguera',
+    'Cambio de canilla',
+    'Cambio de pilón',
+    'Cambio de tubo de gas',
+    'Cambio de regulador',
+    'Instalación',
+    'Retiro de equipo',
+    'Otro'
+  ],
   TECNICOS: [
     'Gaston del Rio',
     'Federico Barbutti',
@@ -57,6 +81,12 @@ const SANIT_HEADERS = [
   'ComodatoNumero', 'Origen',
   'CheckIn', 'CheckOut', 'MinutosEnPdv',
   'Observaciones', 'FotosUrls', 'Estado', 'ProximaSanitizacion', 'Timestamp'
+];
+
+// Encabezados del registro de arreglos y cambios sobre las choperas
+const INTERVENCIONES_HEADERS = [
+  'IntervencionId', 'Fecha', 'Tecnico', 'Cliente', 'Tipo',
+  'Detalle', 'Repuestos', 'FotosUrls', 'Estado', 'Timestamp'
 ];
 
 // Encabezados del padrón manual de clientes a sanitizar
@@ -135,6 +165,17 @@ function doGet(e) {
       return jsonOutput_({ ok: true, tecnico: t, resumen: getResumenSanitizacion_(t) });
     }
 
+    if (action === 'choperas') {
+      const t = resolveTecnico_(e.parameter.tecnico);
+      return jsonOutput_({
+        ok: true,
+        tecnico: t,
+        choperas: getChoperas_(t),
+        motivos: CONFIG.MOTIVOS_FALLA,
+        tiposIntervencion: CONFIG.TIPOS_INTERVENCION
+      });
+    }
+
     if (action === 'sanitHistorial') {
       const t = resolveTecnico_(e.parameter.tecnico);
       return jsonOutput_({ ok: true, tecnico: t, historial: getHistorialSanitizacion_(t) });
@@ -166,6 +207,10 @@ function doPost(e) {
       case 'sanitCheckIn':    return jsonOutput_(sanitCheckIn_(body));
       case 'sanitCheckOut':   return jsonOutput_(sanitCheckOut_(body));
       case 'sanitAltaCliente':return jsonOutput_(sanitAltaCliente_(body));
+      case 'sanitVisitaFallida': return jsonOutput_(sanitVisitaFallida_(body));
+      case 'guardarChopera':  return jsonOutput_(guardarChopera_(body));
+      case 'nuevaIntervencion': return jsonOutput_(nuevaIntervencion_(body));
+      case 'cerrarIntervencion': return jsonOutput_(cerrarIntervencion_(body));
       case 'sanitBajaCliente':return jsonOutput_(sanitBajaCliente_(body));
     }
 
@@ -729,6 +774,7 @@ function escribirCabecera_(sheet, headers) {
 function crearHojasSanitizacion() {
   CONFIG.TECNICOS.forEach(t => getSanitSheet_(t));
   getClientesSheet_();
+  getIntervencionesSheet_();
   Logger.log('Hojas de sanitización listas.');
 }
 
@@ -881,14 +927,34 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
   // C) Cruce con el historial de sanitizaciones
   const ultima = {};
   const abierta = {};
+  const fallidas = {};
   sanitRows.forEach(r => {
     const key = norm_(r.Cliente);
     if (!key) return;
     if (!mapa[key]) push_(r.Cliente, r.Direccion, r.Localidad, safe_(r.Origen) || 'MANUAL', r.ComodatoNumero, null, null);
-    if (norm_(r.Estado) === 'en curso') {
+
+    const estado = norm_(r.Estado);
+
+    if (estado === 'en curso') {
       abierta[key] = { sanitizacionId: safe_(r.SanitizacionId), checkIn: toDate_(r.CheckIn) };
       return;
     }
+
+    // Una visita fallida deja constancia de que el tecnico fue, pero NO es una
+    // sanitizacion: el ciclo sigue corriendo desde la ultima que si se hizo.
+    if (estado === 'no realizada') {
+      const cuando = toDate_(r.CheckOut) || toDate_(r.CheckIn);
+      if (!fallidas[key]) fallidas[key] = { cantidad: 0, ultima: null, motivo: '' };
+      fallidas[key].cantidad++;
+      if (cuando && (!fallidas[key].ultima || cuando > fallidas[key].ultima)) {
+        fallidas[key].ultima = cuando;
+        fallidas[key].motivo = safe_(r.Observaciones);
+      }
+      return;
+    }
+
+    if (estado !== 'completada') return;
+
     const fin = toDate_(r.CheckOut);
     if (fin && (!ultima[key] || fin > ultima[key])) ultima[key] = fin;
   });
@@ -900,6 +966,9 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
   return Object.keys(mapa).map(key => {
     const c = mapa[key];
     const ult = ultima[key] || null;
+    const falla = fallidas[key] || null;
+    // Solo interesan las fallidas posteriores a la ultima sanitizacion hecha
+    const fallaVigente = falla && falla.ultima && (!ult || falla.ultima > ult) ? falla : null;
     const base = ult || c.fechaBase;
     const prox = base ? addDays_(base, ciclo) : null;
     const dias = prox ? diffDays_(hoy, prox) : null;
@@ -925,7 +994,10 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
       diasRestantes: dias,
       estado: estado,
       sanitizacionAbiertaId: abierta[key] ? abierta[key].sanitizacionId : '',
-      checkInAbierto: abierta[key] ? isoDateTime_(abierta[key].checkIn) : ''
+      checkInAbierto: abierta[key] ? isoDateTime_(abierta[key].checkIn) : '',
+      visitasFallidas: fallaVigente ? fallaVigente.cantidad : 0,
+      ultimaVisitaFallida: fallaVigente ? isoDate_(fallaVigente.ultima) : '',
+      motivoUltimaFalla: fallaVigente ? fallaVigente.motivo : ''
     };
   }).sort((a, b) => {
     const orden = { 'EN CURSO': 0, 'VENCIDO': 1, 'POR VENCER': 2, 'SIN REGISTRO': 3, 'AL DIA': 4 };
@@ -1331,4 +1403,294 @@ function limpiarPruebasClaude() {
   const texto = log.join('\n');
   Logger.log(texto);
   return texto;
+}
+
+/* ==========================================================================
+ * 9. VISITAS FALLIDAS, CHOPERAS E INTERVENCIONES
+ * ========================================================================== */
+
+/** Hoja unica de arreglos y cambios, con columna Tecnico. */
+function getIntervencionesSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.INTERVENCIONES_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.INTERVENCIONES_SHEET_NAME);
+  escribirCabecera_(sheet, INTERVENCIONES_HEADERS);
+  return sheet;
+}
+
+/** Lee las intervenciones como objetos, opcionalmente filtradas por tecnico. */
+function readIntervenciones_(tecnico) {
+  const sheet = getIntervencionesSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const filtro = tecnico ? norm_(tecnico) : '';
+  const values = sheet.getRange(2, 1, lastRow - 1, INTERVENCIONES_HEADERS.length).getValues();
+
+  const filas = [];
+  values.forEach((fila, i) => {
+    const obj = { _row: i + 2 };
+    INTERVENCIONES_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
+    if (filtro && norm_(obj.Tecnico) !== filtro) return;
+    filas.push(obj);
+  });
+  return filas;
+}
+
+/**
+ * Registra que el tecnico fue al PDV y no pudo sanitizar.
+ *
+ * Queda como una fila mas del historial, con Estado NO REALIZADA. Al no ser
+ * COMPLETADA, getCarteraSanitizacion_ no la toma como sanitizacion y el ciclo
+ * de 28 dias sigue corriendo desde la ultima que si se hizo. Eso es todo el
+ * punto: sin esto, el PDV que nunca se deja atender es indistinguible del
+ * tecnico que no fue.
+ *
+ * Si venia de un check-in abierto, cierra esa fila. Si no, crea una nueva.
+ */
+function sanitVisitaFallida_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const cliente = safe_(body.cliente).trim();
+    const motivo = safe_(body.motivo).trim();
+    if (!cliente) throw new Error('Falta el cliente.');
+    if (!motivo) throw new Error('Hay que indicar por qué no se pudo sanitizar.');
+
+    const detalle = safe_(body.detalle).trim();
+    const observacion = detalle ? motivo + ' — ' + detalle : motivo;
+    const sheet = getSanitSheet_(tecnico);
+    const ahora = new Date();
+    const id = safe_(body.sanitizacionId).trim();
+
+    if (id) {
+      const fila = readSanitRows_(tecnico).filter(r => safe_(r.SanitizacionId) === id)[0];
+      if (!fila) throw new Error('No se encontró la sanitización ' + id);
+      if (norm_(fila.Estado) !== 'en curso') throw new Error('Esa sanitización ya está cerrada.');
+
+      const inicio = toDate_(fila.CheckIn) || ahora;
+      const col = h => SANIT_HEADERS.indexOf(h) + 1;
+      sheet.getRange(fila._row, col('CheckOut')).setValue(ahora);
+      sheet.getRange(fila._row, col('MinutosEnPdv')).setValue(
+        Math.max(1, Math.round((ahora.getTime() - inicio.getTime()) / 60000)));
+      sheet.getRange(fila._row, col('Observaciones')).setValue(observacion);
+      sheet.getRange(fila._row, col('Estado')).setValue('NO REALIZADA');
+
+      return { ok: true, message: 'Visita registrada como no realizada.', sanitizacionId: id };
+    }
+
+    const nuevoId = 'SAN-' + ahora.getTime().toString(36).toUpperCase();
+    sheet.appendRow([
+      nuevoId, tecnico, cliente, safe_(body.direccion), safe_(body.localidad),
+      safe_(body.comodatoNumero), safe_(body.origen) || 'MANUAL',
+      ahora, ahora, 0,
+      observacion, '', 'NO REALIZADA', '', ahora
+    ]);
+
+    return { ok: true, message: 'Visita registrada como no realizada.', sanitizacionId: nuevoId };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Vista "Mis Choperas": la cartera del tecnico con el estado de comodato, el
+ * de sanitizacion, los datos del equipo y las intervenciones de cada PDV.
+ */
+function getChoperas_(tecnico) {
+  const cartera = getCarteraSanitizacion_(tecnico);
+  const intervenciones = readIntervenciones_(tecnico);
+
+  const porCliente = {};
+  intervenciones.forEach(i => {
+    const key = norm_(i.Cliente);
+    if (!key) return;
+    if (!porCliente[key]) porCliente[key] = [];
+    porCliente[key].push({
+      intervencionId: safe_(i.IntervencionId),
+      fecha: isoDate_(toDate_(i.Fecha)),
+      tipo: safe_(i.Tipo),
+      detalle: safe_(i.Detalle),
+      repuestos: safe_(i.Repuestos),
+      fotosUrls: safe_(i.FotosUrls),
+      estado: safe_(i.Estado) || 'RESUELTO',
+      _orden: toDate_(i.Fecha) ? toDate_(i.Fecha).getTime() : 0
+    });
+  });
+
+  Object.keys(porCliente).forEach(k => porCliente[k].sort((a, b) => b._orden - a._orden));
+
+  return cartera.map(c => {
+    const lista = porCliente[norm_(c.cliente)] || [];
+    const pendientes = lista.filter(i => norm_(i.estado) === 'pendiente');
+
+    return {
+      cliente: c.cliente,
+      direccion: c.direccion,
+      localidad: c.localidad,
+      origen: c.origen,
+      tieneComodato: !!c.comodatoNumero,
+      comodatoNumero: c.comodatoNumero,
+      equipo: c.equipo,
+      pilon: c.pilon,
+      cantPicos: c.cantPicos,
+      estadoSanitizacion: c.estado,
+      sanitizado: c.estado === 'AL DIA',
+      ultimaSanitizacion: c.ultimaSanitizacion,
+      proximaSanitizacion: c.proximaSanitizacion,
+      diasRestantes: c.diasRestantes,
+      visitasFallidas: c.visitasFallidas,
+      motivoUltimaFalla: c.motivoUltimaFalla,
+      intervenciones: lista,
+      intervencionesPendientes: pendientes.length
+    };
+  });
+}
+
+/**
+ * Alta o edicion de los datos de una chopera.
+ *
+ * Todo se guarda en Clientes_Sanitizacion, que funciona como capa de estado
+ * actual: lo que se cargue ahi pisa lo que traiga el comodato. El comodato no
+ * se toca nunca, es el registro firmado.
+ *
+ * Renombrar solo se permite en clientes sin comodato. Si el cliente vino de un
+ * comodato, el nombre lo manda el comodato: cambiarlo aca partiria la cartera
+ * en dos (el nombre viejo seguiria llegando desde la hoja de comodatos).
+ */
+function guardarChopera_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const original = safe_(body.clienteOriginal).trim();
+    const cliente = safe_(body.cliente).trim();
+    if (!cliente) throw new Error('El nombre del cliente no puede quedar vacío.');
+
+    const renombra = original && norm_(original) !== norm_(cliente);
+
+    if (renombra) {
+      const comodatos = leerComodatosAgrupados_()[norm_(tecnico)] || [];
+      const tieneComodato = comodatos.some(
+        c => norm_(c.nombreFantasia || c.razonSocial) === norm_(original));
+      if (tieneComodato) {
+        return {
+          ok: false,
+          message: 'Ese cliente viene de un comodato: el nombre sale de ahí y no se puede cambiar desde acá. ' +
+                   'Si está mal escrito, hay que corregirlo en la hoja de comodatos.'
+        };
+      }
+    }
+
+    const sheet = getClientesSheet_();
+    const lastRow = sheet.getLastRow();
+    const buscado = norm_(original || cliente);
+    let fila = 0;
+
+    if (lastRow >= 2) {
+      const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
+      for (let i = 0; i < rows.length; i++) {
+        if (norm_(rows[i][0]) === norm_(tecnico) && norm_(rows[i][1]) === buscado) { fila = i + 2; break; }
+      }
+    }
+
+    const valores = [
+      tecnico, cliente, safe_(body.direccion).trim(), safe_(body.localidad).trim(), 'SI',
+      new Date(), safe_(body.equipo).trim(), safe_(body.pilon).trim(), toNumber_(body.cantPicos)
+    ];
+
+    if (fila) {
+      // La fecha de alta original no se pisa: es el punto de partida del ciclo
+      const altaPrevia = sheet.getRange(fila, CLIENTES_HEADERS.indexOf('FechaAlta') + 1).getValue();
+      if (altaPrevia) valores[5] = altaPrevia;
+      sheet.getRange(fila, 1, 1, CLIENTES_HEADERS.length).setValues([valores]);
+    } else {
+      sheet.appendRow(valores);
+    }
+
+    if (renombra) propagarRenombre_(tecnico, original, cliente);
+
+    return { ok: true, message: 'Chopera actualizada.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Al renombrar un cliente sin comodato, su historial tiene que seguirlo. */
+function propagarRenombre_(tecnico, viejo, nuevo) {
+  const sanitSheet = getSanitSheet_(tecnico);
+  const colCliente = SANIT_HEADERS.indexOf('Cliente') + 1;
+  readSanitRows_(tecnico).forEach(r => {
+    if (norm_(r.Cliente) === norm_(viejo)) sanitSheet.getRange(r._row, colCliente).setValue(nuevo);
+  });
+
+  const intSheet = getIntervencionesSheet_();
+  const colIntCliente = INTERVENCIONES_HEADERS.indexOf('Cliente') + 1;
+  readIntervenciones_(tecnico).forEach(i => {
+    if (norm_(i.Cliente) === norm_(viejo)) intSheet.getRange(i._row, colIntCliente).setValue(nuevo);
+  });
+}
+
+/** Registra un arreglo o cambio sobre la chopera de un PDV. */
+function nuevaIntervencion_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const cliente = safe_(body.cliente).trim();
+    const tipo = safe_(body.tipo).trim();
+    if (!cliente) throw new Error('Falta el cliente.');
+    if (!tipo) throw new Error('Falta el tipo de intervención.');
+
+    const ahora = new Date();
+    const id = 'INT-' + ahora.getTime().toString(36).toUpperCase();
+    const estado = norm_(body.estado) === 'pendiente' ? 'PENDIENTE' : 'RESUELTO';
+
+    let urls = '';
+    if (body.fotos && body.fotos.length) {
+      urls = savePhotos_(getIntervencionPhotosFolder_(tecnico), body.fotos, id);
+    }
+
+    getIntervencionesSheet_().appendRow([
+      id, ahora, tecnico, cliente, tipo,
+      safe_(body.detalle).trim(), safe_(body.repuestos).trim(), urls, estado, ahora
+    ]);
+
+    return { ok: true, message: 'Intervención registrada.', intervencionId: id, estado: estado };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Marca como resuelta una intervencion que habia quedado pendiente. */
+function cerrarIntervencion_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const id = safe_(body.intervencionId).trim();
+    if (!id) throw new Error('Falta el ID de la intervención.');
+
+    const fila = readIntervenciones_(tecnico).filter(i => safe_(i.IntervencionId) === id)[0];
+    if (!fila) throw new Error('No se encontró la intervención ' + id);
+    if (norm_(fila.Estado) === 'resuelto') return { ok: false, message: 'Esa intervención ya estaba resuelta.' };
+
+    getIntervencionesSheet_()
+      .getRange(fila._row, INTERVENCIONES_HEADERS.indexOf('Estado') + 1)
+      .setValue('RESUELTO');
+
+    return { ok: true, message: 'Intervención marcada como resuelta.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Carpeta de fotos de intervenciones, con subcarpeta por tecnico. */
+function getIntervencionPhotosFolder_(tecnico) {
+  const base = getPhotosParentFolder_();
+  const raiz = base.getFoldersByName('Fotos Intervenciones');
+  const parent = raiz.hasNext() ? raiz.next() : base.createFolder('Fotos Intervenciones');
+  const sub = parent.getFoldersByName(tecnico);
+  return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
 }

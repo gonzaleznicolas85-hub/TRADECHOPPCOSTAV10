@@ -415,6 +415,26 @@
     .badge-origen { background: #f1f5f9; color: #64748b; }
     .badge-sincomodato { background: #fef3c7; color: #92400e; }
 
+    .btn-fallida {
+      border: 1px solid #f59e0b;
+      background: white;
+      color: #b45309;
+      border-radius: 10px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-fallida:hover { background: #fffbeb; }
+    .sanit-fallidas {
+      font-size: 0.82rem;
+      color: #b45309;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.35rem 0.55rem;
+    }
+
     .btn-comodato {
       border: 1px solid var(--brand);
       background: white;
@@ -517,6 +537,7 @@
       <button type="button" id="navNuevoBtn" class="nav-btn active">Nuevo Comodato</button>
       <button type="button" id="navMisComodatosBtn" class="nav-btn">Mis Comodatos</button>
       <button type="button" id="navSanitizacionesBtn" class="nav-btn">Sanitizaciones</button>
+      <button type="button" id="navChoperasBtn" class="nav-btn">Mis Choperas</button>
     </nav>
 
     <div id="statusBox" class="status-box mb-5"></div>
@@ -585,6 +606,124 @@
       </div>
     </section>
 
+    <section id="viewChoperas" class="section-card overflow-hidden" style="display:none;">
+      <div class="section-title px-5 py-4">
+        <h2 class="text-lg md:text-xl font-bold">Mis Choperas</h2>
+      </div>
+      <div class="p-4 md:p-5 space-y-5">
+
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+          <div>
+            <label class="field-label">Técnico</label>
+            <input type="hidden" id="choperasTecnico" />
+            <div class="tecnico-picker" id="choperasTecnicoBotones" role="group" aria-label="Técnico"></div>
+          </div>
+          <button type="button" id="choperasRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
+        </div>
+
+        <div id="choperasResumen" class="kpi-grid"></div>
+
+        <div class="sanit-toolbar">
+          <div>
+            <label class="field-label" for="choperasBuscar">Buscar</label>
+            <input id="choperasBuscar" type="text" class="field-input" placeholder="Cliente, equipo o localidad" />
+          </div>
+          <div>
+            <label class="field-label" for="choperasFiltro">Ver</label>
+            <select id="choperasFiltro" class="field-select">
+              <option value="TODAS">Todas</option>
+              <option value="SIN COMODATO">Sin comodato</option>
+              <option value="CON COMODATO">Con comodato</option>
+              <option value="SIN SANITIZAR">Sin sanitizar al día</option>
+              <option value="PENDIENTES">Con problemas pendientes</option>
+            </select>
+          </div>
+          <button type="button" id="choperasNuevaBtn" class="secondary-btn">+ Agregar chopera</button>
+        </div>
+
+        <div id="choperasLista" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- MODAL: EDITAR / AGREGAR CHOPERA -->
+    <div id="choperaEditarModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3 id="choperaEditarTitulo">Editar chopera</h3>
+        <p id="choperaEditarAviso" class="small-note mt-1"></p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="choperaEditCliente">Cliente</label>
+            <input id="choperaEditCliente" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="choperaEditDireccion">Dirección</label>
+            <input id="choperaEditDireccion" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="choperaEditLocalidad">Localidad</label>
+            <input id="choperaEditLocalidad" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="choperaEditEquipo">Equipo</label>
+            <input id="choperaEditEquipo" type="text" class="field-input" placeholder="Marca y modelo" />
+          </div>
+          <div>
+            <label class="field-label" for="choperaEditPilon">Pilón</label>
+            <input id="choperaEditPilon" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="choperaEditPicos">Cantidad de picos</label>
+            <input id="choperaEditPicos" type="number" min="0" step="1" inputmode="numeric" class="field-input" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="choperaEditCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="choperaEditGuardar" class="submit-btn" style="width:auto;">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NUEVA INTERVENCIÓN -->
+    <div id="intervencionModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>Arreglo o cambio</h3>
+        <p id="intervencionCliente" class="text-sm text-gray-600 mt-1"></p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="intervencionTipo">Tipo</label>
+            <select id="intervencionTipo" class="field-select"></select>
+          </div>
+          <div>
+            <label class="field-label" for="intervencionDetalle">Detalle</label>
+            <textarea id="intervencionDetalle" rows="3" class="field-input" placeholder="Qué se hizo o qué falta"></textarea>
+          </div>
+          <div>
+            <label class="field-label" for="intervencionRepuestos">Repuestos usados</label>
+            <input id="intervencionRepuestos" type="text" class="field-input" placeholder="Ej: 2 m manguera cerveza, 1 canilla" />
+          </div>
+          <div>
+            <label class="field-label" for="intervencionEstado">Estado</label>
+            <select id="intervencionEstado" class="field-select">
+              <option value="RESUELTO">Resuelto</option>
+              <option value="PENDIENTE">Pendiente</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="intervencionFotos">Fotos</label>
+            <input id="intervencionFotos" type="file" accept="image/*" multiple capture="environment" class="field-input" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="intervencionCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="intervencionGuardar" class="submit-btn" style="width:auto;">Registrar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- MODAL: CHECK-OUT -->
     <div id="sanitCheckoutModal" class="modal-backdrop" style="display:none;">
       <div class="modal-box">
@@ -607,7 +746,36 @@
 
         <div class="modal-actions">
           <button type="button" id="sanitCheckoutCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="sanitCheckoutFallida" class="btn-fallida">No se pudo</button>
           <button type="button" id="sanitCheckoutConfirmar" class="btn-checkout">Confirmar check-out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: VISITA FALLIDA -->
+    <div id="sanitFallidaModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>No se pudo sanitizar</h3>
+        <p id="sanitFallidaCliente" class="text-sm text-gray-600 mt-1"></p>
+        <p class="small-note mt-2">
+          Queda registrado que fuiste, pero no cuenta como sanitización: el ciclo de 28 días
+          sigue corriendo desde la última que sí se hizo.
+        </p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="sanitFallidaMotivo">Motivo</label>
+            <select id="sanitFallidaMotivo" class="field-select"></select>
+          </div>
+          <div>
+            <label class="field-label" for="sanitFallidaDetalle">Detalle (opcional)</label>
+            <textarea id="sanitFallidaDetalle" rows="2" class="field-input" placeholder="Lo que quieras aclarar"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="sanitFallidaCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="sanitFallidaConfirmar" class="btn-fallida">Registrar visita</button>
         </div>
       </div>
     </div>
@@ -1221,13 +1389,16 @@
 
     const navSanitizacionesBtn = document.getElementById("navSanitizacionesBtn");
     const viewSanitizaciones = document.getElementById("viewSanitizaciones");
+    const navChoperasBtn = document.getElementById("navChoperasBtn");
+    const viewChoperas = document.getElementById("viewChoperas");
 
     function mostrarVista(vista) {
       hideStatus();
       const vistas = {
         nuevo: { el: form, btn: navNuevoBtn },
         misComodatos: { el: viewMisComodatos, btn: navMisComodatosBtn },
-        sanitizaciones: { el: viewSanitizaciones, btn: navSanitizacionesBtn }
+        sanitizaciones: { el: viewSanitizaciones, btn: navSanitizacionesBtn },
+        choperas: { el: viewChoperas, btn: navChoperasBtn }
       };
       const activa = vistas[vista] ? vista : "nuevo";
 
@@ -1238,11 +1409,13 @@
       });
 
       if (activa === "sanitizaciones") cargarSanitizaciones();
+      if (activa === "choperas") cargarChoperas();
     }
 
     navNuevoBtn.addEventListener("click", () => mostrarVista("nuevo"));
     navMisComodatosBtn.addEventListener("click", () => mostrarVista("misComodatos"));
     navSanitizacionesBtn.addEventListener("click", () => mostrarVista("sanitizaciones"));
+    navChoperasBtn.addEventListener("click", () => mostrarVista("choperas"));
 
     // Lista fija de tecnicos. Debe coincidir exactamente con CONFIG.TECNICOS del Code.gs.
     const TECNICOS = [
@@ -1296,7 +1469,8 @@
     function sincronizarBotonesTecnico_() {
       [["tecnico", "tecnicoBotones"],
        ["misComodatosTecnico", "misComodatosTecnicoBotones"],
-       ["sanitTecnico", "sanitTecnicoBotones"]].forEach(par => {
+       ["sanitTecnico", "sanitTecnicoBotones"],
+       ["choperasTecnico", "choperasTecnicoBotones"]].forEach(par => {
         const input = document.getElementById(par[0]);
         const contenedor = document.getElementById(par[1]);
         if (!input || !contenedor) return;
@@ -1310,7 +1484,7 @@
 
     /** Fija el tecnico en los tres grupos a la vez. */
     function fijarTecnico_(nombre) {
-      ["tecnico", "misComodatosTecnico", "sanitTecnico"].forEach(id => {
+      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico"].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.value = nombre;
       });
@@ -1321,6 +1495,7 @@
       montarBotonesTecnico_("tecnico", "tecnicoBotones", {});
       montarBotonesTecnico_("misComodatosTecnico", "misComodatosTecnicoBotones", {});
       montarBotonesTecnico_("sanitTecnico", "sanitTecnicoBotones", { todos: true, etiquetaTodos: "Todos" });
+      montarBotonesTecnico_("choperasTecnico", "choperasTecnicoBotones", {});
       sincronizarBotonesTecnico_();
     }
 
@@ -1417,6 +1592,14 @@
     const sanitCheckoutConfirmar = document.getElementById("sanitCheckoutConfirmar");
     const sanitCheckoutCancelar = document.getElementById("sanitCheckoutCancelar");
 
+    const sanitCheckoutFallidaBtn = document.getElementById("sanitCheckoutFallida");
+    const sanitFallidaModal = document.getElementById("sanitFallidaModal");
+    const sanitFallidaClienteBox = document.getElementById("sanitFallidaCliente");
+    const sanitFallidaMotivo = document.getElementById("sanitFallidaMotivo");
+    const sanitFallidaDetalle = document.getElementById("sanitFallidaDetalle");
+    const sanitFallidaConfirmar = document.getElementById("sanitFallidaConfirmar");
+    const sanitFallidaCancelar = document.getElementById("sanitFallidaCancelar");
+
     const sanitAltaModal = document.getElementById("sanitAltaModal");
     const sanitAltaBtn = document.getElementById("sanitAltaBtn");
     const sanitAltaClienteInput = document.getElementById("sanitAltaCliente");
@@ -1436,6 +1619,16 @@
     let sanitAbiertas = {};
     let sanitVistaGeneral = false;
     let sanitCheckoutActual = null;
+    let sanitFallidaActual = null;
+
+    // Debe coincidir con CONFIG.MOTIVOS_FALLA del Code.gs
+    const MOTIVOS_FALLA = [
+      "PDV cerrado",
+      "Equipo fuera de servicio",
+      "No autorizaron el ingreso",
+      "Falta de repuesto",
+      "Otro"
+    ];
     let sanitTickId = null;
     let sanitCargando = false;
 
@@ -1657,6 +1850,12 @@
         const abierta = !!sanitAbiertas[item.cliente];
         const detalle = sanitRenderDetalle_(item);
         const sinComodato = !item.comodatoNumero;
+        const avisoFallidas = item.visitasFallidas
+          ? `<div class="sanit-fallidas">${item.visitasFallidas} visita(s) sin poder sanitizar desde la última${item.motivoUltimaFalla ? " · " + escapeHtml_(item.motivoUltimaFalla) : ""}</div>`
+          : "";
+        const botonFallida = enCurso
+          ? ""
+          : `<button type="button" class="btn-fallida" data-fallida="${escapeHtml_(item.cliente)}">No se pudo</button>`;
         const botonComodato = sinComodato
           ? `<button type="button" class="btn-comodato" data-hacer-comodato="${escapeHtml_(item.cliente)}">Hacer comodato</button>`
           : "";
@@ -1684,7 +1883,8 @@
             ${choperaHtml}
             ${cronometro}
             <div class="sanit-meta">${escapeHtml_(textoDias_(item))}<span class="badge ${sinComodato ? "badge-sincomodato" : "badge-origen"} ml-2">${sinComodato ? "Sin comodato" : escapeHtml_(item.origen)}</span></div>
-            <div class="sanit-actions">${boton}${botonComodato}</div>
+            ${avisoFallidas}
+            <div class="sanit-actions">${boton}${botonFallida}${botonComodato}</div>
             ${detalle}
           </div>
         `;
@@ -1916,6 +2116,56 @@
     }
 
     // --- Listeners del módulo ---
+    /** Abre el modal para registrar que no se pudo sanitizar. */
+    function sanitAbrirFallida(cliente, sanitizacionId) {
+      const item = sanitCartera.filter(c => c.cliente === cliente)[0];
+      if (!item) return;
+
+      sanitFallidaActual = { item: item, sanitizacionId: sanitizacionId || "" };
+      sanitFallidaClienteBox.textContent = item.cliente;
+      sanitFallidaMotivo.innerHTML = MOTIVOS_FALLA
+        .map(m => `<option value="${escapeHtml_(m)}">${escapeHtml_(m)}</option>`).join("");
+      sanitFallidaDetalle.value = "";
+      sanitFallidaConfirmar.disabled = false;
+      sanitFallidaConfirmar.textContent = "Registrar visita";
+      sanitFallidaModal.style.display = "flex";
+    }
+
+    async function sanitConfirmarFallida() {
+      if (!sanitFallidaActual) return;
+      const item = sanitFallidaActual.item;
+
+      sanitFallidaConfirmar.disabled = true;
+      sanitFallidaConfirmar.textContent = "Guardando...";
+
+      try {
+        const result = await sanitPost_({
+          action: "sanitVisitaFallida",
+          tecnico: sanitTecnicoSelect.value,
+          cliente: item.cliente,
+          direccion: item.direccion,
+          localidad: item.localidad,
+          comodatoNumero: item.comodatoNumero,
+          origen: item.origen,
+          motivo: sanitFallidaMotivo.value,
+          detalle: sanitFallidaDetalle.value.trim(),
+          sanitizacionId: sanitFallidaActual.sanitizacionId
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo registrar la visita.");
+
+        sanitFallidaModal.style.display = "none";
+        sanitCheckoutModal.style.display = "none";
+        sanitFallidaActual = null;
+        sanitCheckoutActual = null;
+        showStatus("Visita registrada en " + escapeHtml_(item.cliente) + ". El ciclo de 28 días no se reinicia.");
+        await cargarSanitizaciones();
+      } catch (error) {
+        showStatus("Error al registrar la visita: " + error.message, true);
+        sanitFallidaConfirmar.disabled = false;
+        sanitFallidaConfirmar.textContent = "Registrar visita";
+      }
+    }
+
     /**
      * Lleva a "Nuevo Comodato" con los datos del cliente ya puestos.
      *
@@ -1967,6 +2217,9 @@
 
       const checkout = e.target.closest("[data-checkout]");
       if (checkout) { sanitAbrirCheckout(Number(checkout.getAttribute("data-checkout"))); return; }
+
+      const fallida = e.target.closest("[data-fallida]");
+      if (fallida) { sanitAbrirFallida(fallida.getAttribute("data-fallida"), ""); return; }
 
       const hacerComodato = e.target.closest("[data-hacer-comodato]");
       if (hacerComodato) { sanitHacerComodato(hacerComodato.getAttribute("data-hacer-comodato")); return; }
@@ -2040,6 +2293,18 @@
     sanitBuscarInput.addEventListener("input", sanitDebounce_(sanitRenderCartera_, 250));
 
     sanitCheckoutCancelar.addEventListener("click", sanitCerrarCheckout);
+    sanitCheckoutFallidaBtn.addEventListener("click", () => {
+      if (!sanitCheckoutActual) return;
+      sanitAbrirFallida(sanitCheckoutActual.cliente, sanitCheckoutActual.sanitizacionAbiertaId);
+    });
+    sanitFallidaCancelar.addEventListener("click", () => {
+      sanitFallidaModal.style.display = "none";
+      sanitFallidaActual = null;
+    });
+    sanitFallidaConfirmar.addEventListener("click", sanitConfirmarFallida);
+    sanitFallidaModal.addEventListener("click", (e) => {
+      if (e.target === sanitFallidaModal) { sanitFallidaModal.style.display = "none"; sanitFallidaActual = null; }
+    });
     sanitCheckoutConfirmar.addEventListener("click", sanitConfirmarCheckout);
     sanitCheckoutModal.addEventListener("click", (e) => {
       if (e.target === sanitCheckoutModal) sanitCerrarCheckout();
@@ -2053,6 +2318,385 @@
     });
 
     sanitHistorialBtn.addEventListener("click", sanitVerHistorial);
+
+    /* ======================================================================
+     * MÓDULO MIS CHOPERAS
+     * Vista de gestión: todas las choperas del técnico, con estado de
+     * comodato, de sanitización, datos del equipo e historial de arreglos.
+     * ====================================================================== */
+
+    const choperasTecnicoInput = document.getElementById("choperasTecnico");
+    const choperasResumenBox = document.getElementById("choperasResumen");
+    const choperasListaBox = document.getElementById("choperasLista");
+    const choperasBuscarInput = document.getElementById("choperasBuscar");
+    const choperasFiltro = document.getElementById("choperasFiltro");
+    const choperasRefreshBtn = document.getElementById("choperasRefreshBtn");
+    const choperasNuevaBtn = document.getElementById("choperasNuevaBtn");
+
+    const choperaEditarModal = document.getElementById("choperaEditarModal");
+    const choperaEditarTitulo = document.getElementById("choperaEditarTitulo");
+    const choperaEditarAviso = document.getElementById("choperaEditarAviso");
+    const choperaEditCliente = document.getElementById("choperaEditCliente");
+    const choperaEditDireccion = document.getElementById("choperaEditDireccion");
+    const choperaEditLocalidad = document.getElementById("choperaEditLocalidad");
+    const choperaEditEquipo = document.getElementById("choperaEditEquipo");
+    const choperaEditPilon = document.getElementById("choperaEditPilon");
+    const choperaEditPicos = document.getElementById("choperaEditPicos");
+    const choperaEditGuardar = document.getElementById("choperaEditGuardar");
+    const choperaEditCancelar = document.getElementById("choperaEditCancelar");
+
+    const intervencionModal = document.getElementById("intervencionModal");
+    const intervencionClienteBox = document.getElementById("intervencionCliente");
+    const intervencionTipo = document.getElementById("intervencionTipo");
+    const intervencionDetalle = document.getElementById("intervencionDetalle");
+    const intervencionRepuestos = document.getElementById("intervencionRepuestos");
+    const intervencionEstado = document.getElementById("intervencionEstado");
+    const intervencionGuardar = document.getElementById("intervencionGuardar");
+    const intervencionCancelar = document.getElementById("intervencionCancelar");
+
+    // Debe coincidir con CONFIG.TIPOS_INTERVENCION del Code.gs
+    const TIPOS_INTERVENCION = [
+      "Arreglo de equipo",
+      "Cambio de manguera",
+      "Cambio de canilla",
+      "Cambio de pilón",
+      "Cambio de tubo de gas",
+      "Cambio de regulador",
+      "Instalación",
+      "Retiro de equipo",
+      "Otro"
+    ];
+
+    let choperas = [];
+    let choperasAbiertas = {};
+    let choperaEditando = null;
+    let intervencionCliente = "";
+    let choperasCargando = false;
+
+    function choperasRenderResumen_() {
+      if (!choperas.length) { choperasResumenBox.innerHTML = ""; return; }
+
+      const picos = choperas.reduce((a, c) => a + (Number(c.cantPicos) || 0), 0);
+      const cards = [
+        { valor: choperas.length, label: "Choperas", clase: "" },
+        { valor: choperas.filter(c => !c.tieneComodato).length, label: "Sin comodato", clase: "is-porvencer" },
+        { valor: choperas.filter(c => c.sanitizado).length, label: "Sanitizadas al día", clase: "is-aldia" },
+        { valor: choperas.filter(c => !c.sanitizado).length, label: "Sin sanitizar", clase: "is-vencido" },
+        { valor: choperas.filter(c => c.intervencionesPendientes > 0).length, label: "Con pendientes", clase: "" },
+        { valor: picos, label: "Picos en total", clase: "" }
+      ];
+
+      choperasResumenBox.innerHTML = cards.map(c => `
+        <div class="kpi-card ${c.clase}">
+          <div class="kpi-value">${escapeHtml_(String(c.valor))}</div>
+          <div class="kpi-label">${escapeHtml_(c.label)}</div>
+        </div>
+      `).join("");
+    }
+
+    function choperasFiltrar_() {
+      const filtro = choperasFiltro.value;
+      const texto = choperasBuscarInput.value.trim().toLowerCase();
+
+      return choperas.filter(c => {
+        if (filtro === "SIN COMODATO" && c.tieneComodato) return false;
+        if (filtro === "CON COMODATO" && !c.tieneComodato) return false;
+        if (filtro === "SIN SANITIZAR" && c.sanitizado) return false;
+        if (filtro === "PENDIENTES" && !c.intervencionesPendientes) return false;
+        if (!texto) return true;
+        return [c.cliente, c.direccion, c.localidad, c.equipo, c.pilon]
+          .join(" ").toLowerCase().indexOf(texto) !== -1;
+      });
+    }
+
+    /** Lista de arreglos y cambios de una chopera. */
+    function choperaRenderIntervenciones_(c) {
+      if (!c.intervenciones.length) {
+        return `<p class="small-note">Todavía no hay arreglos ni cambios registrados.</p>`;
+      }
+      return c.intervenciones.map(i => {
+        const pendiente = i.estado === "PENDIENTE";
+        const fotos = i.fotosUrls
+          ? i.fotosUrls.split("\n").filter(Boolean)
+              .map((u, n) => `<a class="link-pdf" href="${u}" target="_blank" rel="noopener">Foto ${n + 1}</a>`).join(" ")
+          : "";
+        return `
+          <div class="comodato-card">
+            <div class="flex items-start justify-between gap-3">
+              <div class="num">${escapeHtml_(i.tipo)}</div>
+              <span class="badge ${pendiente ? "badge-porvencer" : "badge-aldia"}">${escapeHtml_(i.estado)}</span>
+            </div>
+            <div class="text-xs text-gray-500">${escapeHtml_(formatFechaCorta_(i.fecha))}</div>
+            ${i.detalle ? `<div class="text-sm text-gray-700">${escapeHtml_(i.detalle)}</div>` : ""}
+            ${i.repuestos ? `<div class="text-xs text-gray-600">Repuestos: ${escapeHtml_(i.repuestos)}</div>` : ""}
+            <div class="comodato-actions">
+              ${fotos}
+              ${pendiente ? `<button type="button" class="btn-comodato" data-cerrar-int="${escapeHtml_(i.intervencionId)}">Marcar resuelta</button>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function choperasRenderLista_() {
+      const lista = choperasFiltrar_();
+
+      if (!choperas.length) {
+        choperasListaBox.innerHTML = `<p class="small-note">Este técnico todavía no tiene choperas. Se cargan solas con cada comodato, o podés agregarlas a mano.</p>`;
+        return;
+      }
+      if (!lista.length) {
+        choperasListaBox.innerHTML = `<p class="small-note">Ninguna chopera coincide con el filtro.</p>`;
+        return;
+      }
+
+      choperasListaBox.innerHTML = lista.map(c => {
+        const abierta = !!choperasAbiertas[c.cliente];
+        const ubicacion = [c.direccion, c.localidad].filter(Boolean).join(", ");
+
+        const badges = [
+          `<span class="badge ${c.tieneComodato ? "badge-aldia" : "badge-sincomodato"}">${c.tieneComodato ? "Comodato " + escapeHtml_(c.comodatoNumero) : "Sin comodato"}</span>`,
+          `<span class="badge badge-${estadoClase_(c.estadoSanitizacion)}">${escapeHtml_(c.estadoSanitizacion)}</span>`,
+          c.intervencionesPendientes ? `<span class="badge badge-porvencer">${c.intervencionesPendientes} pendiente(s)</span>` : ""
+        ].filter(Boolean).join(" ");
+
+        const chopera = [
+          c.equipo ? `<span>Equipo: <strong>${escapeHtml_(c.equipo)}</strong></span>` : "",
+          c.pilon ? `<span>Pilón: <strong>${escapeHtml_(c.pilon)}</strong></span>` : "",
+          `<span>Picos: <strong>${escapeHtml_(String(c.cantPicos || 0))}</strong></span>`
+        ].filter(Boolean).join("");
+
+        return `
+          <div class="sanit-card is-clickable estado-${estadoClase_(c.estadoSanitizacion)}${abierta ? " is-open" : ""}"
+               data-chopera="${escapeHtml_(c.cliente)}" role="button" tabindex="0" aria-expanded="${abierta}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="sanit-cliente">${escapeHtml_(c.cliente)} <span class="sanit-chevron">${abierta ? "▲" : "▼"}</span></div>
+            </div>
+            ${ubicacion ? `<div class="sanit-meta">${escapeHtml_(ubicacion)}</div>` : ""}
+            <div class="tecnico-cifras">${badges}</div>
+            <div class="sanit-chopera">${chopera}</div>
+            <div class="sanit-fechas">Última sanitización: <strong>${escapeHtml_(formatFechaCorta_(c.ultimaSanitizacion))}</strong> · Próxima: <strong>${escapeHtml_(formatFechaCorta_(c.proximaSanitizacion))}</strong></div>
+            <div class="sanit-actions">
+              <button type="button" class="btn-comodato" data-editar-chopera="${escapeHtml_(c.cliente)}">Editar</button>
+              <button type="button" class="btn-checkin" data-nueva-int="${escapeHtml_(c.cliente)}">+ Arreglo o cambio</button>
+            </div>
+            <div class="sanit-detalle">
+              <div class="detalle-fila"><span class="etiqueta">Arreglos y cambios</span></div>
+              ${choperaRenderIntervenciones_(c)}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function cargarChoperas() {
+      const tecnico = choperasTecnicoInput.value;
+      if (choperasCargando) return;
+
+      if (!tecnico) {
+        choperasResumenBox.innerHTML = "";
+        choperasListaBox.innerHTML = `<p class="small-note">Elegí un técnico para ver sus choperas.</p>`;
+        return;
+      }
+
+      choperasCargando = true;
+      choperasListaBox.innerHTML = `<p class="small-note">Cargando choperas...</p>`;
+
+      try {
+        const res = await fetch(APP_SCRIPT_URL + "?action=choperas&tecnico=" + encodeURIComponent(tecnico))
+          .then(r => r.json());
+        if (!res.ok) throw new Error(res.message || "No se pudieron leer las choperas.");
+
+        choperas = res.choperas || [];
+        choperasRenderResumen_();
+        choperasRenderLista_();
+      } catch (error) {
+        choperasResumenBox.innerHTML = "";
+        choperasListaBox.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      } finally {
+        choperasCargando = false;
+      }
+    }
+
+    /** Modal de edición. Sin cliente se usa como alta. */
+    function choperaAbrirEditar(cliente) {
+      const c = cliente ? choperas.filter(x => x.cliente === cliente)[0] : null;
+      choperaEditando = c || null;
+
+      choperaEditarTitulo.textContent = c ? "Editar chopera" : "Agregar chopera";
+      choperaEditCliente.value = c ? c.cliente : "";
+      choperaEditDireccion.value = c ? c.direccion : "";
+      choperaEditLocalidad.value = c ? c.localidad : "";
+      choperaEditEquipo.value = c ? c.equipo : "";
+      choperaEditPilon.value = c ? c.pilon : "";
+      choperaEditPicos.value = c ? (c.cantPicos || "") : "";
+
+      // El nombre de un cliente con comodato lo manda la hoja de comodatos:
+      // cambiarlo acá partiría la cartera en dos.
+      const bloqueado = !!(c && c.tieneComodato);
+      choperaEditCliente.readOnly = bloqueado;
+      choperaEditCliente.classList.toggle("readonly", bloqueado);
+      choperaEditarAviso.textContent = bloqueado
+        ? "El nombre viene del comodato " + c.comodatoNumero + " y no se edita acá. El resto sí."
+        : "Lo que cargues acá manda sobre lo que traiga el comodato.";
+
+      choperaEditGuardar.disabled = false;
+      choperaEditGuardar.textContent = "Guardar";
+      choperaEditarModal.style.display = "flex";
+    }
+
+    async function choperaGuardar() {
+      const cliente = choperaEditCliente.value.trim();
+      if (!cliente) { showStatus("El nombre del cliente no puede quedar vacío.", true); return; }
+
+      choperaEditGuardar.disabled = true;
+      choperaEditGuardar.textContent = "Guardando...";
+
+      try {
+        const result = await sanitPost_({
+          action: "guardarChopera",
+          tecnico: choperasTecnicoInput.value,
+          clienteOriginal: choperaEditando ? choperaEditando.cliente : "",
+          cliente: cliente,
+          direccion: choperaEditDireccion.value.trim(),
+          localidad: choperaEditLocalidad.value.trim(),
+          equipo: choperaEditEquipo.value.trim(),
+          pilon: choperaEditPilon.value.trim(),
+          cantPicos: choperaEditPicos.value.trim()
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo guardar.");
+
+        choperaEditarModal.style.display = "none";
+        choperaEditando = null;
+        showStatus("Chopera guardada.");
+        await cargarChoperas();
+      } catch (error) {
+        showStatus("Error al guardar: " + error.message, true);
+      } finally {
+        choperaEditGuardar.disabled = false;
+        choperaEditGuardar.textContent = "Guardar";
+      }
+    }
+
+    function intervencionAbrir(cliente) {
+      intervencionCliente = cliente;
+      intervencionClienteBox.textContent = cliente;
+      intervencionTipo.innerHTML = TIPOS_INTERVENCION
+        .map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`).join("");
+      intervencionDetalle.value = "";
+      intervencionRepuestos.value = "";
+      intervencionEstado.value = "RESUELTO";
+      document.getElementById("intervencionFotos").value = "";
+      intervencionGuardar.disabled = false;
+      intervencionGuardar.textContent = "Registrar";
+      intervencionModal.style.display = "flex";
+    }
+
+    async function intervencionRegistrar() {
+      if (!intervencionCliente) return;
+
+      intervencionGuardar.disabled = true;
+      intervencionGuardar.textContent = "Guardando...";
+
+      try {
+        const fotos = await getBase64Files("intervencionFotos");
+        const result = await sanitPost_({
+          action: "nuevaIntervencion",
+          tecnico: choperasTecnicoInput.value,
+          cliente: intervencionCliente,
+          tipo: intervencionTipo.value,
+          detalle: intervencionDetalle.value.trim(),
+          repuestos: intervencionRepuestos.value.trim(),
+          estado: intervencionEstado.value,
+          fotos: fotos
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo registrar.");
+
+        intervencionModal.style.display = "none";
+        choperasAbiertas[intervencionCliente] = true;
+        showStatus("Intervención registrada en " + escapeHtml_(intervencionCliente) + ".");
+        await cargarChoperas();
+      } catch (error) {
+        showStatus("Error al registrar: " + error.message, true);
+      } finally {
+        intervencionGuardar.disabled = false;
+        intervencionGuardar.textContent = "Registrar";
+      }
+    }
+
+    async function intervencionCerrar(id) {
+      try {
+        const result = await sanitPost_({
+          action: "cerrarIntervencion",
+          tecnico: choperasTecnicoInput.value,
+          intervencionId: id
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo cerrar.");
+        showStatus("Intervención marcada como resuelta.");
+        await cargarChoperas();
+      } catch (error) {
+        showStatus("Error: " + error.message, true);
+      }
+    }
+
+    // --- Listeners ---
+    choperasListaBox.addEventListener("click", (e) => {
+      const editar = e.target.closest("[data-editar-chopera]");
+      if (editar) { choperaAbrirEditar(editar.getAttribute("data-editar-chopera")); return; }
+
+      const nueva = e.target.closest("[data-nueva-int]");
+      if (nueva) { intervencionAbrir(nueva.getAttribute("data-nueva-int")); return; }
+
+      const cerrar = e.target.closest("[data-cerrar-int]");
+      if (cerrar) { intervencionCerrar(cerrar.getAttribute("data-cerrar-int")); return; }
+
+      if (e.target.closest("a")) return;
+
+      const card = e.target.closest("[data-chopera]");
+      if (card) {
+        const nombre = card.getAttribute("data-chopera");
+        choperasAbiertas[nombre] = !choperasAbiertas[nombre];
+        choperasRenderLista_();
+      }
+    });
+
+    choperasListaBox.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (e.target.closest("button") || e.target.closest("a")) return;
+      const card = e.target.closest("[data-chopera]");
+      if (!card) return;
+      e.preventDefault();
+      const nombre = card.getAttribute("data-chopera");
+      choperasAbiertas[nombre] = !choperasAbiertas[nombre];
+      choperasRenderLista_();
+    });
+
+    choperasTecnicoInput.addEventListener("change", () => {
+      if (choperasTecnicoInput.value) {
+        localStorage.setItem(TECNICO_STORAGE_KEY, choperasTecnicoInput.value);
+        fijarTecnico_(choperasTecnicoInput.value);
+      }
+      choperasAbiertas = {};
+      cargarChoperas();
+    });
+
+    choperasRefreshBtn.addEventListener("click", cargarChoperas);
+    choperasFiltro.addEventListener("change", choperasRenderLista_);
+    choperasBuscarInput.addEventListener("input", sanitDebounce_(choperasRenderLista_, 250));
+    choperasNuevaBtn.addEventListener("click", () => choperaAbrirEditar(""));
+
+    choperaEditCancelar.addEventListener("click", () => { choperaEditarModal.style.display = "none"; choperaEditando = null; });
+    choperaEditGuardar.addEventListener("click", choperaGuardar);
+    choperaEditarModal.addEventListener("click", (e) => {
+      if (e.target === choperaEditarModal) { choperaEditarModal.style.display = "none"; choperaEditando = null; }
+    });
+
+    intervencionCancelar.addEventListener("click", () => { intervencionModal.style.display = "none"; });
+    intervencionGuardar.addEventListener("click", intervencionRegistrar);
+    intervencionModal.addEventListener("click", (e) => {
+      if (e.target === intervencionModal) intervencionModal.style.display = "none";
+    });
+
   </script>
 
   <!-- SCRIPT LOGIN -->
