@@ -61,7 +61,8 @@ const SANIT_HEADERS = [
 
 // Encabezados del padrón manual de clientes a sanitizar
 const CLIENTES_HEADERS = [
-  'Tecnico', 'Cliente', 'Direccion', 'Localidad', 'Activo', 'FechaAlta'
+  'Tecnico', 'Cliente', 'Direccion', 'Localidad', 'Activo', 'FechaAlta',
+  'Equipo', 'Pilon', 'CantPicos'
 ];
 
 /**
@@ -572,7 +573,10 @@ function getComodatosByTecnico_(tecnico) {
     localidad: HEADERS.indexOf('Localidad'),
     domicilio: HEADERS.indexOf('Domicilio'),
     pdfUrl: HEADERS.indexOf('PdfUrl'),
-    docUrl: HEADERS.indexOf('DocUrl')
+    docUrl: HEADERS.indexOf('DocUrl'),
+    equiposDetalle: HEADERS.indexOf('EquiposDetalle'),
+    pilonesDetalle: HEADERS.indexOf('PilonesDetalle'),
+    cantPicos: HEADERS.indexOf('CantPicos')
   };
 
   const tecnicoLower = String(tecnico).trim().toLowerCase();
@@ -591,6 +595,9 @@ function getComodatosByTecnico_(tecnico) {
         domicilio: safe_(fila[idx.domicilio]),
         pdfUrl: safe_(fila[idx.pdfUrl]),
         docUrl: safe_(fila[idx.docUrl]),
+        equipo: resumirEquipos_(fila[idx.equiposDetalle]),
+        pilon: resumirPilones_(fila[idx.pilonesDetalle]),
+        cantPicos: toNumber_(fila[idx.cantPicos]),
         timestamp: ts instanceof Date ? ts.getTime() : 0
       });
     }
@@ -656,11 +663,31 @@ function getClientesSheet_() {
   let sheet = ss.getSheetByName(CONFIG.CLIENTES_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(CONFIG.CLIENTES_SHEET_NAME);
-    sheet.getRange(1, 1, 1, CLIENTES_HEADERS.length).setValues([CLIENTES_HEADERS]);
-    const header = sheet.getRange(1, 1, 1, CLIENTES_HEADERS.length);
-    header.setBackground('#003366').setFontColor('#ffffff').setFontWeight('bold');
-    sheet.setFrozenRows(1);
   }
+  escribirCabecera_(sheet, CLIENTES_HEADERS);
+  return sheet;
+}
+
+/**
+ * Deja la fila 1 con los encabezados esperados. Si la hoja ya existia con
+ * menos columnas (por ejemplo antes de sumar los datos de chopera), agrega
+ * las que faltan sin tocar los datos ya cargados.
+ */
+function escribirCabecera_(sheet, headers) {
+  const anchoActual = sheet.getLastColumn();
+  if (anchoActual >= headers.length && sheet.getLastRow() >= 1) {
+    const actuales = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    let iguales = true;
+    for (let i = 0; i < headers.length; i++) {
+      if (safe_(actuales[i]).trim() !== headers[i]) { iguales = false; break; }
+    }
+    if (iguales) return sheet;
+  }
+
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  const header = sheet.getRange(1, 1, 1, headers.length);
+  header.setBackground('#003366').setFontColor('#ffffff').setFontWeight('bold');
+  sheet.setFrozenRows(1);
   return sheet;
 }
 
@@ -678,6 +705,38 @@ function getSanitPhotosFolder_(tecnico) {
   const parent = raiz.hasNext() ? raiz.next() : base.createFolder(CONFIG.SANIT_PHOTOS_FOLDER_NAME);
   const sub = parent.getFoldersByName(tecnico);
   return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/**
+ * Resume EquiposDetalle a algo corto y legible en la tarjeta del tecnico.
+ * "Equipo #1 -> Marca: Celli | Modelo: T4 | AF: ... | Serie: ..." -> "Celli T4".
+ * Si el texto no tiene el formato esperado se devuelve tal cual.
+ */
+function resumirEquipos_(texto) {
+  const crudo = safe_(texto).trim();
+  if (!crudo || crudo.indexOf('No se registraron') === 0) return '';
+
+  const partes = crudo.split('\n').map(linea => {
+    const marca = linea.match(/Marca:\s*([^|]*)/);
+    const modelo = linea.match(/Modelo:\s*([^|]*)/);
+    if (!marca && !modelo) return linea.trim();
+    return [marca ? marca[1].trim() : '', modelo ? modelo[1].trim() : ''].filter(String).join(' ');
+  }).filter(String);
+
+  return partes.join(' · ');
+}
+
+/** Resume PilonesDetalle: se queda con el tipo de cada pilon. */
+function resumirPilones_(texto) {
+  const crudo = safe_(texto).trim();
+  if (!crudo || crudo.indexOf('No se registraron') === 0) return '';
+
+  const partes = crudo.split('\n').map(linea => {
+    const tipo = linea.match(/Tipo:\s*([^|]*)/);
+    return tipo ? tipo[1].trim() : linea.trim();
+  }).filter(String);
+
+  return partes.join(' · ');
 }
 
 /** Lee todas las filas de la hoja de un técnico como objetos. */
@@ -728,9 +787,11 @@ function isoDateTime_(d) {
 function getCarteraSanitizacion_(tecnico) {
   const mapa = {};
 
-  const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase) => {
+  const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase, chopera) => {
     const key = norm_(cliente);
     if (!key) return;
+    const eq = chopera || {};
+
     if (!mapa[key]) {
       mapa[key] = {
         key: key,
@@ -739,7 +800,10 @@ function getCarteraSanitizacion_(tecnico) {
         localidad: safe_(localidad).trim(),
         origen: origen,
         comodatoNumero: safe_(comodatoNumero),
-        fechaBase: fechaBase || null
+        fechaBase: fechaBase || null,
+        equipo: safe_(eq.equipo).trim(),
+        pilon: safe_(eq.pilon).trim(),
+        cantPicos: toNumber_(eq.cantPicos)
       };
       return;
     }
@@ -748,13 +812,17 @@ function getCarteraSanitizacion_(tecnico) {
     if (!actual.direccion) actual.direccion = safe_(direccion).trim();
     if (!actual.localidad) actual.localidad = safe_(localidad).trim();
     if (!actual.comodatoNumero) actual.comodatoNumero = safe_(comodatoNumero);
+    if (!actual.equipo) actual.equipo = safe_(eq.equipo).trim();
+    if (!actual.pilon) actual.pilon = safe_(eq.pilon).trim();
+    if (!actual.cantPicos) actual.cantPicos = toNumber_(eq.cantPicos);
     if (fechaBase && (!actual.fechaBase || fechaBase > actual.fechaBase)) actual.fechaBase = fechaBase;
   };
 
   // A) Clientes que salen de los comodatos cargados
   getComodatosByTecnico_(tecnico).forEach(c => {
     push_(c.nombreFantasia || c.razonSocial, c.domicilio, c.localidad, 'COMODATO',
-          c.comodatoNumero, toDate_(c.fecha) || (c.timestamp ? new Date(c.timestamp) : null));
+          c.comodatoNumero, toDate_(c.fecha) || (c.timestamp ? new Date(c.timestamp) : null),
+          { equipo: c.equipo, pilon: c.pilon, cantPicos: c.cantPicos });
   });
 
   // B) Clientes del padrón manual
@@ -766,7 +834,8 @@ function getCarteraSanitizacion_(tecnico) {
     rows.forEach(f => {
       if (norm_(f[0]) !== tNorm) return;
       if (norm_(f[4]) === 'no') return; // Activo = NO
-      push_(f[1], f[2], f[3], 'MANUAL', '', toDate_(f[5]));
+      push_(f[1], f[2], f[3], 'MANUAL', '', toDate_(f[5]),
+            { equipo: f[6], pilon: f[7], cantPicos: f[8] });
     });
   }
 
@@ -776,7 +845,7 @@ function getCarteraSanitizacion_(tecnico) {
   readSanitRows_(tecnico).forEach(r => {
     const key = norm_(r.Cliente);
     if (!key) return;
-    if (!mapa[key]) push_(r.Cliente, r.Direccion, r.Localidad, safe_(r.Origen) || 'MANUAL', r.ComodatoNumero, null);
+    if (!mapa[key]) push_(r.Cliente, r.Direccion, r.Localidad, safe_(r.Origen) || 'MANUAL', r.ComodatoNumero, null, null);
     if (norm_(r.Estado) === 'en curso') {
       abierta[key] = { sanitizacionId: safe_(r.SanitizacionId), checkIn: toDate_(r.CheckIn) };
       return;
@@ -809,6 +878,9 @@ function getCarteraSanitizacion_(tecnico) {
       localidad: c.localidad,
       origen: c.origen,
       comodatoNumero: c.comodatoNumero,
+      equipo: c.equipo,
+      pilon: c.pilon,
+      cantPicos: c.cantPicos,
       ultimaSanitizacion: isoDate_(ult),
       proximaSanitizacion: isoDate_(prox),
       diasRestantes: dias,
@@ -972,10 +1044,18 @@ function sanitAltaCliente_(body) {
       if (duplicado) return { ok: false, message: 'Ese cliente ya está en tu cartera.' };
     }
 
+    const cantPicos = toNumber_(body.cantPicos);
     sheet.appendRow([
-      tecnico, cliente, safe_(body.direccion), safe_(body.localidad), 'SI', new Date()
+      tecnico, cliente, safe_(body.direccion), safe_(body.localidad), 'SI', new Date(),
+      safe_(body.equipo).trim(), safe_(body.pilon).trim(), cantPicos
     ]);
-    return { ok: true, message: 'Cliente agregado a la cartera.' };
+    return {
+      ok: true,
+      message: 'Cliente agregado a la cartera.',
+      equipo: safe_(body.equipo).trim(),
+      pilon: safe_(body.pilon).trim(),
+      cantPicos: cantPicos
+    };
   } finally {
     lock.releaseLock();
   }

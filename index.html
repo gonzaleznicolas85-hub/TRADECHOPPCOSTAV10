@@ -263,6 +263,20 @@
       font-size: 0.82rem;
       color: #64748b;
     }
+    .sanit-card .sanit-chopera {
+      font-size: 0.82rem;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.35rem 0.55rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+    }
+    .sanit-card .sanit-chopera span strong {
+      color: #0f172a;
+    }
     .sanit-card .sanit-fechas {
       font-size: 0.85rem;
       color: #334155;
@@ -490,6 +504,24 @@
           <div>
             <label class="field-label" for="sanitAltaLocalidad">Localidad</label>
             <input id="sanitAltaLocalidad" type="text" class="field-input" />
+          </div>
+
+          <div class="pt-2 border-t border-slate-200">
+            <p class="field-label" style="margin-bottom:8px;">Datos de la chopera</p>
+            <div class="space-y-3">
+              <div>
+                <label class="field-label" for="sanitAltaEquipo">Equipo</label>
+                <input id="sanitAltaEquipo" type="text" class="field-input" placeholder="Marca y modelo. Ej: Celli T4" />
+              </div>
+              <div>
+                <label class="field-label" for="sanitAltaPilon">Pilón</label>
+                <input id="sanitAltaPilon" type="text" class="field-input" placeholder="Tipo de pilón" />
+              </div>
+              <div>
+                <label class="field-label" for="sanitAltaPicos">Cantidad de picos</label>
+                <input id="sanitAltaPicos" type="number" min="0" step="1" inputmode="numeric" class="field-input" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1205,6 +1237,9 @@
     const sanitAltaClienteInput = document.getElementById("sanitAltaCliente");
     const sanitAltaDireccionInput = document.getElementById("sanitAltaDireccion");
     const sanitAltaLocalidadInput = document.getElementById("sanitAltaLocalidad");
+    const sanitAltaEquipoInput = document.getElementById("sanitAltaEquipo");
+    const sanitAltaPilonInput = document.getElementById("sanitAltaPilon");
+    const sanitAltaPicosInput = document.getElementById("sanitAltaPicos");
     const sanitAltaConfirmar = document.getElementById("sanitAltaConfirmar");
     const sanitAltaCancelar = document.getElementById("sanitAltaCancelar");
 
@@ -1336,6 +1371,13 @@
           ? `<button type="button" class="btn-checkout" data-checkout="${idx}">Check-out</button>`
           : `<button type="button" class="btn-checkin" data-checkin="${idx}">Check-in</button>`;
 
+        const datosChopera = [
+          item.equipo ? `<span>Equipo: <strong>${escapeHtml_(item.equipo)}</strong></span>` : "",
+          item.pilon ? `<span>Pilón: <strong>${escapeHtml_(item.pilon)}</strong></span>` : "",
+          item.cantPicos ? `<span>Picos: <strong>${escapeHtml_(String(item.cantPicos))}</strong></span>` : ""
+        ].filter(Boolean).join("");
+        const choperaHtml = datosChopera ? `<div class="sanit-chopera">${datosChopera}</div>` : "";
+
         const cronometro = enCurso
           ? `<div class="sanit-fechas">En el PDV desde ${escapeHtml_(item.checkInAbierto)} · <span class="timer-pill" data-desde="${escapeHtml_(item.checkInAbierto)}">00:00:00</span></div>`
           : `<div class="sanit-fechas">Última: <strong>${escapeHtml_(formatFechaCorta_(item.ultimaSanitizacion))}</strong> · Próxima: <strong>${escapeHtml_(formatFechaCorta_(item.proximaSanitizacion))}</strong></div>`;
@@ -1347,6 +1389,7 @@
               <span class="badge ${badgeClase}">${escapeHtml_(item.estado)}</span>
             </div>
             ${ubicacion ? `<div class="sanit-meta">${escapeHtml_(ubicacion)}</div>` : ""}
+            ${choperaHtml}
             ${cronometro}
             <div class="sanit-meta">${escapeHtml_(textoDias_(item))}<span class="badge badge-origen ml-2">${escapeHtml_(item.origen)}</span></div>
             <div class="sanit-actions">${boton}</div>
@@ -1425,7 +1468,12 @@
       const item = sanitCartera[idx];
       if (!item) return;
       sanitCheckoutActual = item;
-      sanitCheckoutClienteBox.textContent = item.cliente;
+      const chopera = [
+        item.equipo ? "Equipo: " + item.equipo : "",
+        item.pilon ? "Pilón: " + item.pilon : "",
+        item.cantPicos ? "Picos: " + item.cantPicos : ""
+      ].filter(Boolean).join(" · ");
+      sanitCheckoutClienteBox.textContent = chopera ? item.cliente + " — " + chopera : item.cliente;
       sanitCheckoutTimerBox.setAttribute("data-desde", item.checkInAbierto || "");
       sanitCheckoutFotos.value = "";
       sanitCheckoutObs.value = "";
@@ -1489,7 +1537,10 @@
           tecnico: sanitTecnicoSelect.value,
           cliente: cliente,
           direccion: sanitAltaDireccionInput.value.trim(),
-          localidad: sanitAltaLocalidadInput.value.trim()
+          localidad: sanitAltaLocalidadInput.value.trim(),
+          equipo: sanitAltaEquipoInput.value.trim(),
+          pilon: sanitAltaPilonInput.value.trim(),
+          cantPicos: sanitAltaPicosInput.value.trim()
         });
         if (!result.ok) throw new Error(result.message || "No se pudo agregar el cliente.");
 
@@ -1497,6 +1548,9 @@
         sanitAltaClienteInput.value = "";
         sanitAltaDireccionInput.value = "";
         sanitAltaLocalidadInput.value = "";
+        sanitAltaEquipoInput.value = "";
+        sanitAltaPilonInput.value = "";
+        sanitAltaPicosInput.value = "";
         showStatus("Cliente agregado a la cartera.");
         await cargarSanitizaciones();
       } catch (error) {
