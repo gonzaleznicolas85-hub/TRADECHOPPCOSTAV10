@@ -235,6 +235,79 @@
     .kpi-card.is-porvencer .kpi-value { color: #b45309; }
     .kpi-card.is-aldia .kpi-value { color: #047857; }
 
+    .kpi-card.is-clickable {
+      cursor: pointer;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+    .kpi-card.is-clickable:hover {
+      border-color: var(--brand);
+      box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
+    }
+    .kpi-card.is-active {
+      border-color: var(--brand);
+      box-shadow: inset 0 0 0 1px var(--brand);
+    }
+    .kpi-card.is-clickable:focus-visible,
+    .sanit-card.is-clickable:focus-visible,
+    .tecnico-card:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+
+    .tecnico-card {
+      background: white;
+      border: 1px solid #dbe3ec;
+      border-left: 5px solid var(--brand);
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: box-shadow 0.12s ease;
+    }
+    .tecnico-card:hover { box-shadow: 0 1px 8px rgba(15, 23, 42, 0.1); }
+    .tecnico-card.sin-pendientes { border-left-color: #10b981; }
+    .tecnico-card .tecnico-nombre {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 1rem;
+    }
+    .tecnico-card .tecnico-cifras {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tecnico-card .tecnico-pie {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .sanit-card.is-clickable { cursor: pointer; }
+    .sanit-detalle {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #cbd5e1;
+      font-size: 0.85rem;
+      color: #334155;
+      gap: 6px;
+      flex-direction: column;
+    }
+    .sanit-card.is-open .sanit-detalle { display: flex; }
+    .sanit-detalle .detalle-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+    .sanit-detalle .detalle-fila .etiqueta { color: #64748b; }
+    .sanit-detalle .detalle-historial {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #475569;
+    }
+    .sanit-chevron {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
     .sanit-toolbar {
       display: grid;
       grid-template-columns: 1fr;
@@ -430,7 +503,7 @@
 
         <div id="sanitResumen" class="kpi-grid"></div>
 
-        <div class="sanit-toolbar">
+        <div class="sanit-toolbar" id="sanitToolbar">
           <div>
             <label class="field-label" for="sanitBuscar">Buscar cliente</label>
             <input id="sanitBuscar" type="text" class="field-input" placeholder="Nombre, dirección o localidad" />
@@ -452,7 +525,7 @@
 
         <div id="sanitLista" class="space-y-3"></div>
 
-        <div class="pt-2 border-t border-slate-200">
+        <div class="pt-2 border-t border-slate-200" id="sanitHistorialBloque">
           <button type="button" id="sanitHistorialBtn" class="secondary-btn">Ver historial de sanitizaciones</button>
           <div id="sanitHistorial" class="space-y-3 mt-3"></div>
         </div>
@@ -1243,7 +1316,13 @@
     const sanitAltaConfirmar = document.getElementById("sanitAltaConfirmar");
     const sanitAltaCancelar = document.getElementById("sanitAltaCancelar");
 
+    const sanitToolbar = document.getElementById("sanitToolbar");
+    const sanitHistorialBloque = document.getElementById("sanitHistorialBloque");
+
     let sanitCartera = [];
+    let sanitHistorialCache = [];
+    let sanitAbiertas = {};
+    let sanitVistaGeneral = false;
     let sanitCheckoutActual = null;
     let sanitTickId = null;
     let sanitCargando = false;
@@ -1313,24 +1392,73 @@
       sanitTickId = setInterval(sanitTick_, 1000);
     }
 
-    function sanitRenderResumen_(r) {
+    /**
+     * Tarjetas de indicadores. Las que representan un estado filtran la lista
+     * al tocarlas; "filtro" null las deja informativas.
+     */
+    function sanitRenderResumen_(r, interactivas) {
       if (!r) { sanitResumenBox.innerHTML = ""; return; }
       const cards = [
-        { valor: r.totalClientes, label: "Clientes en cartera", clase: "" },
-        { valor: r.vencidos, label: "Vencidos", clase: "is-vencido" },
-        { valor: r.porVencer, label: "Por vencer (7 días)", clase: "is-porvencer" },
-        { valor: r.alDia, label: "Al día", clase: "is-aldia" },
-        { valor: r.enCurso, label: "En curso ahora", clase: "" },
-        { valor: r.sinRegistro, label: "Sin registro", clase: "" },
-        { valor: r.completadasUltimos30, label: "Hechas últimos 30 días", clase: "" },
-        { valor: r.minutosPromedioPdv + "'", label: "Promedio en PDV", clase: "" }
+        { valor: r.totalClientes, label: "Clientes en cartera", clase: "", filtro: "TODOS" },
+        { valor: r.vencidos, label: "Vencidos", clase: "is-vencido", filtro: "VENCIDO" },
+        { valor: r.porVencer, label: "Por vencer (7 días)", clase: "is-porvencer", filtro: "POR VENCER" },
+        { valor: r.alDia, label: "Al día", clase: "is-aldia", filtro: "AL DIA" },
+        { valor: r.enCurso, label: "En curso ahora", clase: "", filtro: "EN CURSO" },
+        { valor: r.sinRegistro, label: "Sin registro", clase: "", filtro: "SIN REGISTRO" },
+        { valor: r.completadasUltimos30, label: "Hechas últimos 30 días", clase: "", filtro: null },
+        { valor: r.minutosPromedioPdv + "'", label: "Promedio en PDV", clase: "", filtro: null }
       ];
-      sanitResumenBox.innerHTML = cards.map(c => `
-        <div class="kpi-card ${c.clase}">
+
+      const filtroActivo = sanitFiltroEstado.value;
+
+      sanitResumenBox.innerHTML = cards.map(c => {
+        const clickeable = interactivas && c.filtro;
+        const activa = clickeable && c.filtro === filtroActivo;
+        const attrs = clickeable
+          ? ` data-kpi="${escapeHtml_(c.filtro)}" role="button" tabindex="0" aria-pressed="${activa}"`
+          : "";
+        return `
+        <div class="kpi-card ${c.clase}${clickeable ? " is-clickable" : ""}${activa ? " is-active" : ""}"${attrs}>
           <div class="kpi-value">${escapeHtml_(String(c.valor))}</div>
           <div class="kpi-label">${escapeHtml_(c.label)}</div>
-        </div>
-      `).join("");
+        </div>`;
+      }).join("");
+    }
+
+    /** Lista de técnicos de la vista general. Tocar una tarjeta abre ese técnico. */
+    function sanitRenderTecnicos_(porTecnico) {
+      if (!porTecnico || !porTecnico.length) {
+        sanitListaBox.innerHTML = `<p class="small-note">Todavía no hay datos de ningún técnico.</p>`;
+        return;
+      }
+
+      sanitListaBox.innerHTML = porTecnico.map(t => {
+        const pendientes = t.vencidos + t.porVencer;
+        const cifras = [
+          t.vencidos ? `<span class="badge badge-vencido">${t.vencidos} vencidos</span>` : "",
+          t.porVencer ? `<span class="badge badge-porvencer">${t.porVencer} por vencer</span>` : "",
+          t.enCurso ? `<span class="badge badge-encurso">${t.enCurso} en curso</span>` : "",
+          t.alDia ? `<span class="badge badge-aldia">${t.alDia} al día</span>` : "",
+          t.sinRegistro ? `<span class="badge badge-sinregistro">${t.sinRegistro} sin registro</span>` : ""
+        ].filter(Boolean).join("");
+
+        const atraso = (t.diasMasAtrasado !== null && t.diasMasAtrasado < 0)
+          ? ` · el más atrasado lleva ${Math.abs(t.diasMasAtrasado)} día(s)`
+          : "";
+
+        return `
+          <div class="tecnico-card${pendientes ? "" : " sin-pendientes"}" data-tecnico="${escapeHtml_(t.tecnico)}" role="button" tabindex="0">
+            <div class="flex items-start justify-between gap-3">
+              <div class="tecnico-nombre">${escapeHtml_(t.tecnico)}</div>
+              <span class="badge badge-origen">${t.totalClientes} clientes</span>
+            </div>
+            ${cifras ? `<div class="tecnico-cifras">${cifras}</div>` : ""}
+            <div class="tecnico-pie">
+              ${t.completadasUltimos30} hechas en 30 días · promedio ${t.minutosPromedioPdv}' en PDV${atraso}
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
     function sanitFiltrar_(lista) {
@@ -1347,6 +1475,47 @@
         const blob = [item.cliente, item.direccion, item.localidad].join(" ").toLowerCase();
         return blob.indexOf(texto) !== -1;
       });
+    }
+
+    /** Panel que se abre al tocar la tarjeta de un cliente. */
+    function sanitRenderDetalle_(item) {
+      const filas = [];
+
+      if (item.comodatoNumero) {
+        filas.push(`<div class="detalle-fila"><span class="etiqueta">Comodato:</span> <strong>${escapeHtml_(item.comodatoNumero)}</strong></div>`);
+      }
+      filas.push(`<div class="detalle-fila"><span class="etiqueta">Origen:</span> ${escapeHtml_(item.origen)}</div>`);
+      filas.push(`<div class="detalle-fila"><span class="etiqueta">Última:</span> ${escapeHtml_(formatFechaCorta_(item.ultimaSanitizacion))} <span class="etiqueta">· Próxima:</span> ${escapeHtml_(formatFechaCorta_(item.proximaSanitizacion))}</div>`);
+
+      if (item.equipo || item.pilon || item.cantPicos) {
+        const chopera = [
+          item.equipo ? "Equipo: " + item.equipo : "",
+          item.pilon ? "Pilón: " + item.pilon : "",
+          item.cantPicos ? "Picos: " + item.cantPicos : ""
+        ].filter(Boolean).join(" · ");
+        filas.push(`<div class="detalle-fila"><span class="etiqueta">Chopera:</span> ${escapeHtml_(chopera)}</div>`);
+      }
+
+      const previas = sanitHistorialCache
+        .filter(h => h.cliente === item.cliente && h.estado === "COMPLETADA")
+        .slice(0, 3);
+
+      if (previas.length) {
+        const items = previas.map(h =>
+          `<li>${escapeHtml_(h.checkOut || h.checkIn)} — ${h.minutosEnPdv} min${h.observaciones ? " · " + escapeHtml_(h.observaciones) : ""}</li>`
+        ).join("");
+        filas.push(`<div><span class="etiqueta">Últimas sanitizaciones:</span><ul class="detalle-historial">${items}</ul></div>`);
+      } else {
+        filas.push(`<div class="detalle-fila"><span class="etiqueta">Sin sanitizaciones registradas todavía.</span></div>`);
+      }
+
+      const destino = [item.cliente, item.direccion, item.localidad].filter(Boolean).join(" ");
+      if (item.direccion || item.localidad) {
+        filas.push(`<div class="comodato-actions"><a class="link-pdf" target="_blank" rel="noopener"
+          href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}">Cómo llegar</a></div>`);
+      }
+
+      return `<div class="sanit-detalle">${filas.join("")}</div>`;
     }
 
     function sanitRenderCartera_() {
@@ -1371,6 +1540,9 @@
           ? `<button type="button" class="btn-checkout" data-checkout="${idx}">Check-out</button>`
           : `<button type="button" class="btn-checkin" data-checkin="${idx}">Check-in</button>`;
 
+        const abierta = !!sanitAbiertas[item.cliente];
+        const detalle = sanitRenderDetalle_(item);
+
         const datosChopera = [
           item.equipo ? `<span>Equipo: <strong>${escapeHtml_(item.equipo)}</strong></span>` : "",
           item.pilon ? `<span>Pilón: <strong>${escapeHtml_(item.pilon)}</strong></span>` : "",
@@ -1383,9 +1555,11 @@
           : `<div class="sanit-fechas">Última: <strong>${escapeHtml_(formatFechaCorta_(item.ultimaSanitizacion))}</strong> · Próxima: <strong>${escapeHtml_(formatFechaCorta_(item.proximaSanitizacion))}</strong></div>`;
 
         return `
-          <div class="sanit-card estado-${estadoClase_(item.estado)}">
+          <div class="sanit-card is-clickable estado-${estadoClase_(item.estado)}${abierta ? " is-open" : ""}"
+               data-card="${escapeHtml_(item.cliente)}" role="button" tabindex="0"
+               aria-expanded="${abierta}">
             <div class="flex items-start justify-between gap-3">
-              <div class="sanit-cliente">${escapeHtml_(item.cliente)}</div>
+              <div class="sanit-cliente">${escapeHtml_(item.cliente)} <span class="sanit-chevron">${abierta ? "▲" : "▼"}</span></div>
               <span class="badge ${badgeClase}">${escapeHtml_(item.estado)}</span>
             </div>
             ${ubicacion ? `<div class="sanit-meta">${escapeHtml_(ubicacion)}</div>` : ""}
@@ -1393,6 +1567,7 @@
             ${cronometro}
             <div class="sanit-meta">${escapeHtml_(textoDias_(item))}<span class="badge badge-origen ml-2">${escapeHtml_(item.origen)}</span></div>
             <div class="sanit-actions">${boton}</div>
+            ${detalle}
           </div>
         `;
       }).join("");
@@ -1410,25 +1585,48 @@
       return response.json();
     }
 
+    /** Muestra u oculta los controles que solo tienen sentido con un técnico elegido. */
+    function sanitAplicarModo_(general) {
+      sanitVistaGeneral = general;
+      sanitToolbar.style.display = general ? "none" : "";
+      sanitHistorialBloque.style.display = general ? "none" : "";
+      if (general) sanitHistorialBox.innerHTML = "";
+    }
+
     async function cargarSanitizaciones() {
+      if (sanitCargando) return;
       const tecnico = sanitTecnicoSelect.value;
-      if (!tecnico || sanitCargando) return;
 
       sanitCargando = true;
-      sanitListaBox.innerHTML = `<p class="small-note">Cargando cartera...</p>`;
+      sanitListaBox.innerHTML = `<p class="small-note">Cargando...</p>`;
 
       try {
+        if (!tecnico) {
+          sanitAplicarModo_(true);
+          const res = await fetch(APP_SCRIPT_URL + "?action=sanitResumenGeneral").then(r => r.json());
+          if (!res.ok) throw new Error(res.message || "No se pudo leer el resumen general.");
+
+          sanitCartera = [];
+          sanitHistorialCache = [];
+          sanitRenderResumen_(res.general.totales, false);
+          sanitRenderTecnicos_(res.general.porTecnico);
+          return;
+        }
+
+        sanitAplicarModo_(false);
         const base = APP_SCRIPT_URL + "?tecnico=" + encodeURIComponent(tecnico) + "&action=";
-        const [carteraRes, resumenRes] = await Promise.all([
+        const [carteraRes, resumenRes, historialRes] = await Promise.all([
           fetch(base + "sanitCartera").then(r => r.json()),
-          fetch(base + "sanitResumen").then(r => r.json())
+          fetch(base + "sanitResumen").then(r => r.json()),
+          fetch(base + "sanitHistorial").then(r => r.json())
         ]);
 
         if (!carteraRes.ok) throw new Error(carteraRes.message || "No se pudo leer la cartera.");
         if (!resumenRes.ok) throw new Error(resumenRes.message || "No se pudo leer el resumen.");
 
         sanitCartera = carteraRes.cartera || [];
-        sanitRenderResumen_(resumenRes.resumen);
+        sanitHistorialCache = historialRes.ok ? (historialRes.historial || []) : [];
+        sanitRenderResumen_(resumenRes.resumen, true);
         sanitRenderCartera_();
       } catch (error) {
         sanitResumenBox.innerHTML = "";
@@ -1600,20 +1798,89 @@
     }
 
     // --- Listeners del módulo ---
+    /** Abre el técnico elegido desde la vista general. */
+    function sanitAbrirTecnico(nombre) {
+      sanitTecnicoSelect.value = nombre;
+      localStorage.setItem(TECNICO_STORAGE_KEY, nombre);
+      cargarSanitizaciones();
+    }
+
+    /** Despliega o cierra el detalle de un cliente. */
+    function sanitToggleDetalle(cliente) {
+      sanitAbiertas[cliente] = !sanitAbiertas[cliente];
+      sanitRenderCartera_();
+    }
+
     sanitListaBox.addEventListener("click", (e) => {
       const checkin = e.target.closest("[data-checkin]");
       if (checkin) { sanitHacerCheckIn(Number(checkin.getAttribute("data-checkin"))); return; }
+
       const checkout = e.target.closest("[data-checkout]");
-      if (checkout) { sanitAbrirCheckout(Number(checkout.getAttribute("data-checkout"))); }
+      if (checkout) { sanitAbrirCheckout(Number(checkout.getAttribute("data-checkout"))); return; }
+
+      // Los links del detalle (mapa) navegan solos, no deben plegar la tarjeta
+      if (e.target.closest("a")) return;
+
+      const tecnicoCard = e.target.closest("[data-tecnico]");
+      if (tecnicoCard) { sanitAbrirTecnico(tecnicoCard.getAttribute("data-tecnico")); return; }
+
+      const card = e.target.closest("[data-card]");
+      if (card) sanitToggleDetalle(card.getAttribute("data-card"));
+    });
+
+    sanitListaBox.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (e.target.closest("button") || e.target.closest("a")) return;
+
+      const tecnicoCard = e.target.closest("[data-tecnico]");
+      if (tecnicoCard) { e.preventDefault(); sanitAbrirTecnico(tecnicoCard.getAttribute("data-tecnico")); return; }
+
+      const card = e.target.closest("[data-card]");
+      if (card) { e.preventDefault(); sanitToggleDetalle(card.getAttribute("data-card")); }
     });
 
     sanitTecnicoSelect.addEventListener("change", () => {
-      localStorage.setItem(TECNICO_STORAGE_KEY, sanitTecnicoSelect.value);
+      if (sanitTecnicoSelect.value) localStorage.setItem(TECNICO_STORAGE_KEY, sanitTecnicoSelect.value);
       sanitHistorialBox.innerHTML = "";
+      sanitAbiertas = {};
+      sanitFiltroEstado.value = "PENDIENTES";
       cargarSanitizaciones();
     });
     sanitRefreshBtn.addEventListener("click", cargarSanitizaciones);
-    sanitFiltroEstado.addEventListener("change", sanitRenderCartera_);
+    /** Aplica un filtro de estado desde la tarjeta de indicador o desde el select. */
+    function sanitAplicarFiltro_(valor) {
+      sanitFiltroEstado.value = valor;
+      sanitRenderCartera_();
+      sanitMarcarKpiActivo_();
+    }
+
+    /** Deja marcada la tarjeta de indicador que coincide con el filtro actual. */
+    function sanitMarcarKpiActivo_() {
+      const actual = sanitFiltroEstado.value;
+      sanitResumenBox.querySelectorAll("[data-kpi]").forEach(el => {
+        const activa = el.getAttribute("data-kpi") === actual;
+        el.classList.toggle("is-active", activa);
+        el.setAttribute("aria-pressed", String(activa));
+      });
+    }
+
+    sanitResumenBox.addEventListener("click", (e) => {
+      const kpi = e.target.closest("[data-kpi]");
+      if (kpi) sanitAplicarFiltro_(kpi.getAttribute("data-kpi"));
+    });
+
+    sanitResumenBox.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const kpi = e.target.closest("[data-kpi]");
+      if (!kpi) return;
+      e.preventDefault();
+      sanitAplicarFiltro_(kpi.getAttribute("data-kpi"));
+    });
+
+    sanitFiltroEstado.addEventListener("change", () => {
+      sanitRenderCartera_();
+      sanitMarcarKpiActivo_();
+    });
     sanitBuscarInput.addEventListener("input", sanitDebounce_(sanitRenderCartera_, 250));
 
     sanitCheckoutCancelar.addEventListener("click", sanitCerrarCheckout);

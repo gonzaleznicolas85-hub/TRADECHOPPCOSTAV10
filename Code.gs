@@ -126,6 +126,10 @@ function doGet(e) {
       return jsonOutput_({ ok: true, tecnico: t, cartera: getCarteraSanitizacion_(t) });
     }
 
+    if (action === 'sanitResumenGeneral') {
+      return jsonOutput_({ ok: true, general: getResumenGeneral_() });
+    }
+
     if (action === 'sanitResumen') {
       const t = resolveTecnico_(e.parameter.tecnico);
       return jsonOutput_({ ok: true, tecnico: t, resumen: getResumenSanitizacion_(t) });
@@ -555,10 +559,17 @@ function getDistinctTecnicos_() {
   return tecnicos.sort((a, b) => a.localeCompare(b, 'es'));
 }
 
-function getComodatosByTecnico_(tecnico) {
+/**
+ * Lee la hoja de comodatos UNA sola vez y devuelve un mapa
+ * { tecnicoNormalizado: [comodato, ...] }, cada lista ya ordenada de la mas
+ * reciente a la mas vieja. Evita releer la hoja seis veces al armar el
+ * resumen general.
+ */
+function leerComodatosAgrupados_() {
   const sheet = getSheet_();
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
+  const mapa = {};
+  if (lastRow < 2) return mapa;
 
   const data = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
 
@@ -579,33 +590,56 @@ function getComodatosByTecnico_(tecnico) {
     cantPicos: HEADERS.indexOf('CantPicos')
   };
 
-  const tecnicoLower = String(tecnico).trim().toLowerCase();
-  const resultados = [];
-
   data.forEach(fila => {
-    if (String(fila[idx.tecnico]).trim().toLowerCase() === tecnicoLower) {
-      const ts = fila[idx.timestamp];
-      resultados.push({
-        comodatoNumero: safe_(fila[idx.comodatoNumero]),
-        fecha: safe_(fila[idx.fecha]),
-        distribuidor: safe_(fila[idx.distribuidor]),
-        nombreFantasia: safe_(fila[idx.nombreFantasia]),
-        razonSocial: safe_(fila[idx.razonSocial]),
-        localidad: safe_(fila[idx.localidad]),
-        domicilio: safe_(fila[idx.domicilio]),
-        pdfUrl: safe_(fila[idx.pdfUrl]),
-        docUrl: safe_(fila[idx.docUrl]),
-        equipo: resumirEquipos_(fila[idx.equiposDetalle]),
-        pilon: resumirPilones_(fila[idx.pilonesDetalle]),
-        cantPicos: toNumber_(fila[idx.cantPicos]),
-        timestamp: ts instanceof Date ? ts.getTime() : 0
-      });
-    }
+    const key = norm_(fila[idx.tecnico]);
+    if (!key) return;
+    const ts = fila[idx.timestamp];
+    if (!mapa[key]) mapa[key] = [];
+    mapa[key].push({
+      comodatoNumero: safe_(fila[idx.comodatoNumero]),
+      fecha: safe_(fila[idx.fecha]),
+      distribuidor: safe_(fila[idx.distribuidor]),
+      nombreFantasia: safe_(fila[idx.nombreFantasia]),
+      razonSocial: safe_(fila[idx.razonSocial]),
+      localidad: safe_(fila[idx.localidad]),
+      domicilio: safe_(fila[idx.domicilio]),
+      pdfUrl: safe_(fila[idx.pdfUrl]),
+      docUrl: safe_(fila[idx.docUrl]),
+      equipo: resumirEquipos_(fila[idx.equiposDetalle]),
+      pilon: resumirPilones_(fila[idx.pilonesDetalle]),
+      cantPicos: toNumber_(fila[idx.cantPicos]),
+      timestamp: ts instanceof Date ? ts.getTime() : 0
+    });
   });
 
-  resultados.sort((a, b) => b.timestamp - a.timestamp);
-  return resultados;
+  Object.keys(mapa).forEach(k => mapa[k].sort((a, b) => b.timestamp - a.timestamp));
+  return mapa;
 }
+
+function getComodatosByTecnico_(tecnico) {
+  return leerComodatosAgrupados_()[norm_(tecnico)] || [];
+}
+
+/**
+ * Lee el padron manual UNA sola vez, agrupado por tecnico y ya filtrado por
+ * los clientes activos.
+ */
+function leerClientesManualesAgrupados_() {
+  const sheet = getClientesSheet_();
+  const lastRow = sheet.getLastRow();
+  const mapa = {};
+  if (lastRow < 2) return mapa;
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
+  rows.forEach(f => {
+    const key = norm_(f[0]);
+    if (!key || norm_(f[4]) === 'no') return;
+    if (!mapa[key]) mapa[key] = [];
+    mapa[key].push(f);
+  });
+  return mapa;
+}
+
 
 function escapeForReplaceText_(text) { return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function toNumber_(v) { const n = Number(v); return isNaN(n) ? 0 : n; }
@@ -785,6 +819,19 @@ function isoDateTime_(d) {
  * cruzada contra su historial de sanitizaciones.
  */
 function getCarteraSanitizacion_(tecnico) {
+  return construirCartera_(
+    tecnico,
+    leerComodatosAgrupados_()[norm_(tecnico)] || [],
+    leerClientesManualesAgrupados_()[norm_(tecnico)] || [],
+    readSanitRows_(tecnico)
+  );
+}
+
+/**
+ * Arma la cartera a partir de datos ya leidos. Separada de la carga para que
+ * el resumen general pueda reutilizarla sin releer las hojas por cada tecnico.
+ */
+function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
   const mapa = {};
 
   const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase, chopera) => {
@@ -819,30 +866,22 @@ function getCarteraSanitizacion_(tecnico) {
   };
 
   // A) Clientes que salen de los comodatos cargados
-  getComodatosByTecnico_(tecnico).forEach(c => {
+  comodatos.forEach(c => {
     push_(c.nombreFantasia || c.razonSocial, c.domicilio, c.localidad, 'COMODATO',
           c.comodatoNumero, toDate_(c.fecha) || (c.timestamp ? new Date(c.timestamp) : null),
           { equipo: c.equipo, pilon: c.pilon, cantPicos: c.cantPicos });
   });
 
   // B) Clientes del padrón manual
-  const clientesSheet = getClientesSheet_();
-  const lastRow = clientesSheet.getLastRow();
-  if (lastRow >= 2) {
-    const rows = clientesSheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
-    const tNorm = norm_(tecnico);
-    rows.forEach(f => {
-      if (norm_(f[0]) !== tNorm) return;
-      if (norm_(f[4]) === 'no') return; // Activo = NO
-      push_(f[1], f[2], f[3], 'MANUAL', '', toDate_(f[5]),
-            { equipo: f[6], pilon: f[7], cantPicos: f[8] });
-    });
-  }
+  clientesManuales.forEach(f => {
+    push_(f[1], f[2], f[3], 'MANUAL', '', toDate_(f[5]),
+          { equipo: f[6], pilon: f[7], cantPicos: f[8] });
+  });
 
   // C) Cruce con el historial de sanitizaciones
   const ultima = {};
   const abierta = {};
-  readSanitRows_(tecnico).forEach(r => {
+  sanitRows.forEach(r => {
     const key = norm_(r.Cliente);
     if (!key) return;
     if (!mapa[key]) push_(r.Cliente, r.Direccion, r.Localidad, safe_(r.Origen) || 'MANUAL', r.ComodatoNumero, null, null);
@@ -899,8 +938,11 @@ function getCarteraSanitizacion_(tecnico) {
 
 /** Resumen de indicadores del técnico. */
 function getResumenSanitizacion_(tecnico) {
-  const cartera = getCarteraSanitizacion_(tecnico);
-  const filas = readSanitRows_(tecnico);
+  return calcularResumen_(getCarteraSanitizacion_(tecnico), readSanitRows_(tecnico));
+}
+
+/** Indicadores a partir de una cartera y un historial ya cargados. */
+function calcularResumen_(cartera, filas) {
   const hoy = new Date();
 
   let completadas30 = 0, minutosTotal = 0, conMinutos = 0;
@@ -925,6 +967,78 @@ function getResumenSanitizacion_(tecnico) {
     totalSanitizaciones: filas.filter(r => norm_(r.Estado) === 'completada').length,
     minutosPromedioPdv: conMinutos ? Math.round(minutosTotal / conMinutos) : 0
   };
+}
+
+/**
+ * Resumen consolidado de los seis tecnicos, para cuando no hay ninguno
+ * seleccionado. Lee la hoja de comodatos y el padron una sola vez y despues
+ * arma la cartera de cada tecnico en memoria.
+ */
+function getResumenGeneral_() {
+  const comodatos = leerComodatosAgrupados_();
+  const clientes = leerClientesManualesAgrupados_();
+
+  const totales = {
+    totalClientes: 0, alDia: 0, porVencer: 0, vencidos: 0, sinRegistro: 0,
+    enCurso: 0, completadasUltimos30: 0, totalSanitizaciones: 0, minutosPromedioPdv: 0
+  };
+
+  let minutosAcumulados = 0, sanitConMinutos = 0;
+
+  const porTecnico = CONFIG.TECNICOS.map(tecnico => {
+    const key = norm_(tecnico);
+    const filas = readSanitRows_(tecnico);
+    const cartera = construirCartera_(tecnico, comodatos[key] || [], clientes[key] || [], filas);
+    const r = calcularResumen_(cartera, filas);
+
+    totales.totalClientes += r.totalClientes;
+    totales.alDia += r.alDia;
+    totales.porVencer += r.porVencer;
+    totales.vencidos += r.vencidos;
+    totales.sinRegistro += r.sinRegistro;
+    totales.enCurso += r.enCurso;
+    totales.completadasUltimos30 += r.completadasUltimos30;
+    totales.totalSanitizaciones += r.totalSanitizaciones;
+
+    // El promedio general se pondera por sanitizacion, no por tecnico
+    filas.forEach(f => {
+      const m = Number(f.MinutosEnPdv);
+      if (norm_(f.Estado) === 'completada' && !isNaN(m) && m > 0) {
+        minutosAcumulados += m;
+        sanitConMinutos++;
+      }
+    });
+
+    // El PDV mas atrasado del tecnico, para saber que tan critico esta
+    let peor = null;
+    cartera.forEach(c => {
+      if (c.diasRestantes === null || c.diasRestantes === undefined) return;
+      if (peor === null || c.diasRestantes < peor) peor = c.diasRestantes;
+    });
+
+    return {
+      tecnico: tecnico,
+      totalClientes: r.totalClientes,
+      alDia: r.alDia,
+      porVencer: r.porVencer,
+      vencidos: r.vencidos,
+      sinRegistro: r.sinRegistro,
+      enCurso: r.enCurso,
+      completadasUltimos30: r.completadasUltimos30,
+      minutosPromedioPdv: r.minutosPromedioPdv,
+      diasMasAtrasado: peor
+    };
+  });
+
+  totales.minutosPromedioPdv = sanitConMinutos ? Math.round(minutosAcumulados / sanitConMinutos) : 0;
+
+  // Primero los que mas urgencia tienen
+  porTecnico.sort((a, b) => {
+    if (b.vencidos !== a.vencidos) return b.vencidos - a.vencidos;
+    return b.porVencer - a.porVencer;
+  });
+
+  return { totales: totales, porTecnico: porTecnico };
 }
 
 /** Historial completo de sanitizaciones del técnico, de la más reciente a la más vieja. */
