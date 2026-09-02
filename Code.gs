@@ -14,8 +14,26 @@ const CONFIG = {
   PDF_FOLDER_ID: '1CBA5rVdj5sAJT3XSFDA5aFQXdLLezeeQ',
   TEMPLATE_DOC_ID: '1ts2l2YABwrr3_3XK3S0-X-oSAC54fOM-oxEZWNi8FSw',
 
-  // SOLUCIÓN: Reemplaza este texto por tu ID real
-  PHOTOS_PARENT_FOLDER_ID: 'PEGAR_AQUI_EL_ID_DE_LA_CARPETA_DE_FOTOS'
+  // Opcional: si lo dejás vacío o con el texto de ejemplo, el script crea/reutiliza
+  // automáticamente una carpeta "Fotos Comodatos" al lado de la carpeta de PDFs
+  // y guarda su ID en las Propiedades del Script. Ver getPhotosParentFolder_().
+  PHOTOS_PARENT_FOLDER_ID: '',
+  PHOTOS_FOLDER_NAME: 'Fotos Comodatos',
+
+  // --- MÓDULO SANITIZACIONES ---
+  SANIT_SHEET_PREFIX: 'Sanit_',
+  CLIENTES_SHEET_NAME: 'Clientes_Sanitizacion',
+  SANIT_PHOTOS_FOLDER_NAME: 'Fotos Sanitizaciones',
+  SANIT_CICLO_DIAS: 28,
+  SANIT_AVISO_DIAS: 7,
+  TECNICOS: [
+    'Gaston del Rio',
+    'Federico Barbutti',
+    'Maximiliano Di Pietro',
+    'Mariano Diaz',
+    'Jose Caporaletti',
+    'Ramon Lazarte'
+  ]
 };
 
 // Encabezados exactos de la hoja de cálculo
@@ -31,6 +49,19 @@ const HEADERS = [
   'Descripcion', 'FotosEquiposUrls', 'FotosPilonesUrls',
   'Aclaracion', 'DNI',
   'FirmaFileId', 'FirmaUrl', 'DocFileId', 'DocUrl', 'PdfFileId', 'PdfUrl', 'AceptaTerminos'
+];
+
+// Encabezados de las hojas de sanitización (una por técnico)
+const SANIT_HEADERS = [
+  'SanitizacionId', 'Tecnico', 'Cliente', 'Direccion', 'Localidad',
+  'ComodatoNumero', 'Origen',
+  'CheckIn', 'CheckOut', 'MinutosEnPdv',
+  'Observaciones', 'FotosUrls', 'Estado', 'ProximaSanitizacion', 'Timestamp'
+];
+
+// Encabezados del padrón manual de clientes a sanitizar
+const CLIENTES_HEADERS = [
+  'Tecnico', 'Cliente', 'Direccion', 'Localidad', 'Activo', 'FechaAlta'
 ];
 
 /**
@@ -85,6 +116,25 @@ function doGet(e) {
       return jsonOutput_({ ok: true, tecnicos: getDistinctTecnicos_() });
     }
 
+    if (action === 'listTecnicosFijos') {
+      return jsonOutput_({ ok: true, tecnicos: CONFIG.TECNICOS });
+    }
+
+    if (action === 'sanitCartera') {
+      const t = resolveTecnico_(e.parameter.tecnico);
+      return jsonOutput_({ ok: true, tecnico: t, cartera: getCarteraSanitizacion_(t) });
+    }
+
+    if (action === 'sanitResumen') {
+      const t = resolveTecnico_(e.parameter.tecnico);
+      return jsonOutput_({ ok: true, tecnico: t, resumen: getResumenSanitizacion_(t) });
+    }
+
+    if (action === 'sanitHistorial') {
+      const t = resolveTecnico_(e.parameter.tecnico);
+      return jsonOutput_({ ok: true, tecnico: t, historial: getHistorialSanitizacion_(t) });
+    }
+
     if (action === 'comodatosPorTecnico') {
       const tecnico = e.parameter.tecnico ? String(e.parameter.tecnico).trim() : '';
       if (!tecnico) return jsonOutput_({ ok: false, message: 'Falta el parámetro tecnico.' });
@@ -102,10 +152,20 @@ function doGet(e) {
  */
 function doPost(e) {
   try {
-    const sheet = getSheet_();
     if (!e || !e.postData || !e.postData.contents) throw new Error('No llegaron datos.');
 
-    const data = JSON.parse(e.postData.contents);
+    const body = JSON.parse(e.postData.contents);
+
+    // Enrutado por acción. Sin "action" se asume el alta de comodato (compatibilidad).
+    switch (body.action) {
+      case 'sanitCheckIn':    return jsonOutput_(sanitCheckIn_(body));
+      case 'sanitCheckOut':   return jsonOutput_(sanitCheckOut_(body));
+      case 'sanitAltaCliente':return jsonOutput_(sanitAltaCliente_(body));
+      case 'sanitBajaCliente':return jsonOutput_(sanitBajaCliente_(body));
+    }
+
+    const sheet = getSheet_();
+    const data = body;
     const comodatoNumero = data.comodatoNumero && String(data.comodatoNumero).trim() ? String(data.comodatoNumero).trim() : getNextComodatoNumero_();
 
     // Convertimos los arrays de equipos y pilones a texto
@@ -114,9 +174,8 @@ function doPost(e) {
     data.equiposDetalle = txtEquipos;
     data.pilonesDetalle = txtPilones;
 
-    // Creamos la carpeta de fotos
-    const parentFolder = DriveApp.getFolderById(CONFIG.PHOTOS_PARENT_FOLDER_ID);
-    const comodatoPhotosFolder = parentFolder.createFolder('Fotos_' + comodatoNumero);
+    // Creamos (o reutilizamos) la carpeta de fotos de este comodato
+    const comodatoPhotosFolder = getComodatoPhotosFolder_(comodatoNumero);
 
     // Guardamos archivos en Drive
     const urlsEquipos = savePhotos_(comodatoPhotosFolder, data.fotosEquipos, 'EQ_' + comodatoNumero);
@@ -163,6 +222,50 @@ function doPost(e) {
   } catch (error) {
     return jsonOutput_({ ok: false, message: error.message });
   }
+}
+
+/**
+ * 3.b CARPETA DE FOTOS (resolución automática)
+ *
+ * Orden de resolución:
+ *   1) ID guardado en Propiedades del Script (PHOTOS_PARENT_FOLDER_ID)
+ *   2) CONFIG.PHOTOS_PARENT_FOLDER_ID, si es un ID real y accesible
+ *   3) Carpeta "Fotos Comodatos" dentro de la carpeta que contiene los PDFs
+ *      (se busca por nombre y, si no existe, se crea una sola vez)
+ * El ID resuelto queda cacheado en Propiedades del Script.
+ */
+function getPhotosParentFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const candidatos = [props.getProperty('PHOTOS_PARENT_FOLDER_ID'), CONFIG.PHOTOS_PARENT_FOLDER_ID];
+
+  for (let i = 0; i < candidatos.length; i++) {
+    const id = candidatos[i] ? String(candidatos[i]).trim() : '';
+    if (!id || id.indexOf('PEGAR_AQUI') === 0) continue;
+    try {
+      return DriveApp.getFolderById(id);
+    } catch (err) {
+      // ID inválido o sin permisos: seguimos con el siguiente candidato
+    }
+  }
+
+  const pdfFolder = DriveApp.getFolderById(CONFIG.PDF_FOLDER_ID);
+  const parents = pdfFolder.getParents();
+  const base = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+
+  const nombre = CONFIG.PHOTOS_FOLDER_NAME || 'Fotos Comodatos';
+  const existentes = base.getFoldersByName(nombre);
+  const folder = existentes.hasNext() ? existentes.next() : base.createFolder(nombre);
+
+  props.setProperty('PHOTOS_PARENT_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+/** Devuelve la subcarpeta Fotos_<numero>, reutilizándola si ya existe. */
+function getComodatoPhotosFolder_(comodatoNumero) {
+  const parent = getPhotosParentFolder_();
+  const nombre = 'Fotos_' + comodatoNumero;
+  const existentes = parent.getFoldersByName(nombre);
+  return existentes.hasNext() ? existentes.next() : parent.createFolder(nombre);
 }
 
 /**
@@ -484,3 +587,403 @@ function escapeForReplaceText_(text) { return String(text).replace(/[.*+?^${}()|
 function toNumber_(v) { const n = Number(v); return isNaN(n) ? 0 : n; }
 function safe_(v) { return v === undefined || v === null ? '' : String(v); }
 function jsonOutput_(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
+
+/* ==========================================================================
+ * 7. MÓDULO DE SANITIZACIONES (ciclo de 28 días)
+ *
+ * Modelo de datos:
+ *   - Una hoja por técnico: "Sanit_<Nombre del técnico>" con SANIT_HEADERS.
+ *   - Una hoja común "Clientes_Sanitizacion" con el padrón cargado a mano.
+ *   - La cartera de cada técnico = clientes de sus comodatos + padrón manual.
+ *
+ * Ciclo: la próxima sanitización de un cliente es la fecha de su última
+ * sanitización completada + CONFIG.SANIT_CICLO_DIAS. Si nunca se sanitizó,
+ * se usa la fecha del comodato como punto de partida.
+ * ========================================================================== */
+
+/** Normaliza texto para comparar (sin acentos, sin mayúsculas, sin espacios dobles). */
+function norm_(v) {
+  return safe_(v)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** Devuelve el nombre canónico del técnico según CONFIG.TECNICOS. Lanza si no existe. */
+function resolveTecnico_(tecnico) {
+  const objetivo = norm_(tecnico);
+  if (!objetivo) throw new Error('Falta el técnico.');
+  for (let i = 0; i < CONFIG.TECNICOS.length; i++) {
+    if (norm_(CONFIG.TECNICOS[i]) === objetivo) return CONFIG.TECNICOS[i];
+  }
+  throw new Error('Técnico no reconocido: ' + tecnico);
+}
+
+/** Hoja de sanitizaciones del técnico; la crea con encabezados si no existe. */
+function getSanitSheet_(tecnico) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const nombre = CONFIG.SANIT_SHEET_PREFIX + tecnico;
+  let sheet = ss.getSheetByName(nombre);
+  if (!sheet) {
+    sheet = ss.insertSheet(nombre);
+    sheet.getRange(1, 1, 1, SANIT_HEADERS.length).setValues([SANIT_HEADERS]);
+    const header = sheet.getRange(1, 1, 1, SANIT_HEADERS.length);
+    header.setBackground('#003366').setFontColor('#ffffff').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/** Hoja del padrón manual de clientes; la crea si no existe. */
+function getClientesSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.CLIENTES_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.CLIENTES_SHEET_NAME);
+    sheet.getRange(1, 1, 1, CLIENTES_HEADERS.length).setValues([CLIENTES_HEADERS]);
+    const header = sheet.getRange(1, 1, 1, CLIENTES_HEADERS.length);
+    header.setBackground('#003366').setFontColor('#ffffff').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/** Crea de una las 6 hojas de técnico + el padrón. Se corre a mano desde el editor. */
+function crearHojasSanitizacion() {
+  CONFIG.TECNICOS.forEach(t => getSanitSheet_(t));
+  getClientesSheet_();
+  Logger.log('Hojas de sanitización listas.');
+}
+
+/** Carpeta de fotos de sanitizaciones, con subcarpeta por técnico. */
+function getSanitPhotosFolder_(tecnico) {
+  const base = getPhotosParentFolder_();
+  const raiz = base.getFoldersByName(CONFIG.SANIT_PHOTOS_FOLDER_NAME);
+  const parent = raiz.hasNext() ? raiz.next() : base.createFolder(CONFIG.SANIT_PHOTOS_FOLDER_NAME);
+  const sub = parent.getFoldersByName(tecnico);
+  return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/** Lee todas las filas de la hoja de un técnico como objetos. */
+function readSanitRows_(tecnico) {
+  const sheet = getSanitSheet_(tecnico);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const values = sheet.getRange(2, 1, lastRow - 1, SANIT_HEADERS.length).getValues();
+  return values.map((fila, i) => {
+    const obj = { _row: i + 2 };
+    SANIT_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
+    return obj;
+  });
+}
+
+function toDate_(v) {
+  if (v instanceof Date && !isNaN(v.getTime())) return v;
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function addDays_(date, days) {
+  const d = new Date(date.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function diffDays_(desde, hasta) {
+  const MS = 24 * 60 * 60 * 1000;
+  const a = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+  const b = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
+  return Math.round((b.getTime() - a.getTime()) / MS);
+}
+
+function isoDate_(d) {
+  return d ? Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+}
+
+function isoDateTime_(d) {
+  return d ? Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm') : '';
+}
+
+/**
+ * Cartera de clientes del técnico: comodatos cargados + padrón manual,
+ * cruzada contra su historial de sanitizaciones.
+ */
+function getCarteraSanitizacion_(tecnico) {
+  const mapa = {};
+
+  const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase) => {
+    const key = norm_(cliente);
+    if (!key) return;
+    if (!mapa[key]) {
+      mapa[key] = {
+        key: key,
+        cliente: safe_(cliente).trim(),
+        direccion: safe_(direccion).trim(),
+        localidad: safe_(localidad).trim(),
+        origen: origen,
+        comodatoNumero: safe_(comodatoNumero),
+        fechaBase: fechaBase || null
+      };
+      return;
+    }
+    // Completar huecos y quedarse con la fecha base más reciente
+    const actual = mapa[key];
+    if (!actual.direccion) actual.direccion = safe_(direccion).trim();
+    if (!actual.localidad) actual.localidad = safe_(localidad).trim();
+    if (!actual.comodatoNumero) actual.comodatoNumero = safe_(comodatoNumero);
+    if (fechaBase && (!actual.fechaBase || fechaBase > actual.fechaBase)) actual.fechaBase = fechaBase;
+  };
+
+  // A) Clientes que salen de los comodatos cargados
+  getComodatosByTecnico_(tecnico).forEach(c => {
+    push_(c.nombreFantasia || c.razonSocial, c.domicilio, c.localidad, 'COMODATO',
+          c.comodatoNumero, toDate_(c.fecha) || (c.timestamp ? new Date(c.timestamp) : null));
+  });
+
+  // B) Clientes del padrón manual
+  const clientesSheet = getClientesSheet_();
+  const lastRow = clientesSheet.getLastRow();
+  if (lastRow >= 2) {
+    const rows = clientesSheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
+    const tNorm = norm_(tecnico);
+    rows.forEach(f => {
+      if (norm_(f[0]) !== tNorm) return;
+      if (norm_(f[4]) === 'no') return; // Activo = NO
+      push_(f[1], f[2], f[3], 'MANUAL', '', toDate_(f[5]));
+    });
+  }
+
+  // C) Cruce con el historial de sanitizaciones
+  const ultima = {};
+  const abierta = {};
+  readSanitRows_(tecnico).forEach(r => {
+    const key = norm_(r.Cliente);
+    if (!key) return;
+    if (!mapa[key]) push_(r.Cliente, r.Direccion, r.Localidad, safe_(r.Origen) || 'MANUAL', r.ComodatoNumero, null);
+    if (norm_(r.Estado) === 'en curso') {
+      abierta[key] = { sanitizacionId: safe_(r.SanitizacionId), checkIn: toDate_(r.CheckIn) };
+      return;
+    }
+    const fin = toDate_(r.CheckOut);
+    if (fin && (!ultima[key] || fin > ultima[key])) ultima[key] = fin;
+  });
+
+  const hoy = new Date();
+  const ciclo = CONFIG.SANIT_CICLO_DIAS;
+  const aviso = CONFIG.SANIT_AVISO_DIAS;
+
+  return Object.keys(mapa).map(key => {
+    const c = mapa[key];
+    const ult = ultima[key] || null;
+    const base = ult || c.fechaBase;
+    const prox = base ? addDays_(base, ciclo) : null;
+    const dias = prox ? diffDays_(hoy, prox) : null;
+
+    let estado;
+    if (abierta[key]) estado = 'EN CURSO';
+    else if (!prox) estado = 'SIN REGISTRO';
+    else if (dias < 0) estado = 'VENCIDO';
+    else if (dias <= aviso) estado = 'POR VENCER';
+    else estado = 'AL DIA';
+
+    return {
+      cliente: c.cliente,
+      direccion: c.direccion,
+      localidad: c.localidad,
+      origen: c.origen,
+      comodatoNumero: c.comodatoNumero,
+      ultimaSanitizacion: isoDate_(ult),
+      proximaSanitizacion: isoDate_(prox),
+      diasRestantes: dias,
+      estado: estado,
+      sanitizacionAbiertaId: abierta[key] ? abierta[key].sanitizacionId : '',
+      checkInAbierto: abierta[key] ? isoDateTime_(abierta[key].checkIn) : ''
+    };
+  }).sort((a, b) => {
+    const orden = { 'EN CURSO': 0, 'VENCIDO': 1, 'POR VENCER': 2, 'SIN REGISTRO': 3, 'AL DIA': 4 };
+    if (orden[a.estado] !== orden[b.estado]) return orden[a.estado] - orden[b.estado];
+    if (a.diasRestantes === null) return 1;
+    if (b.diasRestantes === null) return -1;
+    return a.diasRestantes - b.diasRestantes;
+  });
+}
+
+/** Resumen de indicadores del técnico. */
+function getResumenSanitizacion_(tecnico) {
+  const cartera = getCarteraSanitizacion_(tecnico);
+  const filas = readSanitRows_(tecnico);
+  const hoy = new Date();
+
+  let completadas30 = 0, minutosTotal = 0, conMinutos = 0;
+  filas.forEach(r => {
+    if (norm_(r.Estado) !== 'completada') return;
+    const fin = toDate_(r.CheckOut);
+    if (fin && diffDays_(fin, hoy) <= 30) completadas30++;
+    const m = Number(r.MinutosEnPdv);
+    if (!isNaN(m) && m > 0) { minutosTotal += m; conMinutos++; }
+  });
+
+  const contar = estado => cartera.filter(c => c.estado === estado).length;
+
+  return {
+    totalClientes: cartera.length,
+    alDia: contar('AL DIA'),
+    porVencer: contar('POR VENCER'),
+    vencidos: contar('VENCIDO'),
+    sinRegistro: contar('SIN REGISTRO'),
+    enCurso: contar('EN CURSO'),
+    completadasUltimos30: completadas30,
+    totalSanitizaciones: filas.filter(r => norm_(r.Estado) === 'completada').length,
+    minutosPromedioPdv: conMinutos ? Math.round(minutosTotal / conMinutos) : 0
+  };
+}
+
+/** Historial completo de sanitizaciones del técnico, de la más reciente a la más vieja. */
+function getHistorialSanitizacion_(tecnico) {
+  return readSanitRows_(tecnico).map(r => ({
+    sanitizacionId: safe_(r.SanitizacionId),
+    cliente: safe_(r.Cliente),
+    direccion: safe_(r.Direccion),
+    localidad: safe_(r.Localidad),
+    checkIn: isoDateTime_(toDate_(r.CheckIn)),
+    checkOut: isoDateTime_(toDate_(r.CheckOut)),
+    minutosEnPdv: Number(r.MinutosEnPdv) || 0,
+    observaciones: safe_(r.Observaciones),
+    fotosUrls: safe_(r.FotosUrls),
+    estado: safe_(r.Estado),
+    proximaSanitizacion: isoDate_(toDate_(r.ProximaSanitizacion)),
+    _orden: toDate_(r.CheckIn) ? toDate_(r.CheckIn).getTime() : 0
+  })).sort((a, b) => b._orden - a._orden);
+}
+
+/** Registra la llegada del técnico al PDV. */
+function sanitCheckIn_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const cliente = safe_(body.cliente).trim();
+    if (!cliente) throw new Error('Falta el cliente.');
+
+    // No permitir dos check-in abiertos del mismo cliente
+    const abiertaPrevia = readSanitRows_(tecnico).filter(
+      r => norm_(r.Estado) === 'en curso' && norm_(r.Cliente) === norm_(cliente)
+    );
+    if (abiertaPrevia.length) {
+      return {
+        ok: false,
+        message: 'Ya hay una sanitización en curso para este cliente. Cerrala con el check-out.',
+        sanitizacionId: safe_(abiertaPrevia[0].SanitizacionId)
+      };
+    }
+
+    const ahora = new Date();
+    const id = 'SAN-' + ahora.getTime().toString(36).toUpperCase();
+
+    getSanitSheet_(tecnico).appendRow([
+      id, tecnico, cliente, safe_(body.direccion), safe_(body.localidad),
+      safe_(body.comodatoNumero), safe_(body.origen) || 'MANUAL',
+      ahora, '', '',
+      '', '', 'EN CURSO', '', ahora
+    ]);
+
+    return { ok: true, sanitizacionId: id, checkIn: isoDateTime_(ahora), message: 'Check-in registrado.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Cierra la sanitización: hora de salida, tiempo en PDV, fotos y observaciones. */
+function sanitCheckOut_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const id = safe_(body.sanitizacionId).trim();
+    if (!id) throw new Error('Falta el ID de la sanitización.');
+
+    const sheet = getSanitSheet_(tecnico);
+    const fila = readSanitRows_(tecnico).filter(r => safe_(r.SanitizacionId) === id)[0];
+    if (!fila) throw new Error('No se encontró la sanitización ' + id);
+    if (norm_(fila.Estado) === 'completada') throw new Error('Esa sanitización ya está cerrada.');
+
+    const inicio = toDate_(fila.CheckIn) || new Date();
+    const fin = new Date();
+    const minutos = Math.max(1, Math.round((fin.getTime() - inicio.getTime()) / 60000));
+    const proxima = addDays_(fin, CONFIG.SANIT_CICLO_DIAS);
+
+    let urls = '';
+    if (body.fotos && body.fotos.length) {
+      urls = savePhotos_(getSanitPhotosFolder_(tecnico), body.fotos, id);
+    }
+
+    const col = h => SANIT_HEADERS.indexOf(h) + 1;
+    sheet.getRange(fila._row, col('CheckOut')).setValue(fin);
+    sheet.getRange(fila._row, col('MinutosEnPdv')).setValue(minutos);
+    sheet.getRange(fila._row, col('Observaciones')).setValue(safe_(body.observaciones));
+    sheet.getRange(fila._row, col('FotosUrls')).setValue(urls);
+    sheet.getRange(fila._row, col('Estado')).setValue('COMPLETADA');
+    sheet.getRange(fila._row, col('ProximaSanitizacion')).setValue(proxima);
+
+    return {
+      ok: true,
+      message: 'Sanitización cerrada.',
+      sanitizacionId: id,
+      minutosEnPdv: minutos,
+      checkOut: isoDateTime_(fin),
+      proximaSanitizacion: isoDate_(proxima)
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Alta manual de un cliente en el padrón de sanitización. */
+function sanitAltaCliente_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const cliente = safe_(body.cliente).trim();
+    if (!cliente) throw new Error('Falta el nombre del cliente.');
+
+    const sheet = getClientesSheet_();
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= 2) {
+      const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
+      const duplicado = rows.some(f => norm_(f[0]) === norm_(tecnico) && norm_(f[1]) === norm_(cliente));
+      if (duplicado) return { ok: false, message: 'Ese cliente ya está en tu cartera.' };
+    }
+
+    sheet.appendRow([
+      tecnico, cliente, safe_(body.direccion), safe_(body.localidad), 'SI', new Date()
+    ]);
+    return { ok: true, message: 'Cliente agregado a la cartera.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Baja lógica de un cliente del padrón manual (Activo = NO). */
+function sanitBajaCliente_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const cliente = safe_(body.cliente).trim();
+    const sheet = getClientesSheet_();
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: false, message: 'No hay clientes cargados a mano.' };
+
+    const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (norm_(rows[i][0]) === norm_(tecnico) && norm_(rows[i][1]) === norm_(cliente)) {
+        sheet.getRange(i + 2, CLIENTES_HEADERS.indexOf('Activo') + 1).setValue('NO');
+        return { ok: true, message: 'Cliente dado de baja de la cartera.' };
+      }
+    }
+    return { ok: false, message: 'Ese cliente no está en el padrón manual (viene de un comodato).' };
+  } finally {
+    lock.releaseLock();
+  }
+}

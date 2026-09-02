@@ -152,15 +152,21 @@
       margin-bottom: 18px;
     }
     .nav-btn {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
       border: 1px solid #cbd5e1;
       background: white;
       color: #374151;
       border-radius: 12px;
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 0.6rem;
       font-weight: 800;
       font-size: 0.92rem;
+      line-height: 1.15;
       cursor: pointer;
+    }
+    @media (max-width: 480px) {
+      .main-nav { gap: 6px; }
+      .nav-btn { font-size: 0.76rem; padding: 0.65rem 0.35rem; }
     }
     .nav-btn.active {
       background: var(--brand);
@@ -195,6 +201,153 @@
     }
     .link-pdf { background: #eff6ff; color: #1d4ed8; }
     .link-wa { background: #ecfdf5; color: #047857; }
+
+    /* --- MÓDULO SANITIZACIONES --- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (min-width: 768px) {
+      .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    .kpi-card {
+      background: white;
+      border: 1px solid #dbe3ec;
+      border-radius: 14px;
+      padding: 0.85rem 0.9rem;
+    }
+    .kpi-card .kpi-value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--brand);
+    }
+    .kpi-card .kpi-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .kpi-card.is-vencido .kpi-value { color: #b91c1c; }
+    .kpi-card.is-porvencer .kpi-value { color: #b45309; }
+    .kpi-card.is-aldia .kpi-value { color: #047857; }
+
+    .sanit-toolbar {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 768px) {
+      .sanit-toolbar { grid-template-columns: 1.4fr 1fr auto; align-items: end; }
+    }
+
+    .sanit-card {
+      background: white;
+      border: 1px solid #dbe3ec;
+      border-left-width: 5px;
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sanit-card .sanit-cliente {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 1rem;
+    }
+    .sanit-card .sanit-meta {
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+    .sanit-card .sanit-fechas {
+      font-size: 0.85rem;
+      color: #334155;
+    }
+    .sanit-card.estado-vencido { border-left-color: #dc2626; }
+    .sanit-card.estado-porvencer { border-left-color: #f59e0b; }
+    .sanit-card.estado-aldia { border-left-color: #10b981; }
+    .sanit-card.estado-sinregistro { border-left-color: #94a3b8; }
+    .sanit-card.estado-encurso { border-left-color: #2563eb; background: #f5f9ff; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .badge-vencido { background: #fee2e2; color: #b91c1c; }
+    .badge-porvencer { background: #fef3c7; color: #b45309; }
+    .badge-aldia { background: #d1fae5; color: #047857; }
+    .badge-sinregistro { background: #e2e8f0; color: #475569; }
+    .badge-encurso { background: #dbeafe; color: #1d4ed8; }
+    .badge-origen { background: #f1f5f9; color: #64748b; }
+
+    .sanit-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .btn-checkin, .btn-checkout {
+      border: none;
+      border-radius: 10px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-checkin { background: var(--brand); }
+    .btn-checkout { background: #059669; }
+    .btn-checkin:disabled, .btn-checkout:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 1rem;
+      overflow-y: auto;
+      z-index: 60;
+    }
+    .modal-box {
+      background: white;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      margin-top: 3vh;
+      padding: 1.25rem;
+    }
+    .modal-box h3 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--brand);
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    .timer-pill {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
@@ -225,6 +378,7 @@
     <nav class="main-nav">
       <button type="button" id="navNuevoBtn" class="nav-btn active">Nuevo Comodato</button>
       <button type="button" id="navMisComodatosBtn" class="nav-btn">Mis Comodatos</button>
+      <button type="button" id="navSanitizacionesBtn" class="nav-btn">Sanitizaciones</button>
     </nav>
 
     <div id="statusBox" class="status-box mb-5"></div>
@@ -237,8 +391,7 @@
         <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
           <div>
             <label class="field-label" for="misComodatosTecnico">Técnico</label>
-            <input id="misComodatosTecnico" list="misComodatosTecnicosList" type="text" class="field-input" placeholder="Escribí o elegí tu nombre" />
-            <datalist id="misComodatosTecnicosList"></datalist>
+            <select id="misComodatosTecnico" class="field-select"></select>
           </div>
           <button type="button" id="buscarMisComodatosBtn" class="submit-btn" style="width:auto;">Buscar</button>
         </div>
@@ -246,6 +399,107 @@
         <div id="misComodatosResultado" class="space-y-3"></div>
       </div>
     </section>
+
+    <section id="viewSanitizaciones" class="section-card overflow-hidden" style="display:none;">
+      <div class="section-title px-5 py-4">
+        <h2 class="text-lg md:text-xl font-bold">Sanitizaciones — ciclo de 28 días</h2>
+      </div>
+      <div class="p-4 md:p-5 space-y-5">
+
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+          <div>
+            <label class="field-label" for="sanitTecnico">Técnico</label>
+            <select id="sanitTecnico" class="field-select"></select>
+          </div>
+          <button type="button" id="sanitRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
+        </div>
+
+        <div id="sanitResumen" class="kpi-grid"></div>
+
+        <div class="sanit-toolbar">
+          <div>
+            <label class="field-label" for="sanitBuscar">Buscar cliente</label>
+            <input id="sanitBuscar" type="text" class="field-input" placeholder="Nombre, dirección o localidad" />
+          </div>
+          <div>
+            <label class="field-label" for="sanitFiltroEstado">Estado</label>
+            <select id="sanitFiltroEstado" class="field-select">
+              <option value="PENDIENTES">Pendientes (vencidos y por vencer)</option>
+              <option value="TODOS">Todos</option>
+              <option value="EN CURSO">En curso</option>
+              <option value="VENCIDO">Vencidos</option>
+              <option value="POR VENCER">Por vencer</option>
+              <option value="AL DIA">Al día</option>
+              <option value="SIN REGISTRO">Sin registro</option>
+            </select>
+          </div>
+          <button type="button" id="sanitAltaBtn" class="secondary-btn">+ Agregar cliente</button>
+        </div>
+
+        <div id="sanitLista" class="space-y-3"></div>
+
+        <div class="pt-2 border-t border-slate-200">
+          <button type="button" id="sanitHistorialBtn" class="secondary-btn">Ver historial de sanitizaciones</button>
+          <div id="sanitHistorial" class="space-y-3 mt-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODAL: CHECK-OUT -->
+    <div id="sanitCheckoutModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>Cerrar sanitización</h3>
+        <p id="sanitCheckoutCliente" class="text-sm text-gray-600 mt-1"></p>
+        <p class="mt-2">
+          <span class="text-sm text-gray-600">Tiempo en el PDV: </span>
+          <span id="sanitCheckoutTimer" class="timer-pill">00:00:00</span>
+        </p>
+
+        <div class="mt-4">
+          <label class="field-label" for="sanitCheckoutFotos">Fotos del equipo sanitizado</label>
+          <input id="sanitCheckoutFotos" type="file" accept="image/*" multiple capture="environment" class="field-input" />
+        </div>
+
+        <div class="mt-3">
+          <label class="field-label" for="sanitCheckoutObs">Observaciones</label>
+          <textarea id="sanitCheckoutObs" rows="3" class="field-input" placeholder="Estado del equipo, repuestos usados, pendientes..."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="sanitCheckoutCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="sanitCheckoutConfirmar" class="btn-checkout">Confirmar check-out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ALTA DE CLIENTE -->
+    <div id="sanitAltaModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>Agregar cliente a la cartera</h3>
+        <p class="small-note mt-1">Para clientes que no tienen comodato cargado en la app.</p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="sanitAltaCliente">Cliente</label>
+            <input id="sanitAltaCliente" type="text" class="field-input" placeholder="Nombre del PDV" />
+          </div>
+          <div>
+            <label class="field-label" for="sanitAltaDireccion">Dirección</label>
+            <input id="sanitAltaDireccion" type="text" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="sanitAltaLocalidad">Localidad</label>
+            <input id="sanitAltaLocalidad" type="text" class="field-input" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="sanitAltaCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="sanitAltaConfirmar" class="submit-btn" style="width:auto;">Agregar</button>
+        </div>
+      </div>
+    </div>
+
 
     <form id="comodatoForm" class="space-y-6">
       
@@ -268,7 +522,7 @@
           </div>
           <div>
             <label class="field-label" for="tecnico">Técnico</label>
-            <input id="tecnico" name="tecnico" type="text" class="field-input" required />
+            <select id="tecnico" name="tecnico" class="field-select" required></select>
           </div>
           <div>
             <label class="field-label" for="distribuidor">Distribuidor</label>
@@ -798,41 +1052,59 @@
     const navMisComodatosBtn = document.getElementById("navMisComodatosBtn");
     const viewMisComodatos = document.getElementById("viewMisComodatos");
     const misComodatosTecnicoInput = document.getElementById("misComodatosTecnico");
-    const misComodatosTecnicosList = document.getElementById("misComodatosTecnicosList");
     const buscarMisComodatosBtn = document.getElementById("buscarMisComodatosBtn");
     const misComodatosResultado = document.getElementById("misComodatosResultado");
     const TECNICO_STORAGE_KEY = "comodatos_tecnico_nombre";
 
+    const navSanitizacionesBtn = document.getElementById("navSanitizacionesBtn");
+    const viewSanitizaciones = document.getElementById("viewSanitizaciones");
+
     function mostrarVista(vista) {
       hideStatus();
-      if (vista === "misComodatos") {
-        form.style.display = "none";
-        viewMisComodatos.style.display = "block";
-        navMisComodatosBtn.classList.add("active");
-        navNuevoBtn.classList.remove("active");
-      } else {
-        form.style.display = "";
-        viewMisComodatos.style.display = "none";
-        navNuevoBtn.classList.add("active");
-        navMisComodatosBtn.classList.remove("active");
-      }
+      const vistas = {
+        nuevo: { el: form, btn: navNuevoBtn },
+        misComodatos: { el: viewMisComodatos, btn: navMisComodatosBtn },
+        sanitizaciones: { el: viewSanitizaciones, btn: navSanitizacionesBtn }
+      };
+      const activa = vistas[vista] ? vista : "nuevo";
+
+      Object.keys(vistas).forEach(k => {
+        const v = vistas[k];
+        v.el.style.display = k === activa ? (k === "nuevo" ? "" : "block") : "none";
+        v.btn.classList.toggle("active", k === activa);
+      });
+
+      if (activa === "sanitizaciones") cargarSanitizaciones();
     }
 
     navNuevoBtn.addEventListener("click", () => mostrarVista("nuevo"));
     navMisComodatosBtn.addEventListener("click", () => mostrarVista("misComodatos"));
+    navSanitizacionesBtn.addEventListener("click", () => mostrarVista("sanitizaciones"));
 
-    async function cargarListaTecnicos() {
-      try {
-        const response = await fetch(APP_SCRIPT_URL + "?action=listTecnicos");
-        const result = await response.json();
-        if (result.ok && Array.isArray(result.tecnicos)) {
-          misComodatosTecnicosList.innerHTML = result.tecnicos
-            .map(t => `<option value="${escapeHtml_(t)}"></option>`)
-            .join("");
-        }
-      } catch (error) {
-        // silencioso: el datalist queda vacío, el input sigue siendo usable a mano
-      }
+    // Lista fija de tecnicos. Debe coincidir exactamente con CONFIG.TECNICOS del Code.gs.
+    const TECNICOS = [
+      "Gaston del Rio",
+      "Federico Barbutti",
+      "Maximiliano Di Pietro",
+      "Mariano Diaz",
+      "Jose Caporaletti",
+      "Ramon Lazarte"
+    ];
+
+    /** Llena un <select> con los tecnicos y respeta el valor ya elegido. */
+    function poblarSelectTecnicos_(select, placeholder) {
+      if (!select) return;
+      const previo = select.value;
+      const opciones = [`<option value="">${escapeHtml_(placeholder)}</option>`]
+        .concat(TECNICOS.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`));
+      select.innerHTML = opciones.join("");
+      if (previo) select.value = previo;
+    }
+
+    function cargarListaTecnicos() {
+      poblarSelectTecnicos_(document.getElementById("tecnico"), "Seleccionar...");
+      poblarSelectTecnicos_(misComodatosTecnicoInput, "Elegí tu nombre");
+      poblarSelectTecnicos_(document.getElementById("sanitTecnico"), "Elegí tu nombre");
     }
 
     function escapeHtml_(text) {
@@ -897,13 +1169,413 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
+      cargarListaTecnicos();
       const tecnicoGuardado = localStorage.getItem(TECNICO_STORAGE_KEY);
-      if (tecnicoGuardado) {
+      if (tecnicoGuardado && TECNICOS.indexOf(tecnicoGuardado) !== -1) {
         misComodatosTecnicoInput.value = tecnicoGuardado;
         document.getElementById("tecnico").value = tecnicoGuardado;
+        document.getElementById("sanitTecnico").value = tecnicoGuardado;
       }
-      cargarListaTecnicos();
     });
+
+    /* ======================================================================
+     * MÓDULO SANITIZACIONES (ciclo de 28 días)
+     * Check-in / check-out por cliente, fotos, tiempo en PDV y resumen.
+     * ====================================================================== */
+
+    const sanitTecnicoSelect = document.getElementById("sanitTecnico");
+    const sanitResumenBox = document.getElementById("sanitResumen");
+    const sanitListaBox = document.getElementById("sanitLista");
+    const sanitBuscarInput = document.getElementById("sanitBuscar");
+    const sanitFiltroEstado = document.getElementById("sanitFiltroEstado");
+    const sanitRefreshBtn = document.getElementById("sanitRefreshBtn");
+    const sanitHistorialBtn = document.getElementById("sanitHistorialBtn");
+    const sanitHistorialBox = document.getElementById("sanitHistorial");
+
+    const sanitCheckoutModal = document.getElementById("sanitCheckoutModal");
+    const sanitCheckoutClienteBox = document.getElementById("sanitCheckoutCliente");
+    const sanitCheckoutTimerBox = document.getElementById("sanitCheckoutTimer");
+    const sanitCheckoutFotos = document.getElementById("sanitCheckoutFotos");
+    const sanitCheckoutObs = document.getElementById("sanitCheckoutObs");
+    const sanitCheckoutConfirmar = document.getElementById("sanitCheckoutConfirmar");
+    const sanitCheckoutCancelar = document.getElementById("sanitCheckoutCancelar");
+
+    const sanitAltaModal = document.getElementById("sanitAltaModal");
+    const sanitAltaBtn = document.getElementById("sanitAltaBtn");
+    const sanitAltaClienteInput = document.getElementById("sanitAltaCliente");
+    const sanitAltaDireccionInput = document.getElementById("sanitAltaDireccion");
+    const sanitAltaLocalidadInput = document.getElementById("sanitAltaLocalidad");
+    const sanitAltaConfirmar = document.getElementById("sanitAltaConfirmar");
+    const sanitAltaCancelar = document.getElementById("sanitAltaCancelar");
+
+    let sanitCartera = [];
+    let sanitCheckoutActual = null;
+    let sanitTickId = null;
+    let sanitCargando = false;
+
+    /** Debounce simple para no re-renderizar en cada tecla. */
+    function sanitDebounce_(fn, ms) {
+      let t = null;
+      return function () {
+        const args = arguments;
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(null, args), ms);
+      };
+    }
+
+    /** Parsea "yyyy-MM-dd HH:mm" sin depender del parser del navegador. */
+    function parseFechaHora_(texto) {
+      if (!texto) return null;
+      const m = String(texto).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+      if (!m) {
+        const d = new Date(texto);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
+    }
+
+    function formatFechaCorta_(iso) {
+      if (!iso) return "—";
+      const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return iso;
+      return m[3] + "/" + m[2] + "/" + m[1];
+    }
+
+    function formatDuracion_(ms) {
+      if (ms < 0) ms = 0;
+      const total = Math.floor(ms / 1000);
+      const h = String(Math.floor(total / 3600)).padStart(2, "0");
+      const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+      const s = String(total % 60).padStart(2, "0");
+      return h + ":" + m + ":" + s;
+    }
+
+    function estadoClase_(estado) {
+      return String(estado || "").toLowerCase().replace(/\s+/g, "");
+    }
+
+    function textoDias_(item) {
+      if (item.estado === "EN CURSO") return "Sanitización en curso";
+      if (item.diasRestantes === null || item.diasRestantes === undefined) {
+        return "Sin sanitización previa registrada";
+      }
+      if (item.diasRestantes < 0) return "Vencida hace " + Math.abs(item.diasRestantes) + " día(s)";
+      if (item.diasRestantes === 0) return "Vence hoy";
+      return "Faltan " + item.diasRestantes + " día(s)";
+    }
+
+    /** Actualiza los cronómetros de las sanitizaciones abiertas. */
+    function sanitTick_() {
+      const ahora = Date.now();
+      document.querySelectorAll("[data-desde]").forEach(el => {
+        const desde = parseFechaHora_(el.getAttribute("data-desde"));
+        el.textContent = desde ? formatDuracion_(ahora - desde.getTime()) : "--:--:--";
+      });
+    }
+
+    function sanitStartTick_() {
+      if (sanitTickId) return;
+      sanitTickId = setInterval(sanitTick_, 1000);
+    }
+
+    function sanitRenderResumen_(r) {
+      if (!r) { sanitResumenBox.innerHTML = ""; return; }
+      const cards = [
+        { valor: r.totalClientes, label: "Clientes en cartera", clase: "" },
+        { valor: r.vencidos, label: "Vencidos", clase: "is-vencido" },
+        { valor: r.porVencer, label: "Por vencer (7 días)", clase: "is-porvencer" },
+        { valor: r.alDia, label: "Al día", clase: "is-aldia" },
+        { valor: r.enCurso, label: "En curso ahora", clase: "" },
+        { valor: r.sinRegistro, label: "Sin registro", clase: "" },
+        { valor: r.completadasUltimos30, label: "Hechas últimos 30 días", clase: "" },
+        { valor: r.minutosPromedioPdv + "'", label: "Promedio en PDV", clase: "" }
+      ];
+      sanitResumenBox.innerHTML = cards.map(c => `
+        <div class="kpi-card ${c.clase}">
+          <div class="kpi-value">${escapeHtml_(String(c.valor))}</div>
+          <div class="kpi-label">${escapeHtml_(c.label)}</div>
+        </div>
+      `).join("");
+    }
+
+    function sanitFiltrar_(lista) {
+      const filtro = sanitFiltroEstado.value;
+      const texto = sanitBuscarInput.value.trim().toLowerCase();
+
+      return lista.filter(item => {
+        if (filtro === "PENDIENTES") {
+          if (["VENCIDO", "POR VENCER", "EN CURSO", "SIN REGISTRO"].indexOf(item.estado) === -1) return false;
+        } else if (filtro !== "TODOS" && item.estado !== filtro) {
+          return false;
+        }
+        if (!texto) return true;
+        const blob = [item.cliente, item.direccion, item.localidad].join(" ").toLowerCase();
+        return blob.indexOf(texto) !== -1;
+      });
+    }
+
+    function sanitRenderCartera_() {
+      const lista = sanitFiltrar_(sanitCartera);
+
+      if (!sanitCartera.length) {
+        sanitListaBox.innerHTML = `<p class="small-note">Este técnico todavía no tiene clientes en su cartera. Cargá comodatos o agregá clientes a mano.</p>`;
+        return;
+      }
+      if (!lista.length) {
+        sanitListaBox.innerHTML = `<p class="small-note">No hay clientes que coincidan con el filtro.</p>`;
+        return;
+      }
+
+      sanitListaBox.innerHTML = lista.map((item, i) => {
+        const idx = sanitCartera.indexOf(item);
+        const ubicacion = [item.direccion, item.localidad].filter(Boolean).join(", ");
+        const enCurso = item.estado === "EN CURSO";
+        const badgeClase = "badge-" + estadoClase_(item.estado);
+
+        const boton = enCurso
+          ? `<button type="button" class="btn-checkout" data-checkout="${idx}">Check-out</button>`
+          : `<button type="button" class="btn-checkin" data-checkin="${idx}">Check-in</button>`;
+
+        const cronometro = enCurso
+          ? `<div class="sanit-fechas">En el PDV desde ${escapeHtml_(item.checkInAbierto)} · <span class="timer-pill" data-desde="${escapeHtml_(item.checkInAbierto)}">00:00:00</span></div>`
+          : `<div class="sanit-fechas">Última: <strong>${escapeHtml_(formatFechaCorta_(item.ultimaSanitizacion))}</strong> · Próxima: <strong>${escapeHtml_(formatFechaCorta_(item.proximaSanitizacion))}</strong></div>`;
+
+        return `
+          <div class="sanit-card estado-${estadoClase_(item.estado)}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="sanit-cliente">${escapeHtml_(item.cliente)}</div>
+              <span class="badge ${badgeClase}">${escapeHtml_(item.estado)}</span>
+            </div>
+            ${ubicacion ? `<div class="sanit-meta">${escapeHtml_(ubicacion)}</div>` : ""}
+            ${cronometro}
+            <div class="sanit-meta">${escapeHtml_(textoDias_(item))}<span class="badge badge-origen ml-2">${escapeHtml_(item.origen)}</span></div>
+            <div class="sanit-actions">${boton}</div>
+          </div>
+        `;
+      }).join("");
+
+      sanitTick_();
+      sanitStartTick_();
+    }
+
+    async function sanitPost_(payload) {
+      const response = await fetch(APP_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      return response.json();
+    }
+
+    async function cargarSanitizaciones() {
+      const tecnico = sanitTecnicoSelect.value;
+      if (!tecnico || sanitCargando) return;
+
+      sanitCargando = true;
+      sanitListaBox.innerHTML = `<p class="small-note">Cargando cartera...</p>`;
+
+      try {
+        const base = APP_SCRIPT_URL + "?tecnico=" + encodeURIComponent(tecnico) + "&action=";
+        const [carteraRes, resumenRes] = await Promise.all([
+          fetch(base + "sanitCartera").then(r => r.json()),
+          fetch(base + "sanitResumen").then(r => r.json())
+        ]);
+
+        if (!carteraRes.ok) throw new Error(carteraRes.message || "No se pudo leer la cartera.");
+        if (!resumenRes.ok) throw new Error(resumenRes.message || "No se pudo leer el resumen.");
+
+        sanitCartera = carteraRes.cartera || [];
+        sanitRenderResumen_(resumenRes.resumen);
+        sanitRenderCartera_();
+      } catch (error) {
+        sanitResumenBox.innerHTML = "";
+        sanitListaBox.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      } finally {
+        sanitCargando = false;
+      }
+    }
+
+    async function sanitHacerCheckIn(idx) {
+      const item = sanitCartera[idx];
+      if (!item) return;
+
+      const btn = document.querySelector('[data-checkin="' + idx + '"]');
+      if (btn) { btn.disabled = true; btn.textContent = "Registrando..."; }
+
+      try {
+        const result = await sanitPost_({
+          action: "sanitCheckIn",
+          tecnico: sanitTecnicoSelect.value,
+          cliente: item.cliente,
+          direccion: item.direccion,
+          localidad: item.localidad,
+          comodatoNumero: item.comodatoNumero,
+          origen: item.origen
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo registrar el check-in.");
+        showStatus("Check-in registrado en " + escapeHtml_(item.cliente) + ". El cronómetro ya está corriendo.");
+        await cargarSanitizaciones();
+      } catch (error) {
+        showStatus("Error en el check-in: " + error.message, true);
+        if (btn) { btn.disabled = false; btn.textContent = "Check-in"; }
+      }
+    }
+
+    function sanitAbrirCheckout(idx) {
+      const item = sanitCartera[idx];
+      if (!item) return;
+      sanitCheckoutActual = item;
+      sanitCheckoutClienteBox.textContent = item.cliente;
+      sanitCheckoutTimerBox.setAttribute("data-desde", item.checkInAbierto || "");
+      sanitCheckoutFotos.value = "";
+      sanitCheckoutObs.value = "";
+      sanitCheckoutConfirmar.disabled = false;
+      sanitCheckoutConfirmar.textContent = "Confirmar check-out";
+      sanitCheckoutModal.style.display = "flex";
+      sanitTick_();
+    }
+
+    function sanitCerrarCheckout() {
+      sanitCheckoutModal.style.display = "none";
+      sanitCheckoutTimerBox.removeAttribute("data-desde");
+      sanitCheckoutActual = null;
+    }
+
+    async function sanitConfirmarCheckout() {
+      if (!sanitCheckoutActual) return;
+
+      sanitCheckoutConfirmar.disabled = true;
+      sanitCheckoutConfirmar.textContent = "Guardando...";
+
+      try {
+        const fotos = await getBase64Files("sanitCheckoutFotos");
+        const result = await sanitPost_({
+          action: "sanitCheckOut",
+          tecnico: sanitTecnicoSelect.value,
+          sanitizacionId: sanitCheckoutActual.sanitizacionAbiertaId,
+          observaciones: sanitCheckoutObs.value.trim(),
+          fotos: fotos
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo cerrar la sanitización.");
+
+        const cliente = sanitCheckoutActual.cliente;
+        sanitCerrarCheckout();
+        showStatus(
+          "<strong>Sanitización cerrada.</strong><br>" +
+          escapeHtml_(cliente) + " — " + result.minutosEnPdv + " minutos en el PDV.<br>" +
+          "Próxima sanitización: " + formatFechaCorta_(result.proximaSanitizacion) + "."
+        );
+        await cargarSanitizaciones();
+      } catch (error) {
+        showStatus("Error en el check-out: " + error.message, true);
+        sanitCheckoutConfirmar.disabled = false;
+        sanitCheckoutConfirmar.textContent = "Confirmar check-out";
+      }
+    }
+
+    async function sanitConfirmarAlta() {
+      const cliente = sanitAltaClienteInput.value.trim();
+      if (!cliente) {
+        showStatus("Escribí el nombre del cliente.", true);
+        return;
+      }
+
+      sanitAltaConfirmar.disabled = true;
+      sanitAltaConfirmar.textContent = "Agregando...";
+
+      try {
+        const result = await sanitPost_({
+          action: "sanitAltaCliente",
+          tecnico: sanitTecnicoSelect.value,
+          cliente: cliente,
+          direccion: sanitAltaDireccionInput.value.trim(),
+          localidad: sanitAltaLocalidadInput.value.trim()
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo agregar el cliente.");
+
+        sanitAltaModal.style.display = "none";
+        sanitAltaClienteInput.value = "";
+        sanitAltaDireccionInput.value = "";
+        sanitAltaLocalidadInput.value = "";
+        showStatus("Cliente agregado a la cartera.");
+        await cargarSanitizaciones();
+      } catch (error) {
+        showStatus("Error al agregar el cliente: " + error.message, true);
+      } finally {
+        sanitAltaConfirmar.disabled = false;
+        sanitAltaConfirmar.textContent = "Agregar";
+      }
+    }
+
+    async function sanitVerHistorial() {
+      const tecnico = sanitTecnicoSelect.value;
+      if (!tecnico) return;
+
+      sanitHistorialBox.innerHTML = `<p class="small-note">Cargando historial...</p>`;
+      try {
+        const response = await fetch(APP_SCRIPT_URL + "?action=sanitHistorial&tecnico=" + encodeURIComponent(tecnico));
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.message || "No se pudo leer el historial.");
+
+        const lista = result.historial || [];
+        if (!lista.length) {
+          sanitHistorialBox.innerHTML = `<p class="small-note">Todavía no hay sanitizaciones registradas.</p>`;
+          return;
+        }
+
+        sanitHistorialBox.innerHTML = lista.map(h => {
+          const fotos = h.fotosUrls
+            ? h.fotosUrls.split("\n").filter(Boolean)
+                .map((u, i) => `<a class="link-pdf" href="${u}" target="_blank">Foto ${i + 1}</a>`).join(" ")
+            : "";
+          return `
+            <div class="comodato-card">
+              <div class="num">${escapeHtml_(h.cliente)}</div>
+              <div class="text-sm text-gray-700">
+                ${escapeHtml_(h.checkIn || "—")} → ${escapeHtml_(h.checkOut || "en curso")}
+                ${h.minutosEnPdv ? " · <strong>" + h.minutosEnPdv + " min</strong>" : ""}
+              </div>
+              ${h.observaciones ? `<div class="text-xs text-gray-600">${escapeHtml_(h.observaciones)}</div>` : ""}
+              ${fotos ? `<div class="comodato-actions">${fotos}</div>` : ""}
+            </div>
+          `;
+        }).join("");
+      } catch (error) {
+        sanitHistorialBox.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      }
+    }
+
+    // --- Listeners del módulo ---
+    sanitListaBox.addEventListener("click", (e) => {
+      const checkin = e.target.closest("[data-checkin]");
+      if (checkin) { sanitHacerCheckIn(Number(checkin.getAttribute("data-checkin"))); return; }
+      const checkout = e.target.closest("[data-checkout]");
+      if (checkout) { sanitAbrirCheckout(Number(checkout.getAttribute("data-checkout"))); }
+    });
+
+    sanitTecnicoSelect.addEventListener("change", () => {
+      localStorage.setItem(TECNICO_STORAGE_KEY, sanitTecnicoSelect.value);
+      sanitHistorialBox.innerHTML = "";
+      cargarSanitizaciones();
+    });
+    sanitRefreshBtn.addEventListener("click", cargarSanitizaciones);
+    sanitFiltroEstado.addEventListener("change", sanitRenderCartera_);
+    sanitBuscarInput.addEventListener("input", sanitDebounce_(sanitRenderCartera_, 250));
+
+    sanitCheckoutCancelar.addEventListener("click", sanitCerrarCheckout);
+    sanitCheckoutConfirmar.addEventListener("click", sanitConfirmarCheckout);
+    sanitCheckoutModal.addEventListener("click", (e) => {
+      if (e.target === sanitCheckoutModal) sanitCerrarCheckout();
+    });
+
+    sanitAltaBtn.addEventListener("click", () => { sanitAltaModal.style.display = "flex"; });
+    sanitAltaCancelar.addEventListener("click", () => { sanitAltaModal.style.display = "none"; });
+    sanitAltaConfirmar.addEventListener("click", sanitConfirmarAlta);
+    sanitAltaModal.addEventListener("click", (e) => {
+      if (e.target === sanitAltaModal) sanitAltaModal.style.display = "none";
+    });
+
+    sanitHistorialBtn.addEventListener("click", sanitVerHistorial);
   </script>
 
   <!-- SCRIPT LOGIN -->
