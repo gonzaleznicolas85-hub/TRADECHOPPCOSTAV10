@@ -166,7 +166,7 @@ function doPost(e) {
 
     const sheet = getSheet_();
     const data = body;
-    const comodatoNumero = data.comodatoNumero && String(data.comodatoNumero).trim() ? String(data.comodatoNumero).trim() : getNextComodatoNumero_();
+    const comodatoNumero = esNumeroComodatoValido_(data.comodatoNumero) ? String(data.comodatoNumero).trim() : getNextComodatoNumber_();
 
     // Convertimos los arrays de equipos y pilones a texto
     const txtEquipos = formatEquipos_(data.equipos);
@@ -222,6 +222,23 @@ function doPost(e) {
   } catch (error) {
     return jsonOutput_({ ok: false, message: error.message });
   }
+}
+
+/**
+ * Valida que el numero recibido tenga la forma TCC-00000. Evita que un
+ * placeholder del formulario ("Cargando...", vacio, "Error") termine
+ * guardado como numero de comodato.
+ */
+function esNumeroComodatoValido_(valor) {
+  const txt = safe_(valor).trim();
+  const prefijo = safe_(CONFIG.NUMBER_PREFIX);
+  if (!txt || txt.indexOf(prefijo) !== 0) return false;
+  const resto = txt.slice(prefijo.length);
+  if (!resto.length) return false;
+  for (let i = 0; i < resto.length; i++) {
+    if (resto[i] < '0' || resto[i] > '9') return false;
+  }
+  return true;
 }
 
 /**
@@ -986,4 +1003,138 @@ function sanitBajaCliente_(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ==========================================================================
+ * 8. LIMPIEZA DE LOS DATOS DE PRUEBA (uso unico)
+ *
+ * Borra exactamente los registros creados durante la prueba del 02/09/2026:
+ *   - Comodato TCC-00092 (fila + PDF + Doc + firma + carpeta de fotos)
+ *   - Sanitizacion SAN-MTKG67C6 en la hoja Sanit_Gaston del Rio (fila + foto)
+ *   - Cliente "ZZZ TEST CLAUDE BORRAR" del padron Clientes_Sanitizacion
+ *
+ * Ejecutar UNA sola vez desde el editor (Ejecutar -> limpiarPruebasClaude).
+ * No hace falta redeployar: las funciones del editor corren sobre el codigo
+ * guardado, no sobre la implementacion publicada.
+ *
+ * Los archivos de Drive van a la papelera (setTrashed), no se destruyen: si
+ * algo se borra de mas, se recupera desde la papelera.
+ *
+ * Cada borrado verifica primero que la fila sea realmente la de prueba. Si no
+ * coincide, la saltea y lo informa en el log. Una vez ejecutada, esta seccion
+ * se puede eliminar del archivo.
+ * ========================================================================== */
+
+const PRUEBA_CLAUDE = {
+  MARCA: 'ZZZ TEST CLAUDE BORRAR',
+  COMODATO: 'TCC-00092',
+  SANITIZACION: 'SAN-MTKG67C6',
+  TECNICO: 'Gaston del Rio'
+};
+
+/** Manda un archivo de Drive a la papelera, sin romper si ya no existe. */
+function papeleraPorId_(id, etiqueta, log) {
+  const limpio = safe_(id).trim();
+  if (!limpio) return;
+  try {
+    DriveApp.getFileById(limpio).setTrashed(true);
+    log.push('  papelera: ' + etiqueta + ' (' + limpio + ')');
+  } catch (err) {
+    log.push('  no se pudo mover ' + etiqueta + ': ' + err.message);
+  }
+}
+
+/** Extrae el ID de archivo de una URL de Drive. */
+function idDesdeUrlDrive_(url) {
+  const m = safe_(url).match(/[-\w]{25,}/);
+  return m ? m[0] : '';
+}
+
+function limpiarPruebasClaude() {
+  const log = [];
+
+  // 1) Comodato de prueba
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  let borroComodato = false;
+
+  if (lastRow >= 2) {
+    const datos = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    const iNum = HEADERS.indexOf('ComodatoNumero');
+    const iNombre = HEADERS.indexOf('NombreFantasia');
+
+    for (let i = datos.length - 1; i >= 0; i--) {
+      const fila = datos[i];
+      if (safe_(fila[iNum]).trim() !== PRUEBA_CLAUDE.COMODATO) continue;
+
+      if (safe_(fila[iNombre]).trim() !== PRUEBA_CLAUDE.MARCA) {
+        log.push('OJO: ' + PRUEBA_CLAUDE.COMODATO + ' no es la fila de prueba (cliente: ' +
+                 safe_(fila[iNombre]) + '). No se toca.');
+        continue;
+      }
+
+      log.push('Comodato ' + PRUEBA_CLAUDE.COMODATO + ':');
+      papeleraPorId_(fila[HEADERS.indexOf('PdfFileId')], 'PDF', log);
+      papeleraPorId_(fila[HEADERS.indexOf('DocFileId')], 'Doc', log);
+      papeleraPorId_(fila[HEADERS.indexOf('FirmaFileId')], 'firma', log);
+
+      // Carpeta de fotos del comodato
+      try {
+        const carpetas = getPhotosParentFolder_().getFoldersByName('Fotos_' + PRUEBA_CLAUDE.COMODATO);
+        while (carpetas.hasNext()) {
+          const f = carpetas.next();
+          f.setTrashed(true);
+          log.push('  papelera: carpeta ' + f.getName());
+        }
+      } catch (err) {
+        log.push('  no se pudo mover la carpeta de fotos: ' + err.message);
+      }
+
+      sheet.deleteRow(i + 2);
+      log.push('  fila borrada de ' + CONFIG.SHEET_NAME);
+      borroComodato = true;
+      break;
+    }
+  }
+  if (!borroComodato) log.push('Comodato ' + PRUEBA_CLAUDE.COMODATO + ': no se encontro (ya estaba limpio).');
+
+  // 2) Sanitizacion de prueba
+  const sanitSheet = getSanitSheet_(PRUEBA_CLAUDE.TECNICO);
+  const filaSanit = readSanitRows_(PRUEBA_CLAUDE.TECNICO).filter(
+    r => safe_(r.SanitizacionId) === PRUEBA_CLAUDE.SANITIZACION
+  )[0];
+
+  if (filaSanit && safe_(filaSanit.Cliente).trim() === PRUEBA_CLAUDE.MARCA) {
+    log.push('Sanitizacion ' + PRUEBA_CLAUDE.SANITIZACION + ':');
+    safe_(filaSanit.FotosUrls).split('\n').filter(String).forEach((url, i) => {
+      papeleraPorId_(idDesdeUrlDrive_(url), 'foto ' + (i + 1), log);
+    });
+    sanitSheet.deleteRow(filaSanit._row);
+    log.push('  fila borrada de ' + sanitSheet.getName());
+  } else {
+    log.push('Sanitizacion ' + PRUEBA_CLAUDE.SANITIZACION + ': no se encontro (ya estaba limpia).');
+  }
+
+  // 3) Cliente de prueba del padron manual
+  const clientes = getClientesSheet_();
+  const ultima = clientes.getLastRow();
+  let borroCliente = false;
+
+  if (ultima >= 2) {
+    const filas = clientes.getRange(2, 1, ultima - 1, CLIENTES_HEADERS.length).getValues();
+    for (let i = filas.length - 1; i >= 0; i--) {
+      if (safe_(filas[i][1]).trim() !== PRUEBA_CLAUDE.MARCA) continue;
+      clientes.deleteRow(i + 2);
+      log.push('Cliente de prueba borrado de ' + CONFIG.CLIENTES_SHEET_NAME);
+      borroCliente = true;
+    }
+  }
+  if (!borroCliente) log.push('Cliente de prueba: no se encontro (ya estaba limpio).');
+
+  log.push('');
+  log.push('Listo. Proximo comodato disponible: ' + getNextComodatoNumber_());
+
+  const texto = log.join('\n');
+  Logger.log(texto);
+  return texto;
 }
