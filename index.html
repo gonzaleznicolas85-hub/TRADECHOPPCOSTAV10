@@ -413,6 +413,19 @@
     .badge-sinregistro { background: #e2e8f0; color: #475569; }
     .badge-encurso { background: #dbeafe; color: #1d4ed8; }
     .badge-origen { background: #f1f5f9; color: #64748b; }
+    .badge-sincomodato { background: #fef3c7; color: #92400e; }
+
+    .btn-comodato {
+      border: 1px solid var(--brand);
+      background: white;
+      color: var(--brand);
+      border-radius: 10px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-comodato:hover { background: #eff6ff; }
 
     .sanit-actions {
       display: flex;
@@ -1582,6 +1595,8 @@
 
       if (item.comodatoNumero) {
         filas.push(`<div class="detalle-fila"><span class="etiqueta">Comodato:</span> <strong>${escapeHtml_(item.comodatoNumero)}</strong></div>`);
+      } else {
+        filas.push(`<div class="detalle-fila"><span class="etiqueta">Sin comodato cargado. Se sanitiza igual; cuando cargues el comodato con este mismo nombre, el cliente queda vinculado solo.</span></div>`);
       }
       filas.push(`<div class="detalle-fila"><span class="etiqueta">Origen:</span> ${escapeHtml_(item.origen)}</div>`);
       filas.push(`<div class="detalle-fila"><span class="etiqueta">Última:</span> ${escapeHtml_(formatFechaCorta_(item.ultimaSanitizacion))} <span class="etiqueta">· Próxima:</span> ${escapeHtml_(formatFechaCorta_(item.proximaSanitizacion))}</div>`);
@@ -1641,6 +1656,10 @@
 
         const abierta = !!sanitAbiertas[item.cliente];
         const detalle = sanitRenderDetalle_(item);
+        const sinComodato = !item.comodatoNumero;
+        const botonComodato = sinComodato
+          ? `<button type="button" class="btn-comodato" data-hacer-comodato="${escapeHtml_(item.cliente)}">Hacer comodato</button>`
+          : "";
 
         const datosChopera = [
           item.equipo ? `<span>Equipo: <strong>${escapeHtml_(item.equipo)}</strong></span>` : "",
@@ -1664,8 +1683,8 @@
             ${ubicacion ? `<div class="sanit-meta">${escapeHtml_(ubicacion)}</div>` : ""}
             ${choperaHtml}
             ${cronometro}
-            <div class="sanit-meta">${escapeHtml_(textoDias_(item))}<span class="badge badge-origen ml-2">${escapeHtml_(item.origen)}</span></div>
-            <div class="sanit-actions">${boton}</div>
+            <div class="sanit-meta">${escapeHtml_(textoDias_(item))}<span class="badge ${sinComodato ? "badge-sincomodato" : "badge-origen"} ml-2">${sinComodato ? "Sin comodato" : escapeHtml_(item.origen)}</span></div>
+            <div class="sanit-actions">${boton}${botonComodato}</div>
             ${detalle}
           </div>
         `;
@@ -1897,6 +1916,36 @@
     }
 
     // --- Listeners del módulo ---
+    /**
+     * Lleva a "Nuevo Comodato" con los datos del cliente ya puestos.
+     *
+     * No hace falta vincular nada a mano: la cartera cruza comodatos y padron
+     * por nombre normalizado, asi que al guardar el comodato con este mismo
+     * nombre de fantasia el cliente pasa de "Sin comodato" a COMODATO solo.
+     */
+    function sanitHacerComodato(cliente) {
+      const item = sanitCartera.filter(c => c.cliente === cliente)[0];
+      if (!item) return;
+
+      // El comodato es del tecnico cuya cartera se esta mirando, no del que
+      // haya quedado elegido en el formulario de antes.
+      if (sanitTecnicoSelect.value) fijarTecnico_(sanitTecnicoSelect.value);
+
+      mostrarVista("nuevo");
+
+      document.getElementById("nombreFantasia").value = item.cliente;
+      if (item.direccion) document.getElementById("domicilio").value = item.direccion;
+      if (item.localidad) document.getElementById("localidad").value = item.localidad;
+      if (item.cantPicos) document.getElementById("cantPicos").value = item.cantPicos;
+
+      showStatus(
+        "<strong>Comodato para " + escapeHtml_(item.cliente) + "</strong><br>" +
+        "Cargamos el nombre, la dirección y los picos desde la cartera. Completá el resto y guardá: " +
+        "el cliente se vincula solo si dejás el mismo nombre de fantasía."
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
     /** Abre el técnico elegido desde la vista general. */
     function sanitAbrirTecnico(nombre) {
       fijarTecnico_(nombre);
@@ -1918,6 +1967,9 @@
 
       const checkout = e.target.closest("[data-checkout]");
       if (checkout) { sanitAbrirCheckout(Number(checkout.getAttribute("data-checkout"))); return; }
+
+      const hacerComodato = e.target.closest("[data-hacer-comodato]");
+      if (hacerComodato) { sanitHacerComodato(hacerComodato.getAttribute("data-hacer-comodato")); return; }
 
       // Los links del detalle (mapa) navegan solos, no deben plegar la tarjeta
       if (e.target.closest("a")) return;
