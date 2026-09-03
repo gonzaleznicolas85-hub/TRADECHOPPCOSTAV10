@@ -299,6 +299,95 @@ function esNumeroComodatoValido_(valor) {
 }
 
 /**
+ * Deja el archivo visible para cualquiera que tenga el link.
+ *
+ * Sin esto, el link que ve el tecnico en el celular lo manda a iniciar sesion
+ * con la cuenta dueña del Sheet: los archivos que crea el script nacen
+ * privados de esa cuenta. Es el mismo permiso que necesita el boton de
+ * WhatsApp, que le manda el PDF al cliente.
+ *
+ * No corta el guardado si falla: algunas configuraciones de Workspace no
+ * permiten compartir fuera del dominio, y perder el comodato entero por eso
+ * seria peor que tener un link que hay que abrir logueado.
+ */
+function compartirPorLink_(file) {
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return true;
+  } catch (err) {
+    Logger.log('No se pudo compartir ' + file.getName() + ': ' + err.message);
+    return false;
+  }
+}
+
+/**
+ * Comparte los archivos que ya estaban creados desde antes del fix.
+ * Se corre a mano desde el editor, una sola vez. Es idempotente: volver a
+ * correrla no rompe nada.
+ */
+function compartirArchivosExistentes() {
+  const log = [];
+  let ok = 0, fallaron = 0;
+
+  const compartirPorId_ = (id, etiqueta) => {
+    const limpio = safe_(id).trim();
+    if (!limpio) return;
+    try {
+      if (compartirPorLink_(DriveApp.getFileById(limpio))) ok++;
+      else fallaron++;
+    } catch (err) {
+      fallaron++;
+      log.push('  no se pudo abrir ' + etiqueta + ' (' + limpio + '): ' + err.message);
+    }
+  };
+
+  // Comodatos: PDF y Doc
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    const datos = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    const iPdf = HEADERS.indexOf('PdfFileId');
+    const iDoc = HEADERS.indexOf('DocFileId');
+    const iFotosEq = HEADERS.indexOf('FotosEquiposUrls');
+    const iFotosPil = HEADERS.indexOf('FotosPilonesUrls');
+
+    datos.forEach(fila => {
+      compartirPorId_(fila[iPdf], 'PDF');
+      compartirPorId_(fila[iDoc], 'Doc');
+      [fila[iFotosEq], fila[iFotosPil]].forEach(celda => {
+        safe_(celda).split('\n').filter(String).forEach(url => {
+          compartirPorId_(idDesdeUrlDrive_(url), 'foto de comodato');
+        });
+      });
+    });
+    log.push('Comodatos revisados: ' + datos.length);
+  }
+
+  // Fotos de sanitizaciones
+  CONFIG.TECNICOS.forEach(t => {
+    readSanitRows_(t).forEach(r => {
+      safe_(r.FotosUrls).split('\n').filter(String).forEach(url => {
+        compartirPorId_(idDesdeUrlDrive_(url), 'foto de sanitización');
+      });
+    });
+  });
+
+  // Fotos de intervenciones
+  readIntervenciones_('').forEach(i => {
+    safe_(i.FotosUrls).split('\n').filter(String).forEach(url => {
+      compartirPorId_(idDesdeUrlDrive_(url), 'foto de intervención');
+    });
+  });
+
+  log.push('Archivos compartidos: ' + ok);
+  log.push('Archivos que no se pudieron compartir: ' + fallaron);
+
+  const texto = log.join('\n');
+  Logger.log(texto);
+  return texto;
+}
+
+/**
  * 3.b CARPETA DE FOTOS (resolución automática)
  *
  * Orden de resolución:
@@ -414,6 +503,8 @@ function generatePdfFromTemplate_(data, comodatoNumero, signatureFile) {
   // Generamos el PDF
   const pdfBlob = tempCopy.getBlob().getAs(MimeType.PDF).setName(nombreArchivoPdf + '.pdf');
   const pdfFile = pdfFolder.createFile(pdfBlob);
+  compartirPorLink_(pdfFile);
+  compartirPorLink_(tempCopy);
 
   // Renombramos y conservamos el DOC temporal
   tempCopy.setName(nombreArchivoPdf + '_DOC');
@@ -494,6 +585,7 @@ function savePhotos_(folder, photosArray, prefix) {
     const base64 = photo.data;
     const blob = Utilities.newBlob(Utilities.base64Decode(base64), photo.tipo, prefix + '_' + (index + 1) + '_' + photo.nombre);
     const file = folder.createFile(blob);
+    compartirPorLink_(file);
     urls.push(file.getUrl());
   });
   return urls.join('\n');
