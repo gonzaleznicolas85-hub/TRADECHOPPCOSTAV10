@@ -1423,7 +1423,7 @@
       "Federico Barbutti",
       "Maximiliano Di Pietro",
       "Mariano Diaz",
-      "Jose Caporaletti",
+      "José Alejandro Caporaletti",
       "Ramon Lazarte"
     ];
 
@@ -1489,6 +1489,22 @@
         if (input) input.value = nombre;
       });
       sincronizarBotonesTecnico_();
+    }
+
+    // Si un tecnico cambio de nombre, el que quedo guardado en su celular ya no
+    // matchea. Debe coincidir con CONFIG.NOMBRES_ANTERIORES del Code.gs.
+    const NOMBRES_ANTERIORES = {
+      "José Alejandro Caporaletti": ["Jose Caporaletti"]
+    };
+
+    /** Traduce un nombre guardado viejo al nombre actual. */
+    function nombreActual_(guardado) {
+      if (!guardado) return "";
+      if (TECNICOS.indexOf(guardado) !== -1) return guardado;
+      for (const actual in NOMBRES_ANTERIORES) {
+        if (NOMBRES_ANTERIORES[actual].indexOf(guardado) !== -1) return actual;
+      }
+      return "";
     }
 
     function cargarListaTecnicos() {
@@ -1564,9 +1580,10 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       cargarListaTecnicos();
-      const tecnicoGuardado = localStorage.getItem(TECNICO_STORAGE_KEY);
-      if (tecnicoGuardado && TECNICOS.indexOf(tecnicoGuardado) !== -1) {
+      const tecnicoGuardado = nombreActual_(localStorage.getItem(TECNICO_STORAGE_KEY));
+      if (tecnicoGuardado) {
         fijarTecnico_(tecnicoGuardado);
+        localStorage.setItem(TECNICO_STORAGE_KEY, tecnicoGuardado);
       }
     });
 

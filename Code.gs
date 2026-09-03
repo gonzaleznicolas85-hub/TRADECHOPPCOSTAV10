@@ -50,12 +50,19 @@ const CONFIG = {
     'Retiro de equipo',
     'Otro'
   ],
+  // Nombres con los que un tecnico quedo cargado antes de un cambio de nombre.
+  // Los comodatos viejos siguen teniendo el nombre anterior y no se reescriben
+  // (son el registro firmado), asi que el cruce tiene que reconocer los dos.
+  NOMBRES_ANTERIORES: {
+    'José Alejandro Caporaletti': ['Jose Caporaletti']
+  },
+
   TECNICOS: [
     'Gaston del Rio',
     'Federico Barbutti',
     'Maximiliano Di Pietro',
     'Mariano Diaz',
-    'Jose Caporaletti',
+    'José Alejandro Caporaletti',
     'Ramon Lazarte'
   ]
 };
@@ -636,7 +643,7 @@ function leerComodatosAgrupados_() {
   };
 
   data.forEach(fila => {
-    const key = norm_(fila[idx.tecnico]);
+    const key = keyTecnico_(fila[idx.tecnico]);
     if (!key) return;
     const ts = fila[idx.timestamp];
     if (!mapa[key]) mapa[key] = [];
@@ -662,7 +669,7 @@ function leerComodatosAgrupados_() {
 }
 
 function getComodatosByTecnico_(tecnico) {
-  return leerComodatosAgrupados_()[norm_(tecnico)] || [];
+  return leerComodatosAgrupados_()[keyTecnico_(tecnico)] || [];
 }
 
 /**
@@ -677,7 +684,7 @@ function leerClientesManualesAgrupados_() {
 
   const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
   rows.forEach(f => {
-    const key = norm_(f[0]);
+    const key = keyTecnico_(f[0]);
     if (!key || norm_(f[4]) === 'no') return;
     if (!mapa[key]) mapa[key] = [];
     mapa[key].push(f);
@@ -711,9 +718,30 @@ function norm_(v) {
     .toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Clave con la que se agrupa a un tecnico. Es norm_() salvo que el valor sea
+ * un nombre anterior del mismo tecnico, en cuyo caso devuelve la clave del
+ * nombre actual. Todo lo que agrupe o filtre por tecnico tiene que usar esto,
+ * no norm_(), o los registros cargados con el nombre viejo se pierden.
+ */
+function keyTecnico_(valor) {
+  const n = norm_(valor);
+  if (!n) return '';
+
+  const mapa = CONFIG.NOMBRES_ANTERIORES || {};
+  for (const canonico in mapa) {
+    if (norm_(canonico) === n) return n;
+    const previos = mapa[canonico] || [];
+    for (let i = 0; i < previos.length; i++) {
+      if (norm_(previos[i]) === n) return norm_(canonico);
+    }
+  }
+  return n;
+}
+
 /** Devuelve el nombre canónico del técnico según CONFIG.TECNICOS. Lanza si no existe. */
 function resolveTecnico_(tecnico) {
-  const objetivo = norm_(tecnico);
+  const objetivo = keyTecnico_(tecnico);
   if (!objetivo) throw new Error('Falta el técnico.');
   for (let i = 0; i < CONFIG.TECNICOS.length; i++) {
     if (norm_(CONFIG.TECNICOS[i]) === objetivo) return CONFIG.TECNICOS[i];
@@ -726,13 +754,19 @@ function getSanitSheet_(tecnico) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const nombre = CONFIG.SANIT_SHEET_PREFIX + tecnico;
   let sheet = ss.getSheetByName(nombre);
+
+  // Si el tecnico cambio de nombre, su hoja anterior se renombra en vez de
+  // crear una vacia al lado y dejar el historial huerfano.
   if (!sheet) {
-    sheet = ss.insertSheet(nombre);
-    sheet.getRange(1, 1, 1, SANIT_HEADERS.length).setValues([SANIT_HEADERS]);
-    const header = sheet.getRange(1, 1, 1, SANIT_HEADERS.length);
-    header.setBackground('#003366').setFontColor('#ffffff').setFontWeight('bold');
-    sheet.setFrozenRows(1);
+    const previos = (CONFIG.NOMBRES_ANTERIORES || {})[tecnico] || [];
+    for (let i = 0; i < previos.length; i++) {
+      const vieja = ss.getSheetByName(CONFIG.SANIT_SHEET_PREFIX + previos[i]);
+      if (vieja) { vieja.setName(nombre); sheet = vieja; break; }
+    }
   }
+
+  if (!sheet) sheet = ss.insertSheet(nombre);
+  escribirCabecera_(sheet, SANIT_HEADERS);
   return sheet;
 }
 
@@ -867,8 +901,8 @@ function isoDateTime_(d) {
 function getCarteraSanitizacion_(tecnico) {
   return construirCartera_(
     tecnico,
-    leerComodatosAgrupados_()[norm_(tecnico)] || [],
-    leerClientesManualesAgrupados_()[norm_(tecnico)] || [],
+    leerComodatosAgrupados_()[keyTecnico_(tecnico)] || [],
+    leerClientesManualesAgrupados_()[keyTecnico_(tecnico)] || [],
     readSanitRows_(tecnico)
   );
 }
@@ -1058,7 +1092,7 @@ function getResumenGeneral_() {
   let minutosAcumulados = 0, sanitConMinutos = 0;
 
   const porTecnico = CONFIG.TECNICOS.map(tecnico => {
-    const key = norm_(tecnico);
+    const key = keyTecnico_(tecnico);
     const filas = readSanitRows_(tecnico);
     const cartera = construirCartera_(tecnico, comodatos[key] || [], clientes[key] || [], filas);
     const r = calcularResumen_(cartera, filas);
@@ -1226,7 +1260,7 @@ function sanitAltaCliente_(body) {
     const lastRow = sheet.getLastRow();
     if (lastRow >= 2) {
       const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
-      const duplicado = rows.some(f => norm_(f[0]) === norm_(tecnico) && norm_(f[1]) === norm_(cliente));
+      const duplicado = rows.some(f => keyTecnico_(f[0]) === keyTecnico_(tecnico) && norm_(f[1]) === norm_(cliente));
       if (duplicado) return { ok: false, message: 'Ese cliente ya está en tu cartera.' };
     }
 
@@ -1260,7 +1294,7 @@ function sanitBajaCliente_(body) {
 
     const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
     for (let i = 0; i < rows.length; i++) {
-      if (norm_(rows[i][0]) === norm_(tecnico) && norm_(rows[i][1]) === norm_(cliente)) {
+      if (keyTecnico_(rows[i][0]) === keyTecnico_(tecnico) && norm_(rows[i][1]) === norm_(cliente)) {
         sheet.getRange(i + 2, CLIENTES_HEADERS.indexOf('Activo') + 1).setValue('NO');
         return { ok: true, message: 'Cliente dado de baja de la cartera.' };
       }
@@ -1424,14 +1458,14 @@ function readIntervenciones_(tecnico) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const filtro = tecnico ? norm_(tecnico) : '';
+  const filtro = tecnico ? keyTecnico_(tecnico) : '';
   const values = sheet.getRange(2, 1, lastRow - 1, INTERVENCIONES_HEADERS.length).getValues();
 
   const filas = [];
   values.forEach((fila, i) => {
     const obj = { _row: i + 2 };
     INTERVENCIONES_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
-    if (filtro && norm_(obj.Tecnico) !== filtro) return;
+    if (filtro && keyTecnico_(obj.Tecnico) !== filtro) return;
     filas.push(obj);
   });
   return filas;
@@ -1571,7 +1605,7 @@ function guardarChopera_(body) {
     const renombra = original && norm_(original) !== norm_(cliente);
 
     if (renombra) {
-      const comodatos = leerComodatosAgrupados_()[norm_(tecnico)] || [];
+      const comodatos = leerComodatosAgrupados_()[keyTecnico_(tecnico)] || [];
       const tieneComodato = comodatos.some(
         c => norm_(c.nombreFantasia || c.razonSocial) === norm_(original));
       if (tieneComodato) {
@@ -1591,7 +1625,7 @@ function guardarChopera_(body) {
     if (lastRow >= 2) {
       const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
       for (let i = 0; i < rows.length; i++) {
-        if (norm_(rows[i][0]) === norm_(tecnico) && norm_(rows[i][1]) === buscado) { fila = i + 2; break; }
+        if (keyTecnico_(rows[i][0]) === keyTecnico_(tecnico) && norm_(rows[i][1]) === buscado) { fila = i + 2; break; }
       }
     }
 
