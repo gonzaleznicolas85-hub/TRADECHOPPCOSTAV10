@@ -1801,7 +1801,10 @@
 
       if (activa === "sanitizaciones") cargarSanitizaciones();
       if (activa === "choperas") cargarChoperas();
-      if (activa === "heladeras") cargarHeladeras();
+      if (activa === "heladeras") {
+        helTomarTecnicoCompartido_();
+        cargarHeladeras();
+      }
     }
 
     navNuevoBtn.addEventListener("click", () => mostrarVista("nuevo"));
@@ -3789,8 +3792,9 @@
 
     /*
      * Selector de técnico propio de Heladeras. La lista la manda el servidor
-     * (CONFIG.HELADERAS_TECNICOS): el servicio SMK puede ser otra gente que
-     * las choperas, así que no se sincroniza con el técnico de las otras solapas.
+     * (CONFIG.HELADERAS_TECNICOS, que vacía usa los mismos técnicos de chopp).
+     * Si el nombre elegido también es técnico de chopp, se comparte con las
+     * otras solapas; si la lista es otra gente, cada selección queda aparte.
      */
     const HEL_TECNICO_KEY = "heladeras_tecnico_nombre";
     const heladerasTecnicoBotones = document.getElementById("heladerasTecnicoBotones");
@@ -3804,9 +3808,10 @@
         <button type="button" class="tecnico-btn" data-hel-tecnico="${escapeHtml_(t)}" aria-pressed="false">${escapeHtml_(t)}</button>
       `).join("");
 
-      let guardado = "";
-      try { guardado = localStorage.getItem(HEL_TECNICO_KEY) || localStorage.getItem(TECNICO_STORAGE_KEY) || ""; } catch (e) {}
-      heladerasTecnicoInput.value = helTecnicos.indexOf(guardado) !== -1 ? guardado : "";
+      // Primero el técnico elegido en las otras solapas; si no está en esta lista, el último de Heladeras
+      const candidatos = [document.getElementById("choperasTecnico").value];
+      try { candidatos.push(localStorage.getItem(TECNICO_STORAGE_KEY), localStorage.getItem(HEL_TECNICO_KEY)); } catch (e) {}
+      heladerasTecnicoInput.value = candidatos.filter(c => c && helTecnicos.indexOf(c) !== -1)[0] || "";
       helSincronizarTecnico_();
 
       helTabTecnico.innerHTML = `<option value="">Todos</option>` +
@@ -3826,9 +3831,23 @@
       if (!b) return;
       heladerasTecnicoInput.value = b.getAttribute("data-hel-tecnico");
       try { localStorage.setItem(HEL_TECNICO_KEY, heladerasTecnicoInput.value); } catch (err) {}
+      if (TECNICOS.indexOf(heladerasTecnicoInput.value) !== -1) {
+        try { localStorage.setItem(TECNICO_STORAGE_KEY, heladerasTecnicoInput.value); } catch (err) {}
+        fijarTecnico_(heladerasTecnicoInput.value);
+      }
       helSincronizarTecnico_();
       helRenderLista_();
     });
+
+    /** Al entrar a Heladeras, toma el técnico que se eligió en otra solapa. */
+    function helTomarTecnicoCompartido_() {
+      const compartido = document.getElementById("choperasTecnico").value;
+      if (compartido && compartido !== heladerasTecnicoInput.value && helTecnicos.indexOf(compartido) !== -1) {
+        heladerasTecnicoInput.value = compartido;
+        try { localStorage.setItem(HEL_TECNICO_KEY, compartido); } catch (err) {}
+        helSincronizarTecnico_();
+      }
+    }
 
     heladerasRefreshBtn.addEventListener("click", () => cargarHeladeras());
     heladerasBuscarInput.addEventListener("input", sanitDebounce_(helRenderLista_, 250));

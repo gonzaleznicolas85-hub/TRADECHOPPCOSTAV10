@@ -74,7 +74,7 @@ const CONFIG = {
   WHATSAPP_META_PLANTILLA: 'nuevo_ticket_heladera',
   WHATSAPP_META_IDIOMA: 'es_AR',
   // URL publica de la app (Netlify). Si esta, el aviso trae el link al ticket.
-  APP_URL: '',
+  APP_URL: 'https://comodatoschoppcosta.netlify.app/',
 
   HELADERAS_MOTIVOS_NO_RESUELTO: [
     'Falta de repuesto',
