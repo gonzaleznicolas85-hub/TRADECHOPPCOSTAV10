@@ -444,6 +444,8 @@
       font-weight: 800;
       font-size: 0.85rem;
       cursor: pointer;
+      display: inline-block;
+      text-decoration: none;
     }
     .btn-comodato:hover { background: #eff6ff; }
 
@@ -1069,6 +1071,17 @@
         <div class="modal-actions">
           <button type="button" id="choperaEditCancelar" class="secondary-btn">Cancelar</button>
           <button type="button" id="choperaEditGuardar" class="submit-btn" style="width:auto;">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: FICHA DEL CLIENTE -->
+    <div id="choperaFichaModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3 id="choperaFichaTitulo">Ficha del cliente</h3>
+        <div id="choperaFichaContenido" class="mt-3 space-y-1 text-sm"></div>
+        <div class="modal-actions">
+          <button type="button" id="choperaFichaCerrar" class="secondary-btn">Cerrar</button>
         </div>
       </div>
     </div>
@@ -2890,6 +2903,8 @@
             <div class="sanit-chopera">${chopera}</div>
             <div class="sanit-fechas">Última sanitización: <strong>${escapeHtml_(formatFechaCorta_(c.ultimaSanitizacion))}</strong> · Próxima: <strong>${escapeHtml_(formatFechaCorta_(c.proximaSanitizacion))}</strong></div>
             <div class="sanit-actions">
+              <button type="button" class="btn-comodato" data-ficha-chopera="${escapeHtml_(c.cliente)}">Ver ficha</button>
+              ${c.pdfUrl ? `<a class="btn-comodato" href="${escapeHtml_(c.pdfUrl)}" target="_blank" rel="noopener">Ver PDF comodato</a>` : ""}
               <button type="button" class="btn-comodato" data-editar-chopera="${escapeHtml_(c.cliente)}">Editar</button>
               <button type="button" class="btn-checkin" data-nueva-int="${escapeHtml_(c.cliente)}">+ Arreglo o cambio</button>
             </div>
@@ -2929,6 +2944,56 @@
       } finally {
         choperasCargando = false;
       }
+    }
+
+    const choperaFichaModal = document.getElementById("choperaFichaModal");
+    const choperaFichaTitulo = document.getElementById("choperaFichaTitulo");
+    const choperaFichaContenido = document.getElementById("choperaFichaContenido");
+
+    /** Ficha del cliente: datos del comodato (si tiene) + datos de la chopera. */
+    function choperaAbrirFicha(cliente) {
+      const c = choperas.filter(x => x.cliente === cliente)[0];
+      if (!c) return;
+      const f = c.ficha || {};
+
+      const fila = (etiqueta, valor) => valor
+        ? `<div class="detalle-fila"><span class="etiqueta">${escapeHtml_(etiqueta)}:</span> <strong>${escapeHtml_(String(valor))}</strong></div>`
+        : "";
+      const titulo = texto => `<div class="detalle-fila mt-3"><span class="etiqueta" style="font-weight:700;">${escapeHtml_(texto)}</span></div>`;
+      const ubicacion = [c.direccion, c.localidad].filter(Boolean).join(" ");
+
+      const partes = [
+        titulo("Cliente"),
+        fila("Nombre de fantasía", f.nombreFantasia || c.cliente),
+        fila("Razón social", f.razonSocial),
+        fila("CUIT", f.cuit),
+        fila("Cód. cliente", f.codCliente),
+        fila("Distribuidor", f.distribuidor),
+        fila("Domicilio", f.domicilio || c.direccion),
+        fila("Localidad", f.localidad || c.localidad),
+        fila("Firmó", [f.aclaracion, f.dni ? "DNI " + f.dni : ""].filter(Boolean).join(" · ")),
+        titulo("Comodato"),
+        c.tieneComodato
+          ? fila("N°", c.comodatoNumero) + fila("Fecha", formatFechaCorta_(f.fecha))
+          : `<div class="detalle-fila"><span class="etiqueta">Sin comodato cargado.</span></div>`,
+        titulo("Chopera"),
+        fila("Equipo", c.equipo),
+        fila("Pilón", c.pilon),
+        fila("Picos", c.cantPicos || 0),
+        fila("Sanitización", c.estadoSanitizacion),
+        fila("Última", formatFechaCorta_(c.ultimaSanitizacion)),
+        fila("Próxima", formatFechaCorta_(c.proximaSanitizacion))
+      ];
+
+      const acciones = [
+        c.pdfUrl ? `<a class="link-pdf" href="${escapeHtml_(c.pdfUrl)}" target="_blank" rel="noopener">Ver PDF comodato</a>` : "",
+        ubicacion ? `<a class="link-pdf" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.cliente + " " + ubicacion)}">Cómo llegar</a>` : ""
+      ].filter(Boolean).join("");
+
+      choperaFichaTitulo.textContent = c.cliente;
+      choperaFichaContenido.innerHTML = partes.join("") +
+        (acciones ? `<div class="comodato-actions mt-3">${acciones}</div>` : "");
+      choperaFichaModal.style.display = "flex";
     }
 
     /** Modal de edición. Sin cliente se usa como alta. */
@@ -3054,6 +3119,9 @@
 
     // --- Listeners ---
     choperasListaBox.addEventListener("click", (e) => {
+      const ficha = e.target.closest("[data-ficha-chopera]");
+      if (ficha) { choperaAbrirFicha(ficha.getAttribute("data-ficha-chopera")); return; }
+
       const editar = e.target.closest("[data-editar-chopera]");
       if (editar) { choperaAbrirEditar(editar.getAttribute("data-editar-chopera")); return; }
 
@@ -3097,6 +3165,11 @@
     choperasFiltro.addEventListener("change", choperasRenderLista_);
     choperasBuscarInput.addEventListener("input", sanitDebounce_(choperasRenderLista_, 250));
     choperasNuevaBtn.addEventListener("click", () => choperaAbrirEditar(""));
+
+    document.getElementById("choperaFichaCerrar").addEventListener("click", () => { choperaFichaModal.style.display = "none"; });
+    choperaFichaModal.addEventListener("click", (e) => {
+      if (e.target === choperaFichaModal) choperaFichaModal.style.display = "none";
+    });
 
     choperaEditCancelar.addEventListener("click", () => { choperaEditarModal.style.display = "none"; choperaEditando = null; });
     choperaEditGuardar.addEventListener("click", choperaGuardar);

@@ -777,6 +777,10 @@ function leerComodatosAgrupados_() {
     fecha: HEADERS.indexOf('Fecha'),
     tecnico: HEADERS.indexOf('Tecnico'),
     distribuidor: HEADERS.indexOf('Distribuidor'),
+    codCliente: HEADERS.indexOf('CodCliente'),
+    cuit: HEADERS.indexOf('CUIT'),
+    aclaracion: HEADERS.indexOf('Aclaracion'),
+    dni: HEADERS.indexOf('DNI'),
     nombreFantasia: HEADERS.indexOf('NombreFantasia'),
     razonSocial: HEADERS.indexOf('RazonSocial'),
     localidad: HEADERS.indexOf('Localidad'),
@@ -797,6 +801,10 @@ function leerComodatosAgrupados_() {
       comodatoNumero: safe_(fila[idx.comodatoNumero]),
       fecha: safe_(fila[idx.fecha]),
       distribuidor: safe_(fila[idx.distribuidor]),
+      codCliente: safe_(fila[idx.codCliente]),
+      cuit: safe_(fila[idx.cuit]),
+      aclaracion: safe_(fila[idx.aclaracion]),
+      dni: safe_(fila[idx.dni]),
       nombreFantasia: safe_(fila[idx.nombreFantasia]),
       razonSocial: safe_(fila[idx.razonSocial]),
       localidad: safe_(fila[idx.localidad]),
@@ -1061,7 +1069,8 @@ function getCarteraSanitizacion_(tecnico) {
 function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
   const mapa = {};
 
-  const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase, chopera) => {
+  // ficha: datos del comodato (razon social, CUIT, PDF...) si el cliente tiene uno
+  const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase, chopera, ficha) => {
     const key = norm_(cliente);
     if (!key) return;
     const eq = chopera || {};
@@ -1077,7 +1086,8 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
         fechaBase: fechaBase || null,
         equipo: safe_(eq.equipo).trim(),
         pilon: safe_(eq.pilon).trim(),
-        cantPicos: toNumber_(eq.cantPicos)
+        cantPicos: toNumber_(eq.cantPicos),
+        ficha: ficha || null
       };
       return;
     }
@@ -1086,6 +1096,7 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
     if (!actual.direccion) actual.direccion = safe_(direccion).trim();
     if (!actual.localidad) actual.localidad = safe_(localidad).trim();
     if (!actual.comodatoNumero) actual.comodatoNumero = safe_(comodatoNumero);
+    if (!actual.ficha && ficha) actual.ficha = ficha;
     if (!actual.equipo) actual.equipo = safe_(eq.equipo).trim();
     if (!actual.pilon) actual.pilon = safe_(eq.pilon).trim();
     if (!actual.cantPicos) actual.cantPicos = toNumber_(eq.cantPicos);
@@ -1096,7 +1107,21 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
   comodatos.forEach(c => {
     push_(c.nombreFantasia || c.razonSocial, c.domicilio, c.localidad, 'COMODATO',
           c.comodatoNumero, toDate_(c.fecha) || (c.timestamp ? new Date(c.timestamp) : null),
-          { equipo: c.equipo, pilon: c.pilon, cantPicos: c.cantPicos });
+          { equipo: c.equipo, pilon: c.pilon, cantPicos: c.cantPicos },
+          {
+            comodatoNumero: c.comodatoNumero,
+            fecha: isoDate_(toDate_(c.fecha)) || c.fecha,
+            distribuidor: c.distribuidor,
+            codCliente: c.codCliente,
+            cuit: c.cuit,
+            nombreFantasia: c.nombreFantasia,
+            razonSocial: c.razonSocial,
+            domicilio: c.domicilio,
+            localidad: c.localidad,
+            aclaracion: c.aclaracion,
+            dni: c.dni,
+            pdfUrl: c.pdfUrl
+          });
   });
 
   // B) Clientes del padrón manual
@@ -1170,6 +1195,7 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
       equipo: c.equipo,
       pilon: c.pilon,
       cantPicos: c.cantPicos,
+      ficha: c.ficha,
       ultimaSanitizacion: isoDate_(ult),
       proximaSanitizacion: isoDate_(prox),
       diasRestantes: dias,
@@ -1713,6 +1739,8 @@ function getChoperas_(tecnico) {
       origen: c.origen,
       tieneComodato: !!c.comodatoNumero,
       comodatoNumero: c.comodatoNumero,
+      pdfUrl: c.ficha ? c.ficha.pdfUrl : '',
+      ficha: c.ficha,
       equipo: c.equipo,
       pilon: c.pilon,
       cantPicos: c.cantPicos,
