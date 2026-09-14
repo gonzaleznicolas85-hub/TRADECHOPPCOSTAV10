@@ -506,6 +506,246 @@
       border-radius: 999px;
       font-size: 0.85rem;
     }
+
+    /* --- MÓDULO HELADERAS --- */
+    @media (max-width: 480px) {
+      .main-nav { flex-wrap: wrap; }
+      .main-nav .nav-btn { flex: 1 1 30%; }
+    }
+    .hel-card {
+      background: white;
+      border: 1px solid #dbe3ec;
+      border-left: 5px solid #94a3b8;
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hel-card.is-clickable { cursor: pointer; }
+    .hel-card.is-open .sanit-detalle { display: flex; }
+    .hel-card.is-clickable:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .hel-card.edad-nuevo { border-left-color: #2563eb; }
+    .hel-card.edad-media { border-left-color: #f59e0b; }
+    .hel-card.edad-vieja { border-left-color: #dc2626; }
+    .hel-card.estado-resuelto { border-left-color: #10b981; }
+    .hel-card.estado-noresuelto { border-left-color: #64748b; }
+    .hel-card.is-nuevo-llegado { animation: hel-llegada 2.4s ease-out 1; }
+    @keyframes hel-llegada {
+      from { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35); }
+      to { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hel-card.is-nuevo-llegado { animation: none; }
+    }
+    .hel-cliente { font-weight: 800; color: #0f172a; font-size: 1rem; }
+    .hel-meta { font-size: 0.82rem; color: #64748b; }
+    .hel-falla {
+      font-size: 0.9rem;
+      color: #1f2937;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      padding: 0.45rem 0.6rem;
+      white-space: pre-line;
+    }
+    .hel-card:not(.is-open) .hel-falla {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .hel-asignado {
+      font-size: 0.85rem;
+      color: #1e3a8a;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 0.35rem 0.55rem;
+    }
+    .hel-espera {
+      font-size: 0.85rem;
+      color: #92400e;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.35rem 0.55rem;
+    }
+    .hel-cierre {
+      font-size: 0.85rem;
+      color: #065f46;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 0.45rem 0.6rem;
+      white-space: pre-line;
+    }
+    .hel-cierre.is-noresuelto { color: #334155; background: #f8fafc; border-color: #cbd5e1; }
+    .badge-asignado { background: #dbeafe; color: #1d4ed8; }
+    .badge-enespera { background: #fef3c7; color: #b45309; }
+    .badge-sinasignar { background: #e2e8f0; color: #334155; }
+    .badge-resuelto { background: #d1fae5; color: #047857; }
+    .badge-noresuelto { background: #f1f5f9; color: #475569; }
+    .badge-nuevo { background: #2563eb; color: white; }
+    .btn-liberar {
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #475569;
+      border-radius: 10px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-liberar:hover { background: #f8fafc; }
+    .btn-tomar { min-width: 9rem; }
+    .hel-actions { align-items: center; }
+
+    /* Tablero general */
+    .hel-modo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #e2e8f0;
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .hel-modo button {
+      border: none;
+      background: transparent;
+      color: #475569;
+      border-radius: 9px;
+      padding: 0.6rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .hel-modo button.is-active { background: white; color: var(--brand); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+    .hel-filtros { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 768px) {
+      .hel-filtros { grid-template-columns: 1fr 1fr auto; align-items: end; }
+    }
+    .hel-barra {
+      display: flex;
+      gap: 2px;
+      height: 28px;
+      margin-top: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+    .hel-barra > div { min-width: 4px; transition: opacity 0.12s ease; }
+    .hel-barra > div:hover { opacity: 0.8; }
+    .hel-leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 0.85rem; color: #334155; }
+    .hel-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+    .hel-leyenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .hel-leyenda strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+    .hel-board { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 900px) {
+      .hel-board { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: start; }
+    }
+    .hel-col {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-top: 4px solid #94a3b8;
+      border-radius: 12px;
+      padding: 0.6rem;
+    }
+    .hel-col > summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: #0f172a;
+      cursor: pointer;
+      list-style: none;
+      padding: 0.2rem 0.2rem 0.5rem;
+    }
+    .hel-col > summary::-webkit-details-marker { display: none; }
+    .hel-col-items { display: flex; flex-direction: column; gap: 6px; }
+    .hel-mini {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.45rem 0.55rem;
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+    }
+    .hel-mini:hover { border-color: var(--brand); }
+    .hel-mini:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .hel-mini .t { font-weight: 700; font-size: 0.85rem; color: #0f172a; }
+    .hel-mini .m { font-size: 0.75rem; color: #64748b; }
+    .hel-tabla { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 8px; }
+    .hel-tabla th, .hel-tabla td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; }
+    .hel-tabla th:first-child, .hel-tabla td:first-child { text-align: left; }
+    .hel-tabla th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: #64748b; }
+    .hel-tabla td { font-variant-numeric: tabular-nums; color: #1f2937; }
+    .hel-actions a, .hel-card .comodato-actions a {
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.5rem 0.8rem;
+      border-radius: 8px;
+    }
+    .hel-card .sanit-chopera {
+      font-size: 0.82rem;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.35rem 0.55rem;
+    }
+    .hel-actions button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .hel-respuestas { margin: 0; display: grid; gap: 6px; }
+    .hel-respuestas dt { font-size: 0.75rem; color: #64748b; font-weight: 700; }
+    .hel-respuestas dd { margin: 0; font-size: 0.88rem; color: #1f2937; white-space: pre-line; word-break: break-word; }
+    .hel-refresco { font-size: 0.78rem; color: #64748b; }
+    .hel-segmento {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .hel-segmento button {
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #374151;
+      border-radius: 10px;
+      padding: 0.7rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .hel-segmento button.is-active.is-resuelto { background: #059669; border-color: #059669; color: white; }
+    .hel-segmento button.is-active.is-noresuelto { background: #475569; border-color: #475569; color: white; }
+    .hel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .hel-chip {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+      border-radius: 999px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .hel-chip:hover { border-color: var(--brand); }
+    .hel-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .hel-thumb { position: relative; width: 72px; height: 72px; }
+    .hel-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; }
+    .hel-thumb button {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: none;
+      background: #111827;
+      color: white;
+      font-size: 0.8rem;
+      line-height: 22px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -538,6 +778,7 @@
       <button type="button" id="navMisComodatosBtn" class="nav-btn">Mis Comodatos</button>
       <button type="button" id="navSanitizacionesBtn" class="nav-btn">Sanitizaciones</button>
       <button type="button" id="navChoperasBtn" class="nav-btn">Mis Choperas</button>
+      <button type="button" id="navHeladerasBtn" class="nav-btn">Heladeras</button>
     </nav>
 
     <div id="statusBox" class="status-box mb-5"></div>
@@ -644,6 +885,135 @@
         <div id="choperasLista" class="space-y-3"></div>
       </div>
     </section>
+
+    <section id="viewHeladeras" class="section-card overflow-hidden" style="display:none;">
+      <div class="section-title px-5 py-4">
+        <h2 class="text-lg md:text-xl font-bold">Arreglo de heladeras</h2>
+      </div>
+      <div class="p-4 md:p-5 space-y-5">
+
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+          <div>
+            <label class="field-label">¿Quién sos?</label>
+            <input type="hidden" id="heladerasTecnico" />
+            <div class="tecnico-picker" id="heladerasTecnicoBotones" role="group" aria-label="Técnico"></div>
+          </div>
+          <div class="flex flex-col items-stretch md:items-end gap-1">
+            <button type="button" id="heladerasRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
+            <span id="heladerasRefresco" class="hel-refresco" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <div class="hel-modo" role="tablist" aria-label="Vista de heladeras">
+          <button type="button" role="tab" data-hel-modo="gestion" class="is-active" aria-selected="true">Mis tareas</button>
+          <button type="button" role="tab" data-hel-modo="tablero" aria-selected="false">Tablero general</button>
+        </div>
+
+        <div id="helGestion" class="space-y-5">
+          <div id="heladerasResumen" class="kpi-grid"></div>
+
+          <div>
+            <label class="field-label" for="heladerasBuscar">Buscar</label>
+            <input id="heladerasBuscar" type="text" class="field-input" placeholder="Cliente, dirección, falla, equipo o ID" />
+          </div>
+
+          <div id="heladerasLista" class="space-y-3"></div>
+        </div>
+
+        <div id="helTablero" class="space-y-5" style="display:none;">
+          <div class="hel-filtros">
+            <div>
+              <label class="field-label" for="helTabPeriodo">Cerrados en</label>
+              <select id="helTabPeriodo" class="field-select">
+                <option value="7">Últimos 7 días</option>
+                <option value="30" selected>Últimos 30 días</option>
+                <option value="90">Últimos 90 días</option>
+                <option value="0">Todo el historial</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="helTabTecnico">Técnico</label>
+              <select id="helTabTecnico" class="field-select"></select>
+            </div>
+            <button type="button" id="helTabCsv" class="secondary-btn">Descargar Excel (CSV)</button>
+          </div>
+          <p class="small-note">Los tickets abiertos se muestran siempre; el período filtra solo los cerrados.</p>
+
+          <div id="helTabKpis" class="kpi-grid"></div>
+
+          <div class="section-card p-4">
+            <div class="field-label">Cómo están los tickets</div>
+            <div id="helTabBarra"></div>
+          </div>
+
+          <div id="helTabColumnas" class="hel-board"></div>
+
+          <div class="section-card p-4">
+            <div class="field-label">Por técnico</div>
+            <div id="helTabTecnicos" style="overflow-x:auto;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODAL: FINALIZAR TICKET DE HELADERA -->
+    <div id="helFinalizarModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="helFinalizarTitulo">
+        <h3 id="helFinalizarTitulo">Finalizar ticket</h3>
+        <p id="helFinalizarCliente" class="text-sm text-gray-600 mt-1"></p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <span class="field-label">¿Cómo quedó?</span>
+            <div class="hel-segmento" role="group" aria-label="Resultado">
+              <button type="button" data-hel-resultado="RESUELTO" class="is-resuelto" aria-pressed="true">Resuelto</button>
+              <button type="button" data-hel-resultado="NO RESUELTO" class="is-noresuelto" aria-pressed="false">No se pudo resolver</button>
+            </div>
+          </div>
+          <div id="helMotivoBloque" style="display:none;">
+            <label class="field-label" for="helMotivo">Motivo</label>
+            <select id="helMotivo" class="field-select"></select>
+          </div>
+          <div>
+            <label class="field-label" for="helTrabajo" id="helTrabajoLabel">Qué se hizo en el equipo de frío</label>
+            <textarea id="helTrabajo" rows="4" class="field-input" placeholder="Diagnóstico y trabajo realizado"></textarea>
+            <div class="hel-chips" id="helChips" aria-label="Agregar rápido"></div>
+          </div>
+          <div>
+            <label class="field-label" for="helRepuestos">Repuestos usados</label>
+            <input id="helRepuestos" type="text" class="field-input" placeholder="Ej: 1 termostato, 1 forzador" />
+          </div>
+          <div>
+            <label class="field-label" for="helFotos">Fotos del equipo</label>
+            <input id="helFotos" type="file" accept="image/*" multiple capture="environment" class="field-input" />
+            <p class="small-note mt-1">Podés sacar varias, de a una. Se achican antes de subir.</p>
+            <div id="helThumbs" class="hel-thumbs"></div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="helFinalizarCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="helFinalizarConfirmar" class="btn-checkout">Cerrar ticket</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NOTA (espera / liberar / reabrir) -->
+    <div id="helNotaModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="helNotaTitulo">
+        <h3 id="helNotaTitulo"></h3>
+        <p id="helNotaCliente" class="text-sm text-gray-600 mt-1"></p>
+        <p id="helNotaAyuda" class="small-note mt-2"></p>
+        <div class="mt-3">
+          <label class="field-label" for="helNotaTexto" id="helNotaLabel">Nota</label>
+          <textarea id="helNotaTexto" rows="3" class="field-input"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="helNotaCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="helNotaConfirmar" class="submit-btn" style="width:auto;">Confirmar</button>
+        </div>
+      </div>
+    </div>
 
     <!-- MODAL: EDITAR / AGREGAR CHOPERA -->
     <div id="choperaEditarModal" class="modal-backdrop" style="display:none;">
@@ -1391,6 +1761,8 @@
     const viewSanitizaciones = document.getElementById("viewSanitizaciones");
     const navChoperasBtn = document.getElementById("navChoperasBtn");
     const viewChoperas = document.getElementById("viewChoperas");
+    const navHeladerasBtn = document.getElementById("navHeladerasBtn");
+    const viewHeladeras = document.getElementById("viewHeladeras");
 
     function mostrarVista(vista) {
       hideStatus();
@@ -1398,7 +1770,8 @@
         nuevo: { el: form, btn: navNuevoBtn },
         misComodatos: { el: viewMisComodatos, btn: navMisComodatosBtn },
         sanitizaciones: { el: viewSanitizaciones, btn: navSanitizacionesBtn },
-        choperas: { el: viewChoperas, btn: navChoperasBtn }
+        choperas: { el: viewChoperas, btn: navChoperasBtn },
+        heladeras: { el: viewHeladeras, btn: navHeladerasBtn }
       };
       const activa = vistas[vista] ? vista : "nuevo";
 
@@ -1410,12 +1783,14 @@
 
       if (activa === "sanitizaciones") cargarSanitizaciones();
       if (activa === "choperas") cargarChoperas();
+      if (activa === "heladeras") cargarHeladeras();
     }
 
     navNuevoBtn.addEventListener("click", () => mostrarVista("nuevo"));
     navMisComodatosBtn.addEventListener("click", () => mostrarVista("misComodatos"));
     navSanitizacionesBtn.addEventListener("click", () => mostrarVista("sanitizaciones"));
     navChoperasBtn.addEventListener("click", () => mostrarVista("choperas"));
+    navHeladerasBtn.addEventListener("click", () => mostrarVista("heladeras"));
 
     // Lista fija de tecnicos. Debe coincidir exactamente con CONFIG.TECNICOS del Code.gs.
     const TECNICOS = [
@@ -1470,7 +1845,8 @@
       [["tecnico", "tecnicoBotones"],
        ["misComodatosTecnico", "misComodatosTecnicoBotones"],
        ["sanitTecnico", "sanitTecnicoBotones"],
-       ["choperasTecnico", "choperasTecnicoBotones"]].forEach(par => {
+       ["choperasTecnico", "choperasTecnicoBotones"],
+       ["heladerasTecnico", "heladerasTecnicoBotones"]].forEach(par => {
         const input = document.getElementById(par[0]);
         const contenedor = document.getElementById(par[1]);
         if (!input || !contenedor) return;
@@ -1484,7 +1860,7 @@
 
     /** Fija el tecnico en los tres grupos a la vez. */
     function fijarTecnico_(nombre) {
-      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico"].forEach(id => {
+      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico", "heladerasTecnico"].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.value = nombre;
       });
@@ -1512,6 +1888,7 @@
       montarBotonesTecnico_("misComodatosTecnico", "misComodatosTecnicoBotones", {});
       montarBotonesTecnico_("sanitTecnico", "sanitTecnicoBotones", { todos: true, etiquetaTodos: "Todos" });
       montarBotonesTecnico_("choperasTecnico", "choperasTecnicoBotones", {});
+      montarBotonesTecnico_("heladerasTecnico", "heladerasTecnicoBotones", {});
       sincronizarBotonesTecnico_();
     }
 
@@ -2713,6 +3090,978 @@
     intervencionModal.addEventListener("click", (e) => {
       if (e.target === intervencionModal) intervencionModal.style.display = "none";
     });
+
+    /* ======================================================================
+     * MÓDULO HELADERAS
+     * Pool de tickets que llegan del Google Form. Cada técnico toma los que
+     * va a resolver, los pone en espera, los libera o los cierra con detalle
+     * y fotos. La lista se refresca sola cada minuto mientras está a la vista.
+     * ====================================================================== */
+
+    const heladerasTecnicoInput = document.getElementById("heladerasTecnico");
+    const heladerasResumenBox = document.getElementById("heladerasResumen");
+    const heladerasListaBox = document.getElementById("heladerasLista");
+    const heladerasBuscarInput = document.getElementById("heladerasBuscar");
+    const heladerasRefreshBtn = document.getElementById("heladerasRefreshBtn");
+    const heladerasRefrescoBox = document.getElementById("heladerasRefresco");
+
+    const helFinalizarModal = document.getElementById("helFinalizarModal");
+    const helFinalizarCliente = document.getElementById("helFinalizarCliente");
+    const helMotivoBloque = document.getElementById("helMotivoBloque");
+    const helMotivo = document.getElementById("helMotivo");
+    const helTrabajo = document.getElementById("helTrabajo");
+    const helTrabajoLabel = document.getElementById("helTrabajoLabel");
+    const helChips = document.getElementById("helChips");
+    const helRepuestos = document.getElementById("helRepuestos");
+    const helFotosInput = document.getElementById("helFotos");
+    const helThumbs = document.getElementById("helThumbs");
+    const helFinalizarConfirmar = document.getElementById("helFinalizarConfirmar");
+    const helFinalizarCancelar = document.getElementById("helFinalizarCancelar");
+
+    const helNotaModal = document.getElementById("helNotaModal");
+    const helNotaTitulo = document.getElementById("helNotaTitulo");
+    const helNotaCliente = document.getElementById("helNotaCliente");
+    const helNotaAyuda = document.getElementById("helNotaAyuda");
+    const helNotaLabel = document.getElementById("helNotaLabel");
+    const helNotaTexto = document.getElementById("helNotaTexto");
+    const helNotaConfirmar = document.getElementById("helNotaConfirmar");
+    const helNotaCancelar = document.getElementById("helNotaCancelar");
+
+    const HEL_REFRESCO_MS = 60000;
+    // Antigüedad de un ticket abierto: desde cuántos días se pinta amarillo y rojo
+    const HEL_DIAS_MEDIA = 2;
+    const HEL_DIAS_VIEJA = 5;
+    // Arreglos típicos para cargar el cierre de un toque. Solo agregan texto.
+    const HEL_TRABAJOS_RAPIDOS = [
+      "Carga de gas", "Cambio de termostato", "Cambio de forzador",
+      "Limpieza de condensador", "Cambio de burlete", "Arreglo eléctrico",
+      "Cambio de compresor", "Cambio de iluminación", "Regulación de temperatura"
+    ];
+
+    let heladeras = [];
+    let helMotivos = [];
+    let helVista = "pool";
+    let helAbiertos = {};
+    let helIdsConocidos = null;
+    let helIdsRecienLlegados = {};
+    let helCargando = false;
+    let helUltimaCarga = 0;
+    let helTimerId = null;
+    let helFinalizarId = "";
+    let helResultado = "RESUELTO";
+    let helFotosElegidas = [];
+    let helNotaAccion = null;
+    let helModo = "gestion";
+    let helHistoricoCargado = false;
+    // Ticket que llegó por link (aviso de WhatsApp): se abre al terminar de cargar
+    let helTicketPendiente = "";
+
+    /** "yyyy-MM-dd HH:mm" -> días enteros hasta hoy. */
+    function helDiasDesde_(texto) {
+      const d = parseFechaHora_(texto);
+      if (!d) return null;
+      return Math.floor((Date.now() - d.getTime()) / 86400000);
+    }
+
+    /** "2026-09-14 10:30" -> "14/09 10:30" (con año si no es el actual). */
+    function helFecha_(texto) {
+      const d = parseFechaHora_(texto);
+      if (!d) return texto || "";
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      const anio = d.getFullYear() !== new Date().getFullYear() ? "/" + d.getFullYear() : "";
+      return dd + "/" + mm + anio + " " + hh;
+    }
+
+    function helTextoEdad_(dias) {
+      if (dias === null) return "";
+      if (dias <= 0) return "Hoy";
+      if (dias === 1) return "Hace 1 día";
+      return "Hace " + dias + " días";
+    }
+
+    function helClaseEdad_(dias) {
+      if (dias === null) return "";
+      if (dias >= HEL_DIAS_VIEJA) return "edad-vieja";
+      if (dias >= HEL_DIAS_MEDIA) return "edad-media";
+      if (dias < 1) return "edad-nuevo";
+      return "";
+    }
+
+    function helEsMio_(t) {
+      return !!heladerasTecnicoInput.value && t.tecnico === heladerasTecnicoInput.value;
+    }
+
+    const helActivo_ = t => t.estado === "ASIGNADO" || t.estado === "EN ESPERA";
+    const helCerrado_ = t => t.estado === "RESUELTO" || t.estado === "NO RESUELTO";
+
+    // En "Mis tareas" los cerrados se limitan a los últimos 60 días, igual que
+    // lo que manda el servidor sin histórico. Una vez que se abrió el tablero
+    // los datos traen todo, y sin este corte la lista crecería sin fin.
+    const HEL_DIAS_CERRADOS_GESTION = 60;
+    const helCerradoReciente_ = t => {
+      if (!helCerrado_(t)) return false;
+      const dias = helDiasDesde_(t.cerradoEl);
+      return dias === null || dias <= HEL_DIAS_CERRADOS_GESTION;
+    };
+
+    /** Tarjetas de resumen. Cada una es a la vez el filtro de la lista. */
+    function helRenderResumen_() {
+      const pool = heladeras.filter(t => t.estado === "SIN ASIGNAR");
+      const mios = heladeras.filter(t => helActivo_(t) && helEsMio_(t));
+      const equipo = heladeras.filter(helActivo_);
+      const cerrados = heladeras.filter(helCerradoReciente_);
+
+      const masViejo = pool.reduce((max, t) => {
+        const d = helDiasDesde_(t.creado);
+        return d !== null && d > max ? d : max;
+      }, 0);
+
+      const cards = [
+        { vista: "pool", valor: pool.length, label: "Sin asignar", clase: pool.length ? "is-vencido" : "is-aldia",
+          nota: pool.length && masViejo ? "el más viejo: " + masViejo + " día(s)" : "" },
+        { vista: "mios", valor: mios.length, label: "Mis tickets", clase: "",
+          nota: heladerasTecnicoInput.value ? mios.filter(t => t.estado === "EN ESPERA").length + " en espera" : "elegí tu nombre" },
+        { vista: "equipo", valor: equipo.length, label: "En curso (todos)", clase: "", nota: "" },
+        { vista: "cerrados", valor: cerrados.length, label: "Cerrados", clase: "is-aldia",
+          nota: cerrados.filter(t => t.estado === "RESUELTO").length + " resueltos" }
+      ];
+
+      heladerasResumenBox.innerHTML = cards.map(c => {
+        const activa = c.vista === helVista;
+        return `
+          <div class="kpi-card is-clickable ${c.clase}${activa ? " is-active" : ""}" data-hel-vista="${c.vista}"
+               role="button" tabindex="0" aria-pressed="${activa}">
+            <div class="kpi-value">${escapeHtml_(String(c.valor))}</div>
+            <div class="kpi-label">${escapeHtml_(c.label)}</div>
+            ${c.nota ? `<div class="small-note">${escapeHtml_(c.nota)}</div>` : ""}
+          </div>`;
+      }).join("");
+    }
+
+    function helFiltrar_() {
+      const texto = heladerasBuscarInput.value.trim().toLowerCase();
+      const porVista = {
+        pool: t => t.estado === "SIN ASIGNAR",
+        mios: t => helActivo_(t) && helEsMio_(t),
+        equipo: helActivo_,
+        cerrados: t => helCerradoReciente_(t) || (helCerrado_(t) && t.id === helForzarVisible)
+      }[helVista];
+
+      const lista = heladeras.filter(t => {
+        if (!porVista(t)) return false;
+        if (!texto) return true;
+        return [t.id, t.cliente, t.codigo, t.direccion, t.localidad, t.falla, t.equipo, t.tecnico, t.solicitante]
+          .join(" ").toLowerCase().indexOf(texto) !== -1;
+      });
+
+      // Abiertos: primero el más viejo (se atiende por orden de llegada).
+      // Cerrados: primero el último que se cerró.
+      if (helVista === "cerrados") {
+        lista.sort((a, b) => String(b.cerradoEl).localeCompare(String(a.cerradoEl)));
+      } else {
+        lista.sort((a, b) => {
+          if (helVista === "mios" && a.estado !== b.estado) return a.estado === "ASIGNADO" ? -1 : 1;
+          return String(a.creado).localeCompare(String(b.creado));
+        });
+      }
+      return lista;
+    }
+
+    function helLinks_(urls, etiqueta) {
+      return urls.map((u, n) =>
+        `<a class="link-pdf" href="${escapeHtml_(u)}" target="_blank" rel="noopener">${etiqueta} ${n + 1}</a>`
+      ).join(" ");
+    }
+
+    function helBotones_(t) {
+      const id = escapeHtml_(t.id);
+      const botones = [];
+
+      if (t.estado === "SIN ASIGNAR") {
+        const sinTecnico = !heladerasTecnicoInput.value;
+        botones.push(`<button type="button" class="btn-checkin btn-tomar" data-hel-accion="tomar" data-hel-id="${id}"${sinTecnico ? ` disabled title="Elegí tu nombre arriba"` : ""}>Tomar ticket</button>`);
+      } else if (helActivo_(t) && helEsMio_(t)) {
+        if (t.estado === "EN ESPERA") {
+          botones.push(`<button type="button" class="btn-checkin" data-hel-accion="retomar" data-hel-id="${id}">Retomar</button>`);
+        }
+        botones.push(`<button type="button" class="btn-checkout" data-hel-finalizar="${id}">Finalizar</button>`);
+        if (t.estado === "ASIGNADO") {
+          botones.push(`<button type="button" class="btn-fallida" data-hel-nota="espera" data-hel-id="${id}">En espera</button>`);
+        }
+        botones.push(`<button type="button" class="btn-liberar" data-hel-nota="liberar" data-hel-id="${id}">Liberar</button>`);
+      } else if (helCerrado_(t) && heladerasTecnicoInput.value) {
+        botones.push(`<button type="button" class="btn-liberar" data-hel-nota="reabrir" data-hel-id="${id}">Reabrir</button>`);
+      }
+
+      const destino = [t.cliente, t.direccion, t.localidad].filter(Boolean).join(" ");
+      if (t.direccion || t.localidad) {
+        botones.push(`<a class="link-pdf" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}">Cómo llegar</a>`);
+      }
+      const tel = String(t.telefono || "").replace(/[^\d+]/g, "");
+      if (tel.length >= 6) {
+        botones.push(`<a class="link-wa" href="tel:${escapeHtml_(tel)}">Llamar</a>`);
+      }
+      return botones.join("");
+    }
+
+    function helRenderLista_() {
+      helRenderResumen_();
+
+      if (helVista === "mios" && !heladerasTecnicoInput.value) {
+        heladerasListaBox.innerHTML = `<p class="small-note">Elegí tu nombre arriba para ver tus tickets.</p>`;
+        return;
+      }
+
+      const lista = helFiltrar_();
+      if (!lista.length) {
+        const vacio = {
+          pool: "No hay tickets sin asignar. 🎉",
+          mios: "No tenés tickets abiertos. Tomá uno de \"Sin asignar\".",
+          equipo: "Nadie tiene tickets en curso.",
+          cerrados: "No hay tickets cerrados en los últimos 60 días."
+        }[helVista];
+        heladerasListaBox.innerHTML = `<p class="small-note">${heladerasBuscarInput.value.trim() ? "Ningún ticket coincide con la búsqueda." : vacio}</p>`;
+        return;
+      }
+
+      heladerasListaBox.innerHTML = lista.map(t => {
+        const abierto = !!helAbiertos[t.id];
+        const cerrado = helCerrado_(t);
+        const dias = cerrado ? null : helDiasDesde_(t.creado);
+        const claseEstado = "estado-" + estadoClase_(t.estado);
+        const ubicacion = [t.direccion, t.localidad].filter(Boolean).join(", ");
+        const recien = !!helIdsRecienLlegados[t.id];
+
+        const badges = [
+          `<span class="badge badge-${estadoClase_(t.estado)}">${escapeHtml_(t.estado)}</span>`,
+          recien ? `<span class="badge badge-nuevo">Nuevo</span>` : "",
+          dias !== null ? `<span class="badge ${dias >= HEL_DIAS_VIEJA ? "badge-vencido" : dias >= HEL_DIAS_MEDIA ? "badge-porvencer" : "badge-origen"}">${escapeHtml_(helTextoEdad_(dias))}</span>` : ""
+        ].filter(Boolean).join(" ");
+
+        const asignado = helActivo_(t)
+          ? `<div class="hel-asignado">${helEsMio_(t) ? "Lo tenés vos" : "Lo tiene <strong>" + escapeHtml_(t.tecnico) + "</strong>"} · desde ${escapeHtml_(helFecha_(t.tomadoEl))}</div>`
+          : "";
+        const espera = t.estado === "EN ESPERA" && t.notaEspera
+          ? `<div class="hel-espera">En espera: ${escapeHtml_(t.notaEspera)}</div>`
+          : "";
+
+        let cierre = "";
+        if (cerrado) {
+          const resuelto = t.estado === "RESUELTO";
+          cierre = `
+            <div class="hel-cierre${resuelto ? "" : " is-noresuelto"}">${resuelto ? "✔ Resuelto" : "✖ No resuelto: " + escapeHtml_(t.motivoNoResuelto)} por <strong>${escapeHtml_(t.tecnico)}</strong> el ${escapeHtml_(helFecha_(t.cerradoEl))}${t.trabajo ? "\n" + escapeHtml_(t.trabajo) : ""}${t.repuestos ? "\nRepuestos: " + escapeHtml_(t.repuestos) : ""}</div>
+            ${t.fotosCierre.length ? `<div class="comodato-actions">${helLinks_(t.fotosCierre, "Foto cierre")}</div>` : ""}`;
+        }
+
+        const respuestas = t.respuestas.map(r => {
+          const esLink = /^https?:\/\//.test(r.respuesta);
+          const valor = esLink
+            ? helLinks_(r.respuesta.split(/[\s,]+/).filter(Boolean), "Archivo")
+            : escapeHtml_(r.respuesta);
+          return `<div><dt>${escapeHtml_(r.pregunta)}</dt><dd>${valor}</dd></div>`;
+        }).join("");
+
+        const historial = t.historial.length
+          ? `<div><span class="etiqueta">Historial</span><ul class="detalle-historial">${t.historial.map(h => `<li>${escapeHtml_(h)}</li>`).join("")}</ul></div>`
+          : "";
+
+        return `
+          <div class="hel-card is-clickable ${cerrado ? claseEstado : helClaseEdad_(dias)}${abierto ? " is-open" : ""}${recien ? " is-nuevo-llegado" : ""}"
+               data-hel-card="${escapeHtml_(t.id)}" role="button" tabindex="0" aria-expanded="${abierto}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="hel-cliente">${escapeHtml_(t.cliente || "PDV sin nombre")} <span class="sanit-chevron">${abierto ? "▲" : "▼"}</span></div>
+              <div class="tecnico-cifras" style="justify-content:flex-end;">${badges}</div>
+            </div>
+            ${ubicacion ? `<div class="hel-meta">${escapeHtml_(ubicacion)}</div>` : ""}
+            ${t.falla ? `<div class="hel-falla">${escapeHtml_(t.falla)}</div>` : ""}
+            ${t.equipo ? `<div class="sanit-chopera"><span>Equipo: <strong>${escapeHtml_(t.equipo)}</strong></span></div>` : ""}
+            <div class="hel-meta">${escapeHtml_(t.id)} · cargado ${escapeHtml_(helFecha_(t.creado))}${t.solicitante ? " por " + escapeHtml_(t.solicitante) : ""}</div>
+            ${asignado}${espera}${cierre}
+            <div class="sanit-actions hel-actions">${helBotones_(t)}</div>
+            <div class="sanit-detalle">
+              ${t.fotosForm.length ? `<div class="comodato-actions">${helLinks_(t.fotosForm, "Foto del reclamo")}</div>` : ""}
+              <dl class="hel-respuestas">${respuestas}</dl>
+              ${historial}
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    function helPintarRefresco_() {
+      if (!helUltimaCarga) { heladerasRefrescoBox.textContent = ""; return; }
+      const min = Math.floor((Date.now() - helUltimaCarga) / 60000);
+      heladerasRefrescoBox.textContent = (min < 1 ? "Actualizado recién" : "Actualizado hace " + min + " min") + " · se actualiza solo";
+    }
+
+    function helModalAbierto_() {
+      return helFinalizarModal.style.display !== "none" || helNotaModal.style.display !== "none";
+    }
+
+    /**
+     * Trae los tickets. "silencioso" es el refresco automático: no muestra
+     * "Cargando" ni pisa la lista si falla, así no le salta la pantalla a
+     * quien la está mirando.
+     */
+    async function cargarHeladeras(silencioso) {
+      if (helCargando) return;
+      helCargando = true;
+      if (!silencioso) heladerasListaBox.innerHTML = `<p class="small-note">Cargando tickets...</p>`;
+      if (!silencioso && helModo === "tablero") helTabKpis.innerHTML = `<p class="small-note">Cargando tablero...</p>`;
+      const conHistorico = helModo === "tablero" || helHistoricoCargado;
+
+      try {
+        const res = await fetch(APP_SCRIPT_URL + "?action=heladeras" + (conHistorico ? "&historico=1" : ""))
+          .then(r => r.json());
+        if (!res.ok) throw new Error(res.message || "No se pudieron leer los tickets.");
+
+        heladeras = res.tickets || [];
+        helMotivos = res.motivosNoResuelto || [];
+
+        // Los que no estaban en la carga anterior se marcan como nuevos
+        const ids = {};
+        helIdsRecienLlegados = {};
+        heladeras.forEach(t => {
+          ids[t.id] = true;
+          if (helIdsConocidos && !helIdsConocidos[t.id] && t.estado === "SIN ASIGNAR") helIdsRecienLlegados[t.id] = true;
+        });
+        const nuevos = Object.keys(helIdsRecienLlegados).length;
+        helIdsConocidos = ids;
+        helUltimaCarga = Date.now();
+        if (conHistorico) helHistoricoCargado = true;
+
+        helRenderLista_();
+        if (helModo === "tablero") helRenderTablero_();
+        helPintarRefresco_();
+        helAbrirTicketPendiente_();
+        if (nuevos && silencioso) {
+          heladerasRefrescoBox.textContent = nuevos + " ticket(s) nuevo(s) en el pool";
+        }
+      } catch (error) {
+        if (!silencioso) {
+          heladerasResumenBox.innerHTML = "";
+          heladerasListaBox.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+        } else {
+          heladerasRefrescoBox.textContent = "No se pudo actualizar (" + error.message + ")";
+        }
+      } finally {
+        helCargando = false;
+      }
+    }
+
+    /** Refresco automático: solo con la solapa visible, la pestaña activa y sin un modal a medio llenar. */
+    function helTick_() {
+      if (viewHeladeras.style.display === "none") return;
+      helPintarRefresco_();
+      if (document.hidden || helModalAbierto_()) return;
+      if (Date.now() - helUltimaCarga >= HEL_REFRESCO_MS) cargarHeladeras(true);
+    }
+
+    function helIniciarTimer_() {
+      if (!helTimerId) helTimerId = setInterval(helTick_, 15000);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) helTick_();
+    });
+
+    async function helPost_(payload, boton) {
+      const textoOriginal = boton ? boton.textContent : "";
+      if (boton) { boton.disabled = true; boton.textContent = "Guardando..."; }
+      try {
+        const result = await sanitPost_(payload);
+        if (!result.ok) throw new Error(result.message || "No se pudo guardar.");
+        return result;
+      } finally {
+        if (boton) { boton.disabled = false; boton.textContent = textoOriginal; }
+      }
+    }
+
+    function helBuscar_(id) {
+      return heladeras.filter(t => t.id === id)[0] || null;
+    }
+
+    async function helTomar_(id, boton) {
+      try {
+        const r = await helPost_({ action: "heladeraAccion", accion: "tomar", tecnico: heladerasTecnicoInput.value, ticketId: id }, boton);
+        showStatus(escapeHtml_(r.message) + " Lo encontrás en <strong>Mis tickets</strong>.");
+        helAbiertos[id] = true;
+      } catch (error) {
+        showStatus(escapeHtml_(error.message), true);
+      }
+      await cargarHeladeras(true);
+    }
+
+    async function helAccionSimple_(accion, id, boton) {
+      try {
+        const r = await helPost_({ action: "heladeraAccion", accion: accion, tecnico: heladerasTecnicoInput.value, ticketId: id }, boton);
+        showStatus(escapeHtml_(r.message));
+      } catch (error) {
+        showStatus(escapeHtml_(error.message), true);
+      }
+      await cargarHeladeras(true);
+    }
+
+    // --- Modal de nota: espera / liberar / reabrir ---
+    const HEL_NOTAS = {
+      espera: {
+        titulo: "Poner en espera", label: "¿Qué se está esperando?", obligatoria: true, boton: "Poner en espera",
+        ayuda: "El ticket sigue siendo tuyo. Usalo cuando falta un repuesto o hay que volver otro día."
+      },
+      liberar: {
+        titulo: "Liberar ticket", label: "Motivo (opcional)", obligatoria: false, boton: "Devolver al pool",
+        ayuda: "Vuelve a \"Sin asignar\" para que lo tome otro técnico."
+      },
+      reabrir: {
+        titulo: "Reabrir ticket", label: "¿Por qué se reabre?", obligatoria: true, boton: "Reabrir",
+        ayuda: "Vuelve a \"Sin asignar\". El cierre anterior queda en el historial."
+      }
+    };
+
+    function helAbrirNota_(accion, id) {
+      const t = helBuscar_(id);
+      const cfg = HEL_NOTAS[accion];
+      if (!t || !cfg) return;
+      helNotaAccion = { accion: accion, id: id };
+      helNotaTitulo.textContent = cfg.titulo;
+      helNotaCliente.textContent = (t.cliente || "PDV sin nombre") + " · " + t.id;
+      helNotaAyuda.textContent = cfg.ayuda;
+      helNotaLabel.textContent = cfg.label;
+      helNotaTexto.value = "";
+      helNotaConfirmar.textContent = cfg.boton;
+      helNotaConfirmar.disabled = false;
+      helNotaModal.style.display = "flex";
+      helNotaTexto.focus();
+    }
+
+    function helCerrarNota_() {
+      helNotaModal.style.display = "none";
+      helNotaAccion = null;
+    }
+
+    async function helConfirmarNota_() {
+      if (!helNotaAccion) return;
+      const cfg = HEL_NOTAS[helNotaAccion.accion];
+      const nota = helNotaTexto.value.trim();
+      if (cfg.obligatoria && !nota) {
+        helNotaTexto.focus();
+        helNotaAyuda.textContent = "Este dato es obligatorio.";
+        return;
+      }
+      try {
+        const r = await helPost_({
+          action: "heladeraAccion", accion: helNotaAccion.accion,
+          tecnico: heladerasTecnicoInput.value, ticketId: helNotaAccion.id, nota: nota
+        }, helNotaConfirmar);
+        helCerrarNota_();
+        showStatus(escapeHtml_(r.message));
+        await cargarHeladeras(true);
+      } catch (error) {
+        helNotaAyuda.textContent = error.message;
+      }
+    }
+
+    // --- Modal de finalizar ---
+    function helSetResultado_(resultado) {
+      helResultado = resultado;
+      const resuelto = resultado === "RESUELTO";
+      helFinalizarModal.querySelectorAll("[data-hel-resultado]").forEach(b => {
+        const activo = b.getAttribute("data-hel-resultado") === resultado;
+        b.classList.toggle("is-active", activo);
+        b.setAttribute("aria-pressed", String(activo));
+      });
+      helMotivoBloque.style.display = resuelto ? "none" : "";
+      helTrabajoLabel.textContent = resuelto ? "Qué se hizo en el equipo de frío" : "Detalle (qué se revisó, qué falta)";
+      helFinalizarConfirmar.className = resuelto ? "btn-checkout" : "btn-liberar";
+      helFinalizarConfirmar.textContent = resuelto ? "Cerrar como resuelto" : "Cerrar sin resolver";
+    }
+
+    function helRenderThumbs_() {
+      helThumbs.innerHTML = helFotosElegidas.map((f, i) => `
+        <div class="hel-thumb">
+          <img src="data:${f.tipo};base64,${f.data}" alt="Foto ${i + 1}" />
+          <button type="button" data-hel-quitar-foto="${i}" aria-label="Quitar foto ${i + 1}">×</button>
+        </div>`).join("");
+    }
+
+    /**
+     * Achica la foto a 1600 px de lado mayor en JPEG. Una foto de celular pesa
+     * 3-5 MB y el POST a Apps Script es lento con señal de calle; así queda
+     * en unos 300 KB. Si el navegador no puede decodificarla, va la original.
+     */
+    function helComprimirFoto_(file) {
+      return new Promise(resolve => {
+        const original = () => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ nombre: file.name, tipo: file.type || "image/jpeg", data: String(reader.result).split(",")[1] });
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        };
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+          const c = document.createElement("canvas");
+          c.width = Math.round(img.width * escala);
+          c.height = Math.round(img.height * escala);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          const nombre = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+          resolve({ nombre: nombre, tipo: "image/jpeg", data: c.toDataURL("image/jpeg", 0.8).split(",")[1] });
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); original(); };
+        img.src = url;
+      });
+    }
+
+    function helAbrirFinalizar_(id) {
+      const t = helBuscar_(id);
+      if (!t) return;
+      helFinalizarId = id;
+      helFinalizarCliente.textContent = (t.cliente || "PDV sin nombre") + " · " + t.id + (t.falla ? " · " + t.falla : "");
+      helMotivo.innerHTML = helMotivos.map(m => `<option value="${escapeHtml_(m)}">${escapeHtml_(m)}</option>`).join("");
+      helTrabajo.value = "";
+      helRepuestos.value = "";
+      helFotosInput.value = "";
+      helFotosElegidas = [];
+      helRenderThumbs_();
+      helChips.innerHTML = HEL_TRABAJOS_RAPIDOS
+        .map(x => `<button type="button" class="hel-chip" data-hel-chip="${escapeHtml_(x)}">+ ${escapeHtml_(x)}</button>`).join("");
+      helSetResultado_("RESUELTO");
+      helFinalizarConfirmar.disabled = false;
+      helFinalizarModal.style.display = "flex";
+    }
+
+    function helCerrarFinalizar_() {
+      helFinalizarModal.style.display = "none";
+      helFinalizarId = "";
+      helFotosElegidas = [];
+    }
+
+    async function helConfirmarFinalizar_() {
+      if (!helFinalizarId) return;
+      const resuelto = helResultado === "RESUELTO";
+      if (resuelto && !helTrabajo.value.trim()) {
+        showStatus("Contá qué se le hizo al equipo antes de cerrar.", true);
+        helTrabajo.focus();
+        return;
+      }
+      if (!resuelto && !helMotivo.value) {
+        showStatus("Elegí por qué no se pudo resolver.", true);
+        return;
+      }
+      if (resuelto && !helFotosElegidas.length &&
+          !confirm("No adjuntaste ninguna foto del equipo. ¿Cerrar igual?")) {
+        return;
+      }
+
+      const id = helFinalizarId;
+      try {
+        const r = await helPost_({
+          action: "heladeraFinalizar",
+          tecnico: heladerasTecnicoInput.value,
+          ticketId: id,
+          resultado: helResultado,
+          motivo: resuelto ? "" : helMotivo.value,
+          trabajo: helTrabajo.value.trim(),
+          repuestos: helRepuestos.value.trim(),
+          fotos: helFotosElegidas
+        }, helFinalizarConfirmar);
+        helCerrarFinalizar_();
+        showStatus(escapeHtml_(r.message));
+        helAbiertos[id] = false;
+        await cargarHeladeras(true);
+      } catch (error) {
+        showStatus("Error al cerrar: " + escapeHtml_(error.message), true);
+      }
+    }
+
+    // --- Listeners ---
+    function helCambiarVista_(vista) {
+      helVista = vista;
+      helForzarVisible = "";
+      helRenderLista_();
+    }
+
+    heladerasResumenBox.addEventListener("click", (e) => {
+      const card = e.target.closest("[data-hel-vista]");
+      if (card) helCambiarVista_(card.getAttribute("data-hel-vista"));
+    });
+    heladerasResumenBox.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const card = e.target.closest("[data-hel-vista]");
+      if (!card) return;
+      e.preventDefault();
+      helCambiarVista_(card.getAttribute("data-hel-vista"));
+    });
+
+    heladerasListaBox.addEventListener("click", (e) => {
+      const accion = e.target.closest("[data-hel-accion]");
+      if (accion) {
+        const id = accion.getAttribute("data-hel-id");
+        const tipo = accion.getAttribute("data-hel-accion");
+        if (tipo === "tomar") helTomar_(id, accion);
+        else helAccionSimple_(tipo, id, accion);
+        return;
+      }
+      const nota = e.target.closest("[data-hel-nota]");
+      if (nota) { helAbrirNota_(nota.getAttribute("data-hel-nota"), nota.getAttribute("data-hel-id")); return; }
+
+      const fin = e.target.closest("[data-hel-finalizar]");
+      if (fin) { helAbrirFinalizar_(fin.getAttribute("data-hel-finalizar")); return; }
+
+      if (e.target.closest("a") || e.target.closest("button")) return;
+
+      const card = e.target.closest("[data-hel-card]");
+      if (card) {
+        const id = card.getAttribute("data-hel-card");
+        helAbiertos[id] = !helAbiertos[id];
+        helRenderLista_();
+      }
+    });
+
+    heladerasListaBox.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (e.target.closest("button") || e.target.closest("a")) return;
+      const card = e.target.closest("[data-hel-card]");
+      if (!card) return;
+      e.preventDefault();
+      const id = card.getAttribute("data-hel-card");
+      helAbiertos[id] = !helAbiertos[id];
+      helRenderLista_();
+    });
+
+    heladerasTecnicoInput.addEventListener("change", () => {
+      if (heladerasTecnicoInput.value) {
+        localStorage.setItem(TECNICO_STORAGE_KEY, heladerasTecnicoInput.value);
+        fijarTecnico_(heladerasTecnicoInput.value);
+      }
+      if (heladeras.length) helRenderLista_();
+      else cargarHeladeras();
+    });
+
+    heladerasRefreshBtn.addEventListener("click", () => cargarHeladeras());
+    heladerasBuscarInput.addEventListener("input", sanitDebounce_(helRenderLista_, 250));
+
+    helFinalizarModal.addEventListener("click", (e) => {
+      if (e.target === helFinalizarModal) { helCerrarFinalizar_(); return; }
+      const res = e.target.closest("[data-hel-resultado]");
+      if (res) { helSetResultado_(res.getAttribute("data-hel-resultado")); return; }
+      const chip = e.target.closest("[data-hel-chip]");
+      if (chip) {
+        const actual = helTrabajo.value.trim();
+        helTrabajo.value = (actual ? actual.replace(/[.;,]?$/, ". ") : "") + chip.getAttribute("data-hel-chip") + ".";
+        return;
+      }
+      const quitar = e.target.closest("[data-hel-quitar-foto]");
+      if (quitar) {
+        helFotosElegidas.splice(Number(quitar.getAttribute("data-hel-quitar-foto")), 1);
+        helRenderThumbs_();
+      }
+    });
+
+    // Cada elección suma fotos: en el celular la cámara saca de a una
+    helFotosInput.addEventListener("change", async () => {
+      const files = Array.from(helFotosInput.files || []);
+      if (!files.length) return;
+      helFinalizarConfirmar.disabled = true;
+      const fotos = await Promise.all(files.map(helComprimirFoto_));
+      helFotosElegidas = helFotosElegidas.concat(fotos.filter(Boolean));
+      helFotosInput.value = "";
+      helRenderThumbs_();
+      helFinalizarConfirmar.disabled = false;
+    });
+
+    helFinalizarCancelar.addEventListener("click", helCerrarFinalizar_);
+    helFinalizarConfirmar.addEventListener("click", helConfirmarFinalizar_);
+
+    helNotaCancelar.addEventListener("click", helCerrarNota_);
+    helNotaConfirmar.addEventListener("click", helConfirmarNota_);
+    helNotaModal.addEventListener("click", (e) => { if (e.target === helNotaModal) helCerrarNota_(); });
+
+    /* --- Tablero general: todos los tickets por estado --- */
+
+    const helGestionBox = document.getElementById("helGestion");
+    const helTableroBox = document.getElementById("helTablero");
+    const helTabPeriodo = document.getElementById("helTabPeriodo");
+    const helTabTecnico = document.getElementById("helTabTecnico");
+    const helTabCsv = document.getElementById("helTabCsv");
+    const helTabKpis = document.getElementById("helTabKpis");
+    const helTabBarra = document.getElementById("helTabBarra");
+    const helTabColumnas = document.getElementById("helTabColumnas");
+    const helTabTecnicos = document.getElementById("helTabTecnicos");
+
+    // Mismos colores que los badges de estado de la app; siempre van con su nombre al lado
+    const HEL_COLUMNAS = [
+      { estado: "SIN ASIGNAR", titulo: "Sin iniciar", color: "#94a3b8" },
+      { estado: "ASIGNADO", titulo: "En curso", color: "#2563eb" },
+      { estado: "EN ESPERA", titulo: "En espera", color: "#f59e0b" },
+      { estado: "RESUELTO", titulo: "Resueltos", color: "#10b981" },
+      { estado: "NO RESUELTO", titulo: "No resueltos", color: "#475569" }
+    ];
+    const HEL_MINIS_VISIBLES = 8;
+    let helColumnasExpandidas = {};
+    // Abierta/cerrada según lo que tocó el usuario; si no tocó nada, en el
+    // celular arrancan abiertas solo las dos columnas que piden acción.
+    let helColumnasAbiertas = {};
+
+    function helColumnaAbierta_(estado) {
+      if (helColumnasAbiertas[estado] !== undefined) return helColumnasAbiertas[estado];
+      return window.matchMedia("(min-width: 900px)").matches || estado === "SIN ASIGNAR" || estado === "ASIGNADO";
+    }
+    // Ticket abierto desde el tablero: se muestra aunque sea un cerrado viejo
+    let helForzarVisible = "";
+
+    helTabTecnico.innerHTML = `<option value="">Todos</option>` +
+      TECNICOS.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`).join("");
+
+    function helHoras_(desde, hasta) {
+      const a = parseFechaHora_(desde);
+      const b = parseFechaHora_(hasta);
+      if (!a || !b) return null;
+      return Math.max(0, (b.getTime() - a.getTime()) / 3600000);
+    }
+
+    function helTextoHoras_(horas) {
+      if (horas === null || isNaN(horas)) return "—";
+      if (horas < 24) return Math.round(horas) + " h";
+      const dias = Math.round(horas / 2.4) / 10;
+      return dias.toLocaleString("es-AR", { maximumFractionDigits: 1 }) + (dias === 1 ? " día" : " días");
+    }
+
+    const helPromedio_ = nums => nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+
+    /** Filtro del tablero: los abiertos siempre, los cerrados según el período. */
+    function helTabFiltrados_(ignorarTecnico) {
+      const tecnico = ignorarTecnico ? "" : helTabTecnico.value;
+      const dias = Number(helTabPeriodo.value);
+      return heladeras.filter(t => {
+        if (tecnico && t.tecnico !== tecnico) return false;
+        if (helCerrado_(t) && dias > 0) {
+          const d = helDiasDesde_(t.cerradoEl);
+          if (d === null || d > dias) return false;
+        }
+        return true;
+      });
+    }
+
+    function helRenderTablero_() {
+      const lista = helTabFiltrados_(false);
+      const por = {};
+      HEL_COLUMNAS.forEach(c => { por[c.estado] = []; });
+      lista.forEach(t => { if (por[t.estado]) por[t.estado].push(t); });
+
+      const resueltos = por["RESUELTO"];
+      const noResueltos = por["NO RESUELTO"];
+      const cerrados = resueltos.length + noResueltos.length;
+      const periodo = helTabPeriodo.options[helTabPeriodo.selectedIndex].text.toLowerCase();
+      const masViejo = por["SIN ASIGNAR"].reduce((m, t) => Math.max(m, helDiasDesde_(t.creado) || 0), 0);
+      const resolucion = helPromedio_(resueltos.map(t => helHoras_(t.creado, t.cerradoEl)).filter(h => h !== null));
+      const demoraToma = helPromedio_(lista.filter(t => t.tomadoEl).map(t => helHoras_(t.creado, t.tomadoEl)).filter(h => h !== null));
+
+      const kpis = [
+        { valor: por["SIN ASIGNAR"].length, label: "Sin iniciar", clase: por["SIN ASIGNAR"].length ? "is-vencido" : "is-aldia",
+          nota: masViejo ? "el más viejo: " + masViejo + " día(s)" : "" },
+        { valor: por["ASIGNADO"].length + por["EN ESPERA"].length, label: "Pendientes (en curso)", clase: "is-porvencer",
+          nota: por["EN ESPERA"].length + " en espera" },
+        { valor: resueltos.length, label: "Resueltos", clase: "is-aldia", nota: periodo },
+        { valor: noResueltos.length, label: "No resueltos", clase: "", nota: periodo },
+        { valor: cerrados ? Math.round(resueltos.length * 100 / cerrados) + "%" : "—", label: "Tasa de resolución", clase: "",
+          nota: "resueltos sobre cerrados" },
+        { valor: helTextoHoras_(resolucion), label: "Tiempo de resolución", clase: "", nota: "promedio, desde que se cargó" },
+        { valor: helTextoHoras_(demoraToma), label: "Demora en tomarlo", clase: "", nota: "promedio" },
+        { valor: lista.length, label: "Tickets en el tablero", clase: "", nota: helTabTecnico.value || "todos los técnicos" }
+      ];
+      helTabKpis.innerHTML = kpis.map(k => `
+        <div class="kpi-card ${k.clase}">
+          <div class="kpi-value">${escapeHtml_(String(k.valor))}</div>
+          <div class="kpi-label">${escapeHtml_(k.label)}</div>
+          ${k.nota ? `<div class="small-note">${escapeHtml_(k.nota)}</div>` : ""}
+        </div>`).join("");
+
+      // Barra de distribución por estado
+      const total = lista.length;
+      const pct = n => total ? Math.round(n * 100 / total) : 0;
+      helTabBarra.innerHTML = total
+        ? `<div class="hel-barra" role="img" aria-label="${escapeHtml_(HEL_COLUMNAS.map(c => c.titulo + ": " + por[c.estado].length).join(", "))}">
+            ${HEL_COLUMNAS.filter(c => por[c.estado].length).map(c => `
+              <div style="flex:${por[c.estado].length} 1 0; background:${c.color};"
+                   title="${escapeHtml_(c.titulo + ": " + por[c.estado].length + " (" + pct(por[c.estado].length) + "%)")}"></div>`).join("")}
+          </div>
+          <div class="hel-leyenda">
+            ${HEL_COLUMNAS.map(c => `<span><i style="background:${c.color}"></i>${escapeHtml_(c.titulo)} <strong>${por[c.estado].length}</strong> <span class="small-note">(${pct(por[c.estado].length)}%)</span></span>`).join("")}
+          </div>`
+        : `<p class="small-note mt-2">No hay tickets con estos filtros.</p>`;
+
+      // Columnas por estado
+      helTabColumnas.innerHTML = HEL_COLUMNAS.map(c => {
+        const items = por[c.estado].slice();
+        const cerrada = c.estado === "RESUELTO" || c.estado === "NO RESUELTO";
+        items.sort((a, b) => cerrada
+          ? String(b.cerradoEl).localeCompare(String(a.cerradoEl))
+          : String(a.creado).localeCompare(String(b.creado)));
+
+        const expandida = !!helColumnasExpandidas[c.estado];
+        const visibles = expandida ? items : items.slice(0, HEL_MINIS_VISIBLES);
+        const minis = visibles.map(t => {
+          const meta = cerrada
+            ? "cerrado " + helFecha_(t.cerradoEl)
+            : helTextoEdad_(helDiasDesde_(t.creado));
+          return `
+            <button type="button" class="hel-mini" data-hel-ir="${escapeHtml_(t.id)}">
+              <div class="t">${escapeHtml_(t.cliente || "PDV sin nombre")}</div>
+              <div class="m">${escapeHtml_([t.localidad, meta, t.tecnico].filter(Boolean).join(" · "))}</div>
+            </button>`;
+        }).join("");
+        const resto = items.length - visibles.length;
+
+        return `
+          <details class="hel-col" style="border-top-color:${c.color}" data-hel-col="${escapeHtml_(c.estado)}"${helColumnaAbierta_(c.estado) ? " open" : ""}>
+            <summary><span>${escapeHtml_(c.titulo)}</span><span class="badge badge-origen">${items.length}</span></summary>
+            <div class="hel-col-items">
+              ${minis || `<p class="small-note">Nada acá.</p>`}
+              ${resto > 0 ? `<button type="button" class="secondary-btn" data-hel-expandir="${escapeHtml_(c.estado)}">Ver ${resto} más</button>` : ""}
+            </div>
+          </details>`;
+      }).join("");
+
+      // Tabla por técnico (compara a todos: ignora el filtro de técnico)
+      const base = helTabFiltrados_(true);
+      const nombres = TECNICOS.slice();
+      base.forEach(t => { if (t.tecnico && nombres.indexOf(t.tecnico) === -1) nombres.push(t.tecnico); });
+      const filas = nombres.map(nombre => {
+        const suyos = base.filter(t => t.tecnico === nombre);
+        const res = suyos.filter(t => t.estado === "RESUELTO");
+        const nores = suyos.filter(t => t.estado === "NO RESUELTO");
+        const prom = helPromedio_(res.map(t => helHoras_(t.tomadoEl || t.creado, t.cerradoEl)).filter(h => h !== null));
+        return {
+          nombre: nombre,
+          curso: suyos.filter(t => t.estado === "ASIGNADO").length,
+          espera: suyos.filter(t => t.estado === "EN ESPERA").length,
+          res: res.length,
+          nores: nores.length,
+          tasa: res.length + nores.length ? Math.round(res.length * 100 / (res.length + nores.length)) + "%" : "—",
+          prom: helTextoHoras_(prom)
+        };
+      }).sort((a, b) => (b.res - a.res) || ((b.curso + b.espera) - (a.curso + a.espera)));
+
+      helTabTecnicos.innerHTML = `
+        <table class="hel-tabla">
+          <thead><tr><th>Técnico</th><th>En curso</th><th>En espera</th><th>Resueltos</th><th>No resueltos</th><th>Tasa</th><th>Prom. resolución</th></tr></thead>
+          <tbody>
+            ${filas.map(f => `<tr><td>${escapeHtml_(f.nombre)}</td><td>${f.curso}</td><td>${f.espera}</td><td>${f.res}</td><td>${f.nores}</td><td>${f.tasa}</td><td>${escapeHtml_(f.prom)}</td></tr>`).join("")}
+          </tbody>
+        </table>
+        <p class="small-note mt-2">Prom. resolución: desde que el técnico lo tomó hasta que lo cerró. Sin iniciar: ${base.filter(t => t.estado === "SIN ASIGNAR").length}.</p>`;
+    }
+
+    function helDescargarCsv_() {
+      const columnas = [
+        ["ID", t => t.id], ["Cargado", t => t.creado], ["Cliente", t => t.cliente], ["Código", t => t.codigo],
+        ["Dirección", t => t.direccion], ["Localidad", t => t.localidad], ["Teléfono", t => t.telefono],
+        ["Equipo", t => t.equipo], ["Falla", t => t.falla], ["Cargado por", t => t.solicitante],
+        ["Estado", t => t.estado], ["Técnico", t => t.tecnico], ["Tomado", t => t.tomadoEl], ["Cerrado", t => t.cerradoEl],
+        ["Trabajo realizado", t => t.trabajo], ["Repuestos", t => t.repuestos], ["Motivo no resuelto", t => t.motivoNoResuelto],
+        ["Nota de espera", t => t.notaEspera],
+        ["Horas de resolución", t => { const h = helHoras_(t.creado, t.cerradoEl); return h === null || !helCerrado_(t) ? "" : String(Math.round(h)); }],
+        ["Fotos de cierre", t => (t.fotosCierre || []).join(" ")]
+      ];
+      // Punto y coma y BOM: así Excel en español lo abre en columnas y con acentos
+      const celda = v => '"' + String(v === undefined || v === null ? "" : v).replace(/"/g, '""') + '"';
+      const lineas = [columnas.map(c => celda(c[0])).join(";")]
+        .concat(helTabFiltrados_(false).map(t => columnas.map(c => celda(c[1](t))).join(";")));
+      const blob = new Blob(["﻿" + lineas.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "tickets_heladeras_" + new Date().toISOString().slice(0, 10) + ".csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    function helCambiarModo_(modo) {
+      helModo = modo;
+      heladerasListaBox.closest("section").querySelectorAll("[data-hel-modo]").forEach(b => {
+        const activo = b.getAttribute("data-hel-modo") === modo;
+        b.classList.toggle("is-active", activo);
+        b.setAttribute("aria-selected", String(activo));
+      });
+      helGestionBox.style.display = modo === "gestion" ? "" : "none";
+      helTableroBox.style.display = modo === "tablero" ? "" : "none";
+
+      if (modo === "tablero") {
+        // La primera vez hay que traer el histórico completo
+        if (!helHistoricoCargado) cargarHeladeras();
+        else helRenderTablero_();
+      } else {
+        helRenderLista_();
+      }
+    }
+
+    /** Lleva a "Mis tareas" con el ticket abierto y a la vista. */
+    function helIrATicket_(id) {
+      const t = helBuscar_(id);
+      if (!t) return false;
+      if (t.estado === "SIN ASIGNAR") helVista = "pool";
+      else if (helActivo_(t)) helVista = helEsMio_(t) ? "mios" : "equipo";
+      else helVista = "cerrados";
+
+      helForzarVisible = id;
+      helAbiertos[id] = true;
+      heladerasBuscarInput.value = "";
+      helCambiarModo_("gestion");
+
+      const card = heladerasListaBox.querySelector(`[data-hel-card="${CSS.escape(id)}"]`);
+      if (card) {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.add("is-nuevo-llegado");
+      }
+      return true;
+    }
+
+    function helAbrirTicketPendiente_() {
+      if (!helTicketPendiente) return;
+      const id = helTicketPendiente;
+      helTicketPendiente = "";
+      if (!helIrATicket_(id)) {
+        showStatus("El ticket " + escapeHtml_(id) + " ya no está en la lista (puede haberse cerrado hace tiempo).", true);
+      }
+    }
+
+    helTableroBox.closest("section").querySelector(".hel-modo").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-hel-modo]");
+      if (b && b.getAttribute("data-hel-modo") !== helModo) helCambiarModo_(b.getAttribute("data-hel-modo"));
+    });
+    // "toggle" no burbujea: se escucha en captura
+    helTabColumnas.addEventListener("toggle", (e) => {
+      const col = e.target.closest && e.target.closest("[data-hel-col]");
+      if (col) helColumnasAbiertas[col.getAttribute("data-hel-col")] = col.open;
+    }, true);
+    helTabPeriodo.addEventListener("change", helRenderTablero_);
+    helTabTecnico.addEventListener("change", helRenderTablero_);
+    helTabCsv.addEventListener("click", helDescargarCsv_);
+    helTabColumnas.addEventListener("click", (e) => {
+      const ir = e.target.closest("[data-hel-ir]");
+      if (ir) { helIrATicket_(ir.getAttribute("data-hel-ir")); return; }
+      const exp = e.target.closest("[data-hel-expandir]");
+      if (exp) {
+        helColumnasExpandidas[exp.getAttribute("data-hel-expandir")] = true;
+        helRenderTablero_();
+      }
+    });
+
+    // Link del aviso de WhatsApp: ?vista=heladeras&ticket=HEL-...
+    window.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(location.search);
+      if (params.get("vista") !== "heladeras") return;
+      helTicketPendiente = params.get("ticket") || "";
+      history.replaceState(null, "", location.pathname);
+      mostrarVista("heladeras");
+    });
+
+    helIniciarTimer_();
 
   </script>
 

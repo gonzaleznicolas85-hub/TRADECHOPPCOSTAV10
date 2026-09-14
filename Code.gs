@@ -50,6 +50,38 @@ const CONFIG = {
     'Retiro de equipo',
     'Otro'
   ],
+  // --- MÓDULO HELADERAS (tickets que llegan desde un Google Form) ---
+  // Hoja de respuestas del Form. Si el Form esta vinculado a ESTE mismo Sheet,
+  // HELADERAS_FORM_SPREADSHEET_ID va vacio. Si el nombre de la pestaña no
+  // coincide, se usa la primera que empiece con "Respuestas de formulario".
+  HELADERAS_FORM_SPREADSHEET_ID: '',
+  HELADERAS_FORM_SHEET_NAME: 'Respuestas de formulario 1',
+  // Estado de gestion de cada ticket. La hoja del Form no se toca nunca.
+  HELADERAS_SHEET_NAME: 'Tickets_Heladeras',
+  HELADERAS_PHOTOS_FOLDER_NAME: 'Fotos Heladeras',
+  // Los cerrados mas viejos que esto no se mandan a la app (siguen en la hoja)
+  HELADERAS_DIAS_CERRADOS_VISIBLES: 60,
+  // --- AVISOS POR WHATSAPP (ticket nuevo de heladera) ---
+  // 'callmebot' (gratis, cada destinatario activa su clave), 'meta' (API oficial
+  // de WhatsApp Business, con plantilla aprobada) o '' para apagarlos.
+  // Los destinatarios se cargan en la hoja Avisos_WhatsApp, no aca.
+  WHATSAPP_PROVEEDOR: 'callmebot',
+  WHATSAPP_SHEET_NAME: 'Avisos_WhatsApp',
+  WHATSAPP_META_PLANTILLA: 'nuevo_ticket_heladera',
+  WHATSAPP_META_IDIOMA: 'es_AR',
+  // URL publica de la app (Netlify). Si esta, el aviso trae el link al ticket.
+  APP_URL: '',
+
+  HELADERAS_MOTIVOS_NO_RESUELTO: [
+    'Falta de repuesto',
+    'Requiere retiro a taller',
+    'PDV cerrado',
+    'No autorizaron el ingreso',
+    'Equipo no localizado',
+    'No era falla del equipo',
+    'Otro'
+  ],
+
   // Nombres con los que un tecnico quedo cargado antes de un cambio de nombre.
   // Los comodatos viejos siguen teniendo el nombre anterior y no se reescriben
   // (son el registro firmado), asi que el cruce tiene que reconocer los dos.
@@ -94,6 +126,13 @@ const SANIT_HEADERS = [
 const INTERVENCIONES_HEADERS = [
   'IntervencionId', 'Fecha', 'Tecnico', 'Cliente', 'Tipo',
   'Detalle', 'Repuestos', 'FotosUrls', 'Estado', 'Timestamp'
+];
+
+// Encabezados de la gestion de tickets de heladeras (una fila por ticket tocado)
+const HELADERAS_HEADERS = [
+  'TicketId', 'Cliente', 'Estado', 'Tecnico', 'TomadoEl', 'CerradoEl',
+  'TrabajoRealizado', 'Repuestos', 'MotivoNoResuelto', 'NotaEspera',
+  'FotosUrls', 'Historial', 'Actualizado'
 ];
 
 // Encabezados del padrón manual de clientes a sanitizar
@@ -188,6 +227,14 @@ function doGet(e) {
       return jsonOutput_({ ok: true, tecnico: t, historial: getHistorialSanitizacion_(t) });
     }
 
+    if (action === 'heladeras') {
+      return jsonOutput_({
+        ok: true,
+        tickets: getTicketsHeladeras_(e.parameter.historico === '1'),
+        motivosNoResuelto: CONFIG.HELADERAS_MOTIVOS_NO_RESUELTO
+      });
+    }
+
     if (action === 'comodatosPorTecnico') {
       const tecnico = e.parameter.tecnico ? String(e.parameter.tecnico).trim() : '';
       if (!tecnico) return jsonOutput_({ ok: false, message: 'Falta el parámetro tecnico.' });
@@ -219,6 +266,8 @@ function doPost(e) {
       case 'nuevaIntervencion': return jsonOutput_(nuevaIntervencion_(body));
       case 'cerrarIntervencion': return jsonOutput_(cerrarIntervencion_(body));
       case 'sanitBajaCliente':return jsonOutput_(sanitBajaCliente_(body));
+      case 'heladeraAccion':  return jsonOutput_(heladeraAccion_(body));
+      case 'heladeraFinalizar': return jsonOutput_(heladeraFinalizar_(body));
     }
 
     const sheet = getSheet_();
@@ -901,6 +950,7 @@ function crearHojasSanitizacion() {
   CONFIG.TECNICOS.forEach(t => getSanitSheet_(t));
   getClientesSheet_();
   getIntervencionesSheet_();
+  getHeladerasSheet_();
   Logger.log('Hojas de sanitización listas.');
 }
 
@@ -1819,4 +1869,644 @@ function getIntervencionPhotosFolder_(tecnico) {
   const parent = raiz.hasNext() ? raiz.next() : base.createFolder('Fotos Intervenciones');
   const sub = parent.getFoldersByName(tecnico);
   return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/* ==========================================================================
+ * 10. MÓDULO HELADERAS (pool de tickets de heladeras rotas)
+ *
+ * Los tickets los carga cualquiera desde un Google Form. La hoja de
+ * respuestas del Form es de solo lectura para el script: si se le agregaran
+ * columnas, el Form las pisa o las corre al sumar una pregunta nueva.
+ *
+ * La gestion (quien lo tomo, estado, cierre, fotos) vive en la hoja
+ * Tickets_Heladeras, una fila por ticket que alguien toco. Un ticket sin fila
+ * ahi esta SIN ASIGNAR: es el pool.
+ *
+ * Estados: SIN ASIGNAR -> ASIGNADO <-> EN ESPERA -> RESUELTO | NO RESUELTO.
+ * Un cerrado se puede reabrir y vuelve al pool.
+ * ========================================================================== */
+
+const HEL_ESTADOS_ACTIVOS = ['ASIGNADO', 'EN ESPERA'];
+const HEL_ESTADOS_CERRADOS = ['RESUELTO', 'NO RESUELTO'];
+
+/**
+ * Como se reconoce cada dato en los encabezados del Form. Se busca por
+ * palabra clave, en este orden, y cada columna se usa una sola vez: por eso
+ * "fotos" y "email" van antes que "falla" o "cliente" (una pregunta
+ * "Foto de la falla" es foto, "Codigo de cliente" es codigo).
+ * Las preguntas que no matcheen igual se muestran en el detalle del ticket.
+ */
+const HEL_CAMPOS_FORM = [
+  ['fotos', ['foto', 'imagen', 'adjunt']],
+  ['email', ['correo', 'email', 'mail']],
+  ['falla', ['falla', 'problema', 'que le pasa', 'inconveniente', 'descripcion', 'detalle', 'motivo']],
+  ['codigo', ['codigo', 'cod cliente', 'nro de cliente', 'numero de cliente', 'n de cliente']],
+  ['cliente', ['nombre del pdv', 'nombre del cliente', 'pdv', 'cliente', 'nombre fantasia', 'comercio', 'razon social', 'nombre del local']],
+  ['direccion', ['direccion', 'domicilio', 'calle']],
+  ['localidad', ['localidad', 'ciudad', 'zona']],
+  ['telefono', ['telefono', 'celular', 'whatsapp']],
+  ['equipo', ['heladera', 'equipo', 'modelo', 'activo fijo', 'serie', 'marca']],
+  ['solicitante', ['solicitante', 'quien carga', 'vendedor', 'supervisor', 'nombre y apellido', 'tu nombre', 'nombre']]
+];
+
+/** Hoja de respuestas del Form. Lanza con un mensaje claro si no la encuentra. */
+function getHeladerasFormSheet_() {
+  const idExterno = safe_(CONFIG.HELADERAS_FORM_SPREADSHEET_ID).trim();
+  const ss = idExterno ? SpreadsheetApp.openById(idExterno) : SpreadsheetApp.getActiveSpreadsheet();
+
+  const porNombre = ss.getSheetByName(CONFIG.HELADERAS_FORM_SHEET_NAME);
+  if (porNombre) return porNombre;
+
+  const candidata = ss.getSheets().filter(s => {
+    const n = norm_(s.getName());
+    return n.indexOf('respuestas de formulario') === 0 || n.indexOf('form responses') === 0;
+  })[0];
+  if (candidata) return candidata;
+
+  throw new Error('No encuentro la hoja de respuestas del formulario de heladeras (' +
+                  CONFIG.HELADERAS_FORM_SHEET_NAME + '). Revisá CONFIG.HELADERAS_FORM_SHEET_NAME.');
+}
+
+/** Hoja de gestion de tickets; la crea con encabezados si no existe. */
+function getHeladerasSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.HELADERAS_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.HELADERAS_SHEET_NAME);
+  escribirCabecera_(sheet, HELADERAS_HEADERS);
+  return sheet;
+}
+
+/** Decide que columna del Form corresponde a cada dato. Devuelve { campo: indice }. */
+function mapearColumnasForm_(encabezados) {
+  const normalizados = encabezados.map(h => norm_(h));
+  const usadas = {};
+  const mapa = {};
+
+  const iTs = normalizados.findIndex(h => h === 'marca temporal' || h === 'timestamp');
+  mapa.timestamp = iTs === -1 ? 0 : iTs;
+  usadas[mapa.timestamp] = true;
+
+  HEL_CAMPOS_FORM.forEach(par => {
+    const campo = par[0];
+    const claves = par[1];
+    for (let k = 0; k < claves.length && mapa[campo] === undefined; k++) {
+      for (let i = 0; i < normalizados.length; i++) {
+        if (usadas[i]) continue;
+        if (normalizados[i].indexOf(claves[k]) !== -1) {
+          mapa[campo] = i;
+          usadas[i] = true;
+          break;
+        }
+      }
+    }
+  });
+  return mapa;
+}
+
+/** Hash corto y estable de un texto (4 caracteres), para desempatar IDs. */
+function hashCorto_(texto) {
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = ((h * 33) ^ texto.charCodeAt(i)) >>> 0;
+  return h.toString(36).toUpperCase().slice(-4);
+}
+
+function textoCeldaForm_(v) {
+  if (v instanceof Date) return isoDateTime_(v);
+  return safe_(v).trim();
+}
+
+/**
+ * Lee las respuestas del Form y les asigna un ID estable.
+ *
+ * El ID sale de la marca temporal (HEL-260914-103512), no del numero de fila:
+ * si alguien ordena o borra filas en la hoja del Form, los tickets no se
+ * mezclan con la gestion de otro. Dos respuestas en el mismo segundo llevan
+ * un sufijo sacado del contenido de la fila (no del orden), por la misma razon.
+ */
+function leerTicketsForm_() {
+  const sheet = getHeladerasFormSheet_();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return [];
+
+  const valores = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  const encabezados = valores[0].map(h => safe_(h).trim());
+  const mapa = mapearColumnasForm_(encabezados);
+  const tz = Session.getScriptTimeZone();
+  const tickets = [];
+
+  // Numero de fila en la hoja de cada respuesta, para ubicar la que dispara el aviso
+  const numerosFila = [];
+  const filas = valores.slice(1).filter((f, i) => {
+    if (f.every(v => safe_(v).trim() === '')) return false;
+    numerosFila.push(i + 2);
+    return true;
+  });
+  const bases = filas.map(f => {
+    const ts = toDate_(f[mapa.timestamp]);
+    return ts ? 'HEL-' + Utilities.formatDate(ts, tz, 'yyMMdd-HHmmss') : '';
+  });
+  const repetidas = {};
+  bases.forEach(b => { repetidas[b] = (repetidas[b] || 0) + 1; });
+
+  for (let r = 0; r < filas.length; r++) {
+    const fila = filas[r];
+    const ts = toDate_(fila[mapa.timestamp]);
+    let id = bases[r];
+    if (!id) id = 'HEL-X' + hashCorto_(fila.map(textoCeldaForm_).join('|'));
+    else if (repetidas[id] > 1) id += '-' + hashCorto_(fila.map(textoCeldaForm_).join('|'));
+
+    const campo = nombre => mapa[nombre] === undefined ? '' : textoCeldaForm_(fila[mapa[nombre]]);
+
+    const respuestas = [];
+    encabezados.forEach((h, c) => {
+      if (c === mapa.timestamp) return;
+      const valor = textoCeldaForm_(fila[c]);
+      if (valor) respuestas.push({ pregunta: h, respuesta: valor });
+    });
+
+    // Las subidas de archivo del Form llegan como links de Drive separados por coma
+    const fotos = [];
+    fila.forEach(v => {
+      (safe_(v).match(/https?:\/\/drive\.google\.com[^\s,]+/g) || []).forEach(u => {
+        if (fotos.indexOf(u) === -1) fotos.push(u);
+      });
+    });
+
+    tickets.push({
+      id: id,
+      filaForm: numerosFila[r],
+      creado: ts ? isoDateTime_(ts) : '',
+      cliente: campo('cliente'),
+      codigo: campo('codigo'),
+      direccion: campo('direccion'),
+      localidad: campo('localidad'),
+      telefono: campo('telefono'),
+      equipo: campo('equipo'),
+      falla: campo('falla'),
+      solicitante: campo('solicitante'),
+      email: campo('email'),
+      fotosForm: fotos,
+      respuestas: respuestas
+    });
+  }
+  return tickets;
+}
+
+/** Filas de gestion como mapa { TicketId: objeto con _row }. */
+function leerGestionHeladeras_() {
+  const sheet = getHeladerasSheet_();
+  const lastRow = sheet.getLastRow();
+  const mapa = {};
+  if (lastRow < 2) return mapa;
+
+  sheet.getRange(2, 1, lastRow - 1, HELADERAS_HEADERS.length).getValues().forEach((fila, i) => {
+    const obj = { _row: i + 2 };
+    HELADERAS_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
+    const id = safe_(obj.TicketId).trim();
+    if (id) mapa[id] = obj;
+  });
+  return mapa;
+}
+
+function estadoHeladera_(gestion) {
+  const e = gestion ? safe_(gestion.Estado).trim().toUpperCase() : '';
+  return e || 'SIN ASIGNAR';
+}
+
+/** Ticket del Form + su gestion, listo para la app. */
+function armarTicketHeladera_(t, g) {
+  return Object.assign({}, t, {
+    estado: estadoHeladera_(g),
+    tecnico: g ? safe_(g.Tecnico) : '',
+    tomadoEl: g ? isoDateTime_(toDate_(g.TomadoEl)) : '',
+    cerradoEl: g ? isoDateTime_(toDate_(g.CerradoEl)) : '',
+    trabajo: g ? safe_(g.TrabajoRealizado) : '',
+    repuestos: g ? safe_(g.Repuestos) : '',
+    motivoNoResuelto: g ? safe_(g.MotivoNoResuelto) : '',
+    notaEspera: g ? safe_(g.NotaEspera) : '',
+    fotosCierre: g ? safe_(g.FotosUrls).split('\n').filter(String) : [],
+    historial: g ? safe_(g.Historial).split('\n').filter(String) : []
+  });
+}
+
+/**
+ * Todos los tickets abiertos y los cerrados recientes. Con "historico" van
+ * tambien los cerrados viejos: lo usa el tablero general.
+ */
+function getTicketsHeladeras_(historico) {
+  const gestion = leerGestionHeladeras_();
+  const limite = addDays_(new Date(), -CONFIG.HELADERAS_DIAS_CERRADOS_VISIBLES);
+
+  return leerTicketsForm_()
+    .map(t => armarTicketHeladera_(t, gestion[t.id]))
+    .filter(t => {
+      if (historico || HEL_ESTADOS_CERRADOS.indexOf(t.estado) === -1) return true;
+      const g = gestion[t.id];
+      const cierre = g ? toDate_(g.CerradoEl) : null;
+      return !cierre || cierre >= limite;
+    });
+}
+
+function lineaHistorial_(tecnico, texto) {
+  const cuando = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+  return cuando + ' · ' + tecnico + ' · ' + texto;
+}
+
+/** Escribe (o crea) la fila de gestion del ticket con los cambios dados. */
+function guardarGestionHeladera_(ticket, previa, cambios, textoHistorial, tecnico) {
+  const sheet = getHeladerasSheet_();
+  const base = {};
+  HELADERAS_HEADERS.forEach(h => { base[h] = previa ? previa[h] : ''; });
+
+  Object.assign(base, cambios);
+  base.TicketId = ticket.id;
+  base.Cliente = ticket.cliente;
+  base.Actualizado = new Date();
+  base.Historial = [safe_(previa ? previa.Historial : '').trim(), lineaHistorial_(tecnico, textoHistorial)]
+    .filter(String).join('\n');
+
+  const fila = HELADERAS_HEADERS.map(h => base[h] === undefined || base[h] === null ? '' : base[h]);
+  if (previa) {
+    sheet.getRange(previa._row, 1, 1, HELADERAS_HEADERS.length).setValues([fila]);
+  } else {
+    sheet.appendRow(fila);
+  }
+}
+
+/** Busca el ticket y su gestion actual. Lanza si el ID no existe en el Form. */
+function buscarTicketHeladera_(id) {
+  const limpio = safe_(id).trim();
+  if (!limpio) throw new Error('Falta el ID del ticket.');
+  const ticket = leerTicketsForm_().filter(t => t.id === limpio)[0];
+  if (!ticket) throw new Error('No encontré el ticket ' + limpio + '. Actualizá la lista.');
+  const previa = leerGestionHeladeras_()[limpio] || null;
+  return { ticket: ticket, previa: previa, estado: estadoHeladera_(previa) };
+}
+
+/** Controla que el ticket este activo y lo tenga el tecnico que opera. */
+function exigirTicketPropio_(actual, tecnico) {
+  if (HEL_ESTADOS_ACTIVOS.indexOf(actual.estado) === -1) {
+    throw new Error('El ticket está ' + actual.estado.toLowerCase() + '. Actualizá la lista.');
+  }
+  if (keyTecnico_(actual.previa.Tecnico) !== keyTecnico_(tecnico)) {
+    throw new Error('Este ticket lo tiene ' + safe_(actual.previa.Tecnico) + '.');
+  }
+}
+
+/**
+ * Acciones sobre un ticket: tomar, liberar, espera, retomar, reabrir.
+ * Todo bajo lock: dos tecnicos tocando "Tomar" a la vez no pueden quedarse
+ * los dos con el mismo ticket.
+ */
+function heladeraAccion_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const accion = safe_(body.accion).trim();
+    const nota = safe_(body.nota).trim();
+    const actual = buscarTicketHeladera_(body.ticketId);
+    const t = actual.ticket;
+
+    if (accion === 'tomar') {
+      if (actual.estado !== 'SIN ASIGNAR') {
+        const quien = safe_(actual.previa && actual.previa.Tecnico);
+        if (HEL_ESTADOS_ACTIVOS.indexOf(actual.estado) !== -1 && keyTecnico_(quien) === keyTecnico_(tecnico)) {
+          return { ok: true, message: 'Ya tenías este ticket.' };
+        }
+        return { ok: false, message: quien ? 'Llegaste tarde: lo tomó ' + quien + '.' : 'El ticket ya no está disponible.' };
+      }
+      guardarGestionHeladera_(t, actual.previa, {
+        Estado: 'ASIGNADO', Tecnico: tecnico, TomadoEl: new Date(), CerradoEl: '',
+        TrabajoRealizado: '', Repuestos: '', MotivoNoResuelto: '', NotaEspera: '', FotosUrls: ''
+      }, 'Tomó el ticket', tecnico);
+      return { ok: true, message: 'Ticket asignado a vos.' };
+    }
+
+    if (accion === 'liberar') {
+      exigirTicketPropio_(actual, tecnico);
+      guardarGestionHeladera_(t, actual.previa, {
+        Estado: 'SIN ASIGNAR', Tecnico: '', TomadoEl: '', NotaEspera: ''
+      }, 'Lo devolvió al pool' + (nota ? ': ' + nota : ''), tecnico);
+      return { ok: true, message: 'Ticket devuelto al pool.' };
+    }
+
+    if (accion === 'espera') {
+      exigirTicketPropio_(actual, tecnico);
+      if (!nota) throw new Error('Contá qué se está esperando (repuesto, turno, etc.).');
+      guardarGestionHeladera_(t, actual.previa, { Estado: 'EN ESPERA', NotaEspera: nota },
+        'En espera: ' + nota, tecnico);
+      return { ok: true, message: 'Ticket en espera.' };
+    }
+
+    if (accion === 'retomar') {
+      exigirTicketPropio_(actual, tecnico);
+      guardarGestionHeladera_(t, actual.previa, { Estado: 'ASIGNADO', NotaEspera: '' },
+        'Lo retomó', tecnico);
+      return { ok: true, message: 'Ticket retomado.' };
+    }
+
+    if (accion === 'reabrir') {
+      if (HEL_ESTADOS_CERRADOS.indexOf(actual.estado) === -1) throw new Error('Solo se reabre un ticket cerrado.');
+      if (!nota) throw new Error('Contá por qué se reabre.');
+      guardarGestionHeladera_(t, actual.previa, {
+        Estado: 'SIN ASIGNAR', Tecnico: '', TomadoEl: '', CerradoEl: '', NotaEspera: ''
+      }, 'Reabrió el ticket (' + actual.estado.toLowerCase() + '): ' + nota, tecnico);
+      return { ok: true, message: 'Ticket reabierto: volvió al pool.' };
+    }
+
+    throw new Error('Acción no válida: ' + accion);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Cierra el ticket como RESUELTO o NO RESUELTO, con detalle y fotos. */
+function heladeraFinalizar_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const actual = buscarTicketHeladera_(body.ticketId);
+    exigirTicketPropio_(actual, tecnico);
+
+    const resuelto = safe_(body.resultado).trim().toUpperCase() === 'RESUELTO';
+    const trabajo = safe_(body.trabajo).trim();
+    const motivo = safe_(body.motivo).trim();
+    if (resuelto && !trabajo) throw new Error('Contá qué se le hizo al equipo.');
+    if (!resuelto && !motivo) throw new Error('Elegí por qué no se pudo resolver.');
+
+    let urls = '';
+    if (body.fotos && body.fotos.length) {
+      urls = savePhotos_(getHeladeraPhotosFolder_(actual.ticket.id), body.fotos, actual.ticket.id);
+    }
+
+    const estado = resuelto ? 'RESUELTO' : 'NO RESUELTO';
+    guardarGestionHeladera_(actual.ticket, actual.previa, {
+      Estado: estado,
+      CerradoEl: new Date(),
+      TrabajoRealizado: trabajo,
+      Repuestos: safe_(body.repuestos).trim(),
+      MotivoNoResuelto: resuelto ? '' : motivo,
+      NotaEspera: '',
+      FotosUrls: urls
+    }, resuelto ? 'Lo cerró como resuelto' : 'Lo cerró sin resolver: ' + motivo, tecnico);
+
+    return { ok: true, message: resuelto ? 'Ticket resuelto.' : 'Ticket cerrado como no resuelto.', estado: estado };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Carpeta de fotos de heladeras, con subcarpeta por ticket. */
+function getHeladeraPhotosFolder_(ticketId) {
+  const base = getPhotosParentFolder_();
+  const raiz = base.getFoldersByName(CONFIG.HELADERAS_PHOTOS_FOLDER_NAME);
+  const parent = raiz.hasNext() ? raiz.next() : base.createFolder(CONFIG.HELADERAS_PHOTOS_FOLDER_NAME);
+  const sub = parent.getFoldersByName(ticketId);
+  return sub.hasNext() ? sub.next() : parent.createFolder(ticketId);
+}
+
+/**
+ * Prueba desde el editor: muestra como se mapearon las columnas del Form y
+ * los ultimos tickets. Correrla una vez despues de vincular el Form.
+ */
+function probarHeladeras() {
+  const sheet = getHeladerasFormSheet_();
+  const encabezados = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const mapa = mapearColumnasForm_(encabezados);
+  const log = ['Hoja del Form: ' + sheet.getName(), 'Columnas detectadas:'];
+  Object.keys(mapa).forEach(k => log.push('  ' + k + ' -> ' + encabezados[mapa[k]]));
+  leerTicketsForm_().slice(-3).forEach(t => log.push(t.id + ' · ' + t.cliente + ' · ' + t.falla));
+  Logger.log(log.join('\n'));
+}
+
+/* ==========================================================================
+ * 11. AVISOS POR WHATSAPP
+ *
+ * Cuando entra una respuesta al Form de heladeras, un disparador instalable
+ * (onFormSubmit) le manda un WhatsApp a cada destinatario activo de la hoja
+ * Avisos_WhatsApp. El resultado de cada envio queda escrito en esa misma
+ * hoja, porque un disparador que falla no se ve en ningun otro lado.
+ *
+ * Puesta en marcha (una vez, desde el editor):
+ *   1) Cargar los destinatarios en Avisos_WhatsApp (se crea sola).
+ *   2) Correr activarAvisosWhatsApp  -> instala el disparador.
+ *   3) Correr probarWhatsApp         -> manda un mensaje de prueba.
+ *
+ * Proveedores:
+ *   - callmebot: cada destinatario le manda "I allow callmebot to send me
+ *     messages" al +34 644 66 32 62 desde su WhatsApp y recibe su apikey, que
+ *     se pega en la columna ApiKey. Gratis, pensado para uso personal.
+ *   - meta: API oficial de WhatsApp Cloud. Necesita en Propiedades del Script
+ *     WHATSAPP_META_TOKEN y WHATSAPP_META_PHONE_ID, y una plantilla aprobada
+ *     con 5 variables: {{1}} ID, {{2}} cliente, {{3}} ubicacion, {{4}} falla,
+ *     {{5}} link. Los tokens NO van en el codigo: el repo esta en GitHub.
+ * ========================================================================== */
+
+const WHATSAPP_HEADERS = ['Nombre', 'Telefono', 'ApiKey', 'Activo', 'UltimoEnvio', 'UltimoResultado'];
+
+function getWhatsAppSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.WHATSAPP_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.WHATSAPP_SHEET_NAME);
+  escribirCabecera_(sheet, WHATSAPP_HEADERS);
+  return sheet;
+}
+
+/** Destinatarios activos, con la fila para anotarles el resultado. */
+function leerDestinatariosWhatsApp_() {
+  const sheet = getWhatsAppSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 1, lastRow - 1, WHATSAPP_HEADERS.length).getValues()
+    .map((f, i) => ({
+      fila: i + 2,
+      nombre: safe_(f[0]).trim(),
+      telefono: safe_(f[1]).replace(/[^\d]/g, ''),
+      apikey: safe_(f[2]).trim(),
+      activo: norm_(f[3]) !== 'no'
+    }))
+    .filter(d => d.activo && d.telefono);
+}
+
+function linkTicketApp_(ticketId) {
+  const base = safe_(CONFIG.APP_URL).trim();
+  if (!base) return '';
+  return base + (base.indexOf('?') === -1 ? '?' : '&') + 'vista=heladeras&ticket=' + encodeURIComponent(ticketId);
+}
+
+function textoAvisoTicket_(t) {
+  const ubicacion = [t.direccion, t.localidad].filter(String).join(', ');
+  const link = linkTicketApp_(t.id);
+  return [
+    '🧊 *Nuevo ticket de heladera*',
+    t.id,
+    '📍 ' + (t.cliente || 'PDV sin nombre') + (ubicacion ? ' — ' + ubicacion : ''),
+    t.falla ? '⚠️ ' + t.falla : '',
+    t.solicitante ? 'Cargado por ' + t.solicitante : '',
+    link ? '\nTomalo acá: ' + link : 'Tomalo desde la solapa Heladeras de la app.'
+  ].filter(String).join('\n');
+}
+
+/** Arma el pedido HTTP de un envio segun el proveedor configurado. */
+function pedidoWhatsApp_(destinatario, ticket, textoLibre) {
+  const proveedor = safe_(CONFIG.WHATSAPP_PROVEEDOR).trim().toLowerCase();
+
+  if (proveedor === 'callmebot') {
+    if (!destinatario.apikey) throw new Error('falta la ApiKey de CallMeBot');
+    return {
+      url: 'https://api.callmebot.com/whatsapp.php?phone=%2B' + destinatario.telefono +
+           '&text=' + encodeURIComponent(textoLibre) + '&apikey=' + encodeURIComponent(destinatario.apikey),
+      method: 'get',
+      muteHttpExceptions: true
+    };
+  }
+
+  if (proveedor === 'meta') {
+    const props = PropertiesService.getScriptProperties();
+    const token = props.getProperty('WHATSAPP_META_TOKEN');
+    const phoneId = props.getProperty('WHATSAPP_META_PHONE_ID');
+    if (!token || !phoneId) throw new Error('faltan WHATSAPP_META_TOKEN / WHATSAPP_META_PHONE_ID en Propiedades del Script');
+
+    // Las variables de plantilla no aceptan saltos de linea ni tiras de espacios
+    const limpio = v => safe_(v).replace(/\s+/g, ' ').trim().slice(0, 900) || '-';
+    const t = ticket || {};
+    return {
+      url: 'https://graph.facebook.com/v21.0/' + phoneId + '/messages',
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: destinatario.telefono,
+        type: 'template',
+        template: {
+          name: CONFIG.WHATSAPP_META_PLANTILLA,
+          language: { code: CONFIG.WHATSAPP_META_IDIOMA },
+          components: [{
+            type: 'body',
+            parameters: [
+              t.id, t.cliente || 'PDV sin nombre',
+              [t.direccion, t.localidad].filter(String).join(', '),
+              t.falla, linkTicketApp_(t.id || '')
+            ].map(v => ({ type: 'text', text: limpio(v) }))
+          }]
+        }
+      })
+    };
+  }
+
+  throw new Error('proveedor de WhatsApp no configurado');
+}
+
+/** CallMeBot responde 200 aun con errores; el detalle viene en el texto. */
+function envioOk_(respuesta) {
+  const codigo = respuesta.getResponseCode();
+  const cuerpo = safe_(respuesta.getContentText());
+  if (codigo < 200 || codigo >= 300) return false;
+  return !/error|invalid|not (been )?activated/i.test(cuerpo.slice(0, 2000));
+}
+
+/**
+ * Manda el aviso de un ticket a todos los destinatarios, en paralelo, y
+ * anota el resultado de cada uno en la hoja. Devuelve cuantos salieron bien.
+ */
+function enviarAvisoWhatsApp_(ticket, textoLibre) {
+  if (!safe_(CONFIG.WHATSAPP_PROVEEDOR).trim()) return { enviados: 0, fallidos: 0, apagado: true };
+
+  const sheet = getWhatsAppSheet_();
+  const destinatarios = leerDestinatariosWhatsApp_();
+  const texto = textoLibre || textoAvisoTicket_(ticket);
+  const ahora = new Date();
+
+  const pedidos = [];
+  const errores = {};
+  destinatarios.forEach((d, i) => {
+    try {
+      pedidos.push({ i: i, pedido: pedidoWhatsApp_(d, ticket, texto) });
+    } catch (err) {
+      errores[i] = err.message;
+    }
+  });
+
+  const respuestas = pedidos.length ? UrlFetchApp.fetchAll(pedidos.map(p => p.pedido)) : [];
+  const resultado = {};
+  pedidos.forEach((p, n) => {
+    const r = respuestas[n];
+    resultado[p.i] = envioOk_(r)
+      ? 'OK'
+      : 'ERROR ' + r.getResponseCode() + ': ' + safe_(r.getContentText()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 200);
+  });
+
+  let enviados = 0, fallidos = 0;
+  destinatarios.forEach((d, i) => {
+    const txt = errores[i] ? 'ERROR: ' + errores[i] : resultado[i];
+    if (txt === 'OK') enviados++; else fallidos++;
+    sheet.getRange(d.fila, WHATSAPP_HEADERS.indexOf('UltimoEnvio') + 1, 1, 2)
+      .setValues([[ahora, (ticket ? ticket.id + ' · ' : '') + txt]]);
+  });
+
+  return { enviados: enviados, fallidos: fallidos };
+}
+
+/**
+ * Disparador onFormSubmit. Solo reacciona a la hoja del Form de heladeras.
+ *
+ * Google a veces dispara onFormSubmit dos veces para la misma respuesta: el
+ * CacheService evita mandar el mismo WhatsApp dos veces.
+ */
+function alEnviarFormHeladera(e) {
+  if (!e || !e.range) return;
+
+  const hojaForm = getHeladerasFormSheet_();
+  const hojaEvento = e.range.getSheet();
+  if (hojaEvento.getSheetId() !== hojaForm.getSheetId() ||
+      hojaEvento.getParent().getId() !== hojaForm.getParent().getId()) return;
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const fila = e.range.getRow();
+    const ticket = leerTicketsForm_().filter(t => t.filaForm === fila)[0];
+    if (!ticket) return;
+
+    const cache = CacheService.getScriptCache();
+    const clave = 'wa_aviso_' + ticket.id;
+    if (cache.get(clave)) return;
+    cache.put(clave, '1', 21600);
+
+    const r = enviarAvisoWhatsApp_(ticket);
+    Logger.log('Aviso ' + ticket.id + ': ' + JSON.stringify(r));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Instala (o reinstala) el disparador del Form. Correr una vez desde el editor. */
+function activarAvisosWhatsApp() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'alEnviarFormHeladera')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+
+  const ssForm = getHeladerasFormSheet_().getParent();
+  ScriptApp.newTrigger('alEnviarFormHeladera').forSpreadsheet(ssForm).onFormSubmit().create();
+  getWhatsAppSheet_();
+
+  Logger.log('Disparador instalado sobre "' + ssForm.getName() + '". Destinatarios activos: ' +
+             leerDestinatariosWhatsApp_().length);
+}
+
+/** Manda un mensaje de prueba a todos los destinatarios activos. */
+function probarWhatsApp() {
+  const ultimo = leerTicketsForm_().slice(-1)[0];
+  const ticket = ultimo || {
+    id: 'HEL-PRUEBA', cliente: 'PDV de prueba', direccion: '', localidad: '',
+    falla: 'Mensaje de prueba del sistema', solicitante: ''
+  };
+  const texto = CONFIG.WHATSAPP_PROVEEDOR === 'meta' ? null : '✅ Prueba de avisos de heladeras\n\n' + textoAvisoTicket_(ticket);
+  const r = enviarAvisoWhatsApp_(ticket, texto);
+  Logger.log('Prueba de WhatsApp: ' + JSON.stringify(r) + '. Mirá la hoja ' + CONFIG.WHATSAPP_SHEET_NAME + ' para el detalle.');
 }
