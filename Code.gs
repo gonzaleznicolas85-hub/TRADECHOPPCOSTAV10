@@ -54,7 +54,11 @@ const CONFIG = {
   // Hoja de respuestas del Form. Si el Form esta vinculado a ESTE mismo Sheet,
   // HELADERAS_FORM_SPREADSHEET_ID va vacio. Si el nombre de la pestaña no
   // coincide, se usa la primera que empiece con "Respuestas de formulario".
-  HELADERAS_FORM_SPREADSHEET_ID: '',
+  // Planilla "Servicio TECNICO SMK (Respuestas)". La cuenta dueña de este
+  // script tiene que tener acceso de EDITOR a esa planilla.
+  HELADERAS_FORM_SPREADSHEET_ID: '1nkK-3soVT2aJFujxQ0zv6LcOIJ-904vyWyGE8LcV4Lk',
+  // Quienes pueden tomar tickets de heladeras. Vacio = los mismos de CONFIG.TECNICOS.
+  HELADERAS_TECNICOS: [],
   HELADERAS_FORM_SHEET_NAME: 'Respuestas de formulario 1',
   // Estado de gestion de cada ticket. La hoja del Form no se toca nunca.
   HELADERAS_SHEET_NAME: 'Tickets_Heladeras',
@@ -231,7 +235,8 @@ function doGet(e) {
       return jsonOutput_({
         ok: true,
         tickets: getTicketsHeladeras_(e.parameter.historico === '1'),
-        motivosNoResuelto: CONFIG.HELADERAS_MOTIVOS_NO_RESUELTO
+        motivosNoResuelto: CONFIG.HELADERAS_MOTIVOS_NO_RESUELTO,
+        tecnicos: tecnicosHeladeras_()
       });
     }
 
@@ -1899,15 +1904,36 @@ const HEL_ESTADOS_CERRADOS = ['RESUELTO', 'NO RESUELTO'];
 const HEL_CAMPOS_FORM = [
   ['fotos', ['foto', 'imagen', 'adjunt']],
   ['email', ['correo', 'email', 'mail']],
-  ['falla', ['falla', 'problema', 'que le pasa', 'inconveniente', 'descripcion', 'detalle', 'motivo']],
-  ['codigo', ['codigo', 'cod cliente', 'nro de cliente', 'numero de cliente', 'n de cliente']],
-  ['cliente', ['nombre del pdv', 'nombre del cliente', 'pdv', 'cliente', 'nombre fantasia', 'comercio', 'razon social', 'nombre del local']],
+  ['falla', ['falla', 'problema', 'que le pasa', 'inconveniente', 'observacion', 'descripcion', 'detalle', 'motivo']],
+  ['codigo', ['numero de boca', 'boca', 'codigo', 'cod cliente', 'nro de cliente', 'numero de cliente', 'n de cliente']],
+  ['cliente', ['nombre del pdv', 'nombre del cliente', 'tienda', 'pdv', 'cliente', 'nombre fantasia', 'comercio', 'razon social', 'nombre del local']],
   ['direccion', ['direccion', 'domicilio', 'calle']],
   ['localidad', ['localidad', 'ciudad', 'zona']],
   ['telefono', ['telefono', 'celular', 'whatsapp']],
+  ['negocio', ['negocio', 'canal']],
   ['equipo', ['heladera', 'equipo', 'modelo', 'activo fijo', 'serie', 'marca']],
-  ['solicitante', ['solicitante', 'quien carga', 'vendedor', 'supervisor', 'nombre y apellido', 'tu nombre', 'nombre']]
+  ['supervisor', ['supervisor']],
+  ['solicitante', ['repositor', 'solicitante', 'quien carga', 'vendedor', 'nombre y apellido', 'tu nombre', 'nombre']]
 ];
+
+/**
+ * Técnicos que pueden tomar tickets de heladeras. El servicio SMK puede no
+ * ser la misma gente que las choperas: por eso tiene su propia lista.
+ */
+function tecnicosHeladeras_() {
+  const propios = (CONFIG.HELADERAS_TECNICOS || []).filter(t => safe_(t).trim());
+  return propios.length ? propios : CONFIG.TECNICOS;
+}
+
+function resolveTecnicoHeladera_(tecnico) {
+  const objetivo = keyTecnico_(tecnico);
+  if (!objetivo) throw new Error('Elegí tu nombre arriba.');
+  const lista = tecnicosHeladeras_();
+  for (let i = 0; i < lista.length; i++) {
+    if (keyTecnico_(lista[i]) === objetivo) return lista[i];
+  }
+  throw new Error('Técnico no reconocido: ' + tecnico);
+}
 
 /** Hoja de respuestas del Form. Lanza con un mensaje claro si no la encuentra. */
 function getHeladerasFormSheet_() {
@@ -1927,16 +1953,37 @@ function getHeladerasFormSheet_() {
                   CONFIG.HELADERAS_FORM_SHEET_NAME + '). Revisá CONFIG.HELADERAS_FORM_SHEET_NAME.');
 }
 
+/**
+ * Planilla de comodatos (la que contiene este script).
+ *
+ * No alcanza con getActiveSpreadsheet(): el disparador del Form esta
+ * instalado sobre la planilla SMK, y cuando corre desde ahi la planilla
+ * "activa" puede ser la del Form. Las hojas de gestion y de avisos se
+ * crearian del lado equivocado. activarAvisosWhatsApp guarda el ID correcto.
+ */
+function ssPrincipal_() {
+  const id = PropertiesService.getScriptProperties().getProperty('SS_PRINCIPAL_ID');
+  if (id) {
+    try { return SpreadsheetApp.openById(id); } catch (err) { /* sigue con la activa */ }
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 /** Hoja de gestion de tickets; la crea con encabezados si no existe. */
 function getHeladerasSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = ssPrincipal_();
   let sheet = ss.getSheetByName(CONFIG.HELADERAS_SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(CONFIG.HELADERAS_SHEET_NAME);
   escribirCabecera_(sheet, HELADERAS_HEADERS);
   return sheet;
 }
 
-/** Decide que columna del Form corresponde a cada dato. Devuelve { campo: indice }. */
+/**
+ * Decide que columna del Form corresponde a cada dato. Devuelve
+ * { campo: indice } y, en mapa.extra, { campo: [indices] } cuando la misma
+ * pregunta esta repetida: el Form SMK tiene tres "Repositor" (una por
+ * supervisor) y solo una viene completa en cada respuesta.
+ */
 function mapearColumnasForm_(encabezados) {
   const normalizados = encabezados.map(h => norm_(h));
   const usadas = {};
@@ -1959,8 +2006,33 @@ function mapearColumnasForm_(encabezados) {
         }
       }
     }
+
+    if (mapa[campo] === undefined) return;
+    const repetidas = [];
+    for (let i = 0; i < normalizados.length; i++) {
+      if (!usadas[i] && normalizados[i] === normalizados[mapa[campo]]) {
+        repetidas.push(i);
+        usadas[i] = true;
+      }
+    }
+    if (repetidas.length) {
+      mapa.extra = mapa.extra || {};
+      mapa.extra[campo] = repetidas;
+    }
   });
   return mapa;
+}
+
+/**
+ * Fecha de la marca temporal. El Form la guarda como fecha, pero si alguien
+ * la pego como texto ("25/8/2026 12:49:32") new Date() la leeria con dia y
+ * mes invertidos.
+ */
+function fechaForm_(v) {
+  if (v instanceof Date && !isNaN(v.getTime())) return v;
+  const m = safe_(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  return toDate_(v);
 }
 
 /** Hash corto y estable de un texto (4 caracteres), para desempatar IDs. */
@@ -1972,7 +2044,8 @@ function hashCorto_(texto) {
 
 function textoCeldaForm_(v) {
   if (v instanceof Date) return isoDateTime_(v);
-  return safe_(v).trim();
+  // Resto de una opcion sin renombrar en el Form: "Opción 1Eric Hock" -> "Eric Hock"
+  return safe_(v).trim().replace(/^opci[oó]n\s*\d+\s*/i, '');
 }
 
 /**
@@ -2003,7 +2076,7 @@ function leerTicketsForm_() {
     return true;
   });
   const bases = filas.map(f => {
-    const ts = toDate_(f[mapa.timestamp]);
+    const ts = fechaForm_(f[mapa.timestamp]);
     return ts ? 'HEL-' + Utilities.formatDate(ts, tz, 'yyMMdd-HHmmss') : '';
   });
   const repetidas = {};
@@ -2011,12 +2084,21 @@ function leerTicketsForm_() {
 
   for (let r = 0; r < filas.length; r++) {
     const fila = filas[r];
-    const ts = toDate_(fila[mapa.timestamp]);
+    const ts = fechaForm_(fila[mapa.timestamp]);
     let id = bases[r];
     if (!id) id = 'HEL-X' + hashCorto_(fila.map(textoCeldaForm_).join('|'));
     else if (repetidas[id] > 1) id += '-' + hashCorto_(fila.map(textoCeldaForm_).join('|'));
 
-    const campo = nombre => mapa[nombre] === undefined ? '' : textoCeldaForm_(fila[mapa[nombre]]);
+    // Primer valor no vacio entre la columna del campo y sus repetidas
+    const campo = nombre => {
+      if (mapa[nombre] === undefined) return '';
+      const indices = [mapa[nombre]].concat((mapa.extra && mapa.extra[nombre]) || []);
+      for (let i = 0; i < indices.length; i++) {
+        const v = textoCeldaForm_(fila[indices[i]]);
+        if (v) return v;
+      }
+      return '';
+    };
 
     const respuestas = [];
     encabezados.forEach((h, c) => {
@@ -2039,11 +2121,15 @@ function leerTicketsForm_() {
       creado: ts ? isoDateTime_(ts) : '',
       cliente: campo('cliente'),
       codigo: campo('codigo'),
+      // Como se llama el codigo en el Form ("Numero de Boca"), para mostrarlo igual
+      codigoEtiqueta: mapa.codigo === undefined ? '' : encabezados[mapa.codigo],
       direccion: campo('direccion'),
       localidad: campo('localidad'),
       telefono: campo('telefono'),
+      negocio: campo('negocio'),
       equipo: campo('equipo'),
       falla: campo('falla'),
+      supervisor: campo('supervisor'),
       solicitante: campo('solicitante'),
       email: campo('email'),
       fotosForm: fotos,
@@ -2163,7 +2249,7 @@ function heladeraAccion_(body) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    const tecnico = resolveTecnico_(body.tecnico);
+    const tecnico = resolveTecnicoHeladera_(body.tecnico);
     const accion = safe_(body.accion).trim();
     const nota = safe_(body.nota).trim();
     const actual = buscarTicketHeladera_(body.ticketId);
@@ -2227,7 +2313,7 @@ function heladeraFinalizar_(body) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    const tecnico = resolveTecnico_(body.tecnico);
+    const tecnico = resolveTecnicoHeladera_(body.tecnico);
     const actual = buscarTicketHeladera_(body.ticketId);
     exigirTicketPropio_(actual, tecnico);
 
@@ -2273,11 +2359,18 @@ function getHeladeraPhotosFolder_(ticketId) {
  * los ultimos tickets. Correrla una vez despues de vincular el Form.
  */
 function probarHeladeras() {
+  PropertiesService.getScriptProperties()
+    .setProperty('SS_PRINCIPAL_ID', SpreadsheetApp.getActiveSpreadsheet().getId());
   const sheet = getHeladerasFormSheet_();
   const encabezados = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const mapa = mapearColumnasForm_(encabezados);
-  const log = ['Hoja del Form: ' + sheet.getName(), 'Columnas detectadas:'];
-  Object.keys(mapa).forEach(k => log.push('  ' + k + ' -> ' + encabezados[mapa[k]]));
+  const log = ['Planilla del Form: ' + sheet.getParent().getName() + ' / ' + sheet.getName(), 'Columnas detectadas:'];
+  Object.keys(mapa).forEach(k => {
+    if (k === 'extra') return;
+    const repetidas = mapa.extra && mapa.extra[k] ? ' (+' + mapa.extra[k].length + ' repetida/s)' : '';
+    log.push('  ' + k + ' -> ' + encabezados[mapa[k]] + repetidas);
+  });
+  log.push('Técnicos de heladeras: ' + tecnicosHeladeras_().join(', '));
   leerTicketsForm_().slice(-3).forEach(t => log.push(t.id + ' · ' + t.cliente + ' · ' + t.falla));
   Logger.log(log.join('\n'));
 }
@@ -2308,7 +2401,7 @@ function probarHeladeras() {
 const WHATSAPP_HEADERS = ['Nombre', 'Telefono', 'ApiKey', 'Activo', 'UltimoEnvio', 'UltimoResultado'];
 
 function getWhatsAppSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = ssPrincipal_();
   let sheet = ss.getSheetByName(CONFIG.WHATSAPP_SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(CONFIG.WHATSAPP_SHEET_NAME);
   escribirCabecera_(sheet, WHATSAPP_HEADERS);
@@ -2337,15 +2430,23 @@ function linkTicketApp_(ticketId) {
   return base + (base.indexOf('?') === -1 ? '?' : '&') + 'vista=heladeras&ticket=' + encodeURIComponent(ticketId);
 }
 
+/** "TOLEDO · Boca 903045": el nombre del PDV con su codigo, si lo hay. */
+function nombreConCodigo_(t) {
+  const etiqueta = norm_(t.codigoEtiqueta).indexOf('boca') !== -1 ? 'Boca' : (t.codigoEtiqueta || 'Cód.');
+  return (t.cliente || 'PDV sin nombre') + (t.codigo ? ' · ' + etiqueta + ' ' + t.codigo : '');
+}
+
 function textoAvisoTicket_(t) {
   const ubicacion = [t.direccion, t.localidad].filter(String).join(', ');
   const link = linkTicketApp_(t.id);
+  const quien = [t.solicitante, t.supervisor ? 'sup. ' + t.supervisor : ''].filter(String).join(' · ');
   return [
-    '🧊 *Nuevo ticket de heladera*',
+    '🧊 *Nuevo ticket de heladera*' + (t.negocio ? ' (' + t.negocio + ')' : ''),
     t.id,
-    '📍 ' + (t.cliente || 'PDV sin nombre') + (ubicacion ? ' — ' + ubicacion : ''),
+    '🏪 ' + nombreConCodigo_(t),
+    ubicacion ? '📍 ' + ubicacion : '',
     t.falla ? '⚠️ ' + t.falla : '',
-    t.solicitante ? 'Cargado por ' + t.solicitante : '',
+    quien ? '👤 ' + quien : '',
     link ? '\nTomalo acá: ' + link : 'Tomalo desde la solapa Heladeras de la app.'
   ].filter(String).join('\n');
 }
@@ -2389,7 +2490,7 @@ function pedidoWhatsApp_(destinatario, ticket, textoLibre) {
           components: [{
             type: 'body',
             parameters: [
-              t.id, t.cliente || 'PDV sin nombre',
+              t.id, nombreConCodigo_(t),
               [t.direccion, t.localidad].filter(String).join(', '),
               t.falla, linkTicketApp_(t.id || '')
             ].map(v => ({ type: 'text', text: limpio(v) }))
@@ -2478,6 +2579,7 @@ function alEnviarFormHeladera(e) {
     if (cache.get(clave)) return;
     cache.put(clave, '1', 21600);
 
+    compartirFotosTicket_(ticket);
     const r = enviarAvisoWhatsApp_(ticket);
     Logger.log('Aviso ' + ticket.id + ': ' + JSON.stringify(r));
   } finally {
@@ -2485,8 +2587,42 @@ function alEnviarFormHeladera(e) {
   }
 }
 
+/**
+ * Las fotos que se suben por el Form nacen privadas del dueño del Form: sin
+ * esto, el tecnico que toca "Foto del reclamo" en el celular ve "Solicitar
+ * acceso". Si la cuenta del script no puede compartirlas, no corta nada.
+ */
+function compartirFotosTicket_(ticket) {
+  let ok = 0;
+  (ticket.fotosForm || []).forEach(url => {
+    const id = idDesdeUrlDrive_(url);
+    if (!id) return;
+    try {
+      if (compartirPorLink_(DriveApp.getFileById(id))) ok++;
+    } catch (err) {
+      Logger.log('No se pudo abrir la foto ' + id + ': ' + err.message);
+    }
+  });
+  return ok;
+}
+
+/** Comparte las fotos de todos los tickets ya cargados. Uso unico desde el editor. */
+function compartirFotosFormHeladeras() {
+  let ok = 0, total = 0;
+  leerTicketsForm_().forEach(t => {
+    total += (t.fotosForm || []).length;
+    ok += compartirFotosTicket_(t);
+  });
+  Logger.log('Fotos del Form compartidas: ' + ok + ' de ' + total);
+}
+
 /** Instala (o reinstala) el disparador del Form. Correr una vez desde el editor. */
 function activarAvisosWhatsApp() {
+  // Corriendo desde el editor, la activa es la planilla de comodatos: se guarda
+  // para que el disparador (que corre desde la planilla del Form) la encuentre.
+  PropertiesService.getScriptProperties()
+    .setProperty('SS_PRINCIPAL_ID', SpreadsheetApp.getActiveSpreadsheet().getId());
+
   ScriptApp.getProjectTriggers()
     .filter(t => t.getHandlerFunction() === 'alEnviarFormHeladera')
     .forEach(t => ScriptApp.deleteTrigger(t));

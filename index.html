@@ -730,6 +730,22 @@
     }
     .hel-chip:hover { border-color: var(--brand); }
     .hel-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .hel-foto-form {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 120px;
+      height: 120px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f1f5f9;
+      overflow: hidden;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #1d4ed8;
+      text-decoration: none;
+    }
+    .hel-foto-form img { width: 100%; height: 100%; object-fit: cover; }
     .hel-thumb { position: relative; width: 72px; height: 72px; }
     .hel-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; }
     .hel-thumb button {
@@ -896,7 +912,9 @@
           <div>
             <label class="field-label">¿Quién sos?</label>
             <input type="hidden" id="heladerasTecnico" />
-            <div class="tecnico-picker" id="heladerasTecnicoBotones" role="group" aria-label="Técnico"></div>
+            <div class="tecnico-picker" id="heladerasTecnicoBotones" role="group" aria-label="Técnico">
+              <span class="small-note">Cargando técnicos...</span>
+            </div>
           </div>
           <div class="flex flex-col items-stretch md:items-end gap-1">
             <button type="button" id="heladerasRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
@@ -1845,8 +1863,7 @@
       [["tecnico", "tecnicoBotones"],
        ["misComodatosTecnico", "misComodatosTecnicoBotones"],
        ["sanitTecnico", "sanitTecnicoBotones"],
-       ["choperasTecnico", "choperasTecnicoBotones"],
-       ["heladerasTecnico", "heladerasTecnicoBotones"]].forEach(par => {
+       ["choperasTecnico", "choperasTecnicoBotones"]].forEach(par => {
         const input = document.getElementById(par[0]);
         const contenedor = document.getElementById(par[1]);
         if (!input || !contenedor) return;
@@ -1860,7 +1877,7 @@
 
     /** Fija el tecnico en los tres grupos a la vez. */
     function fijarTecnico_(nombre) {
-      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico", "heladerasTecnico"].forEach(id => {
+      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico"].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.value = nombre;
       });
@@ -1888,7 +1905,6 @@
       montarBotonesTecnico_("misComodatosTecnico", "misComodatosTecnicoBotones", {});
       montarBotonesTecnico_("sanitTecnico", "sanitTecnicoBotones", { todos: true, etiquetaTodos: "Todos" });
       montarBotonesTecnico_("choperasTecnico", "choperasTecnicoBotones", {});
-      montarBotonesTecnico_("heladerasTecnico", "heladerasTecnicoBotones", {});
       sincronizarBotonesTecnico_();
     }
 
@@ -3174,6 +3190,27 @@
       return dd + "/" + mm + anio + " " + hh;
     }
 
+    /** "TOLEDO · Boca 903045". Mismo formato que el aviso de WhatsApp. */
+    function helNombre_(t) {
+      const etiqueta = /boca/i.test(t.codigoEtiqueta || "") ? "Boca" : (t.codigoEtiqueta || "Cód.");
+      return (t.cliente || "PDV sin nombre") + (t.codigo ? " · " + etiqueta + " " + t.codigo : "");
+    }
+
+    function helQuienCargo_(t) {
+      return [t.solicitante, t.supervisor ? "sup. " + t.supervisor : ""].filter(Boolean).join(" · ");
+    }
+
+    function helClaveBoca_(t) {
+      if (t.codigo) return "c:" + t.codigo;
+      const k = [t.cliente, t.direccion].filter(Boolean).join("|").toLowerCase().replace(/\s+/g, " ").trim();
+      return k ? "d:" + k : "";
+    }
+
+    function helIdDrive_(url) {
+      const m = String(url || "").match(/[-\w]{25,}/);
+      return m ? m[0] : "";
+    }
+
     function helTextoEdad_(dias) {
       if (dias === null) return "";
       if (dias <= 0) return "Hoy";
@@ -3252,7 +3289,7 @@
       const lista = heladeras.filter(t => {
         if (!porVista(t)) return false;
         if (!texto) return true;
-        return [t.id, t.cliente, t.codigo, t.direccion, t.localidad, t.falla, t.equipo, t.tecnico, t.solicitante]
+        return [t.id, t.cliente, t.codigo, t.direccion, t.localidad, t.falla, t.equipo, t.tecnico, t.solicitante, t.supervisor, t.negocio]
           .join(" ").toLowerCase().indexOf(texto) !== -1;
       });
 
@@ -3326,8 +3363,17 @@
         return;
       }
 
+      // Tickets abiertos por boca: si hay más de uno, conviene resolverlos en la misma visita
+      const abiertosPorBoca = {};
+      heladeras.forEach(t => {
+        if (helCerrado_(t)) return;
+        const k = helClaveBoca_(t);
+        if (k) abiertosPorBoca[k] = (abiertosPorBoca[k] || 0) + 1;
+      });
+
       heladerasListaBox.innerHTML = lista.map(t => {
         const abierto = !!helAbiertos[t.id];
+        const otrosEnBoca = helCerrado_(t) ? 0 : (abiertosPorBoca[helClaveBoca_(t)] || 1) - 1;
         const cerrado = helCerrado_(t);
         const dias = cerrado ? null : helDiasDesde_(t.creado);
         const claseEstado = "estado-" + estadoClase_(t.estado);
@@ -3336,6 +3382,7 @@
 
         const badges = [
           `<span class="badge badge-${estadoClase_(t.estado)}">${escapeHtml_(t.estado)}</span>`,
+          t.negocio ? `<span class="badge badge-origen">${escapeHtml_(t.negocio)}</span>` : "",
           recien ? `<span class="badge badge-nuevo">Nuevo</span>` : "",
           dias !== null ? `<span class="badge ${dias >= HEL_DIAS_VIEJA ? "badge-vencido" : dias >= HEL_DIAS_MEDIA ? "badge-porvencer" : "badge-origen"}">${escapeHtml_(helTextoEdad_(dias))}</span>` : ""
         ].filter(Boolean).join(" ");
@@ -3371,16 +3418,23 @@
           <div class="hel-card is-clickable ${cerrado ? claseEstado : helClaseEdad_(dias)}${abierto ? " is-open" : ""}${recien ? " is-nuevo-llegado" : ""}"
                data-hel-card="${escapeHtml_(t.id)}" role="button" tabindex="0" aria-expanded="${abierto}">
             <div class="flex items-start justify-between gap-3">
-              <div class="hel-cliente">${escapeHtml_(t.cliente || "PDV sin nombre")} <span class="sanit-chevron">${abierto ? "▲" : "▼"}</span></div>
+              <div class="hel-cliente">${escapeHtml_(helNombre_(t))} <span class="sanit-chevron">${abierto ? "▲" : "▼"}</span></div>
               <div class="tecnico-cifras" style="justify-content:flex-end;">${badges}</div>
             </div>
             ${ubicacion ? `<div class="hel-meta">${escapeHtml_(ubicacion)}</div>` : ""}
             ${t.falla ? `<div class="hel-falla">${escapeHtml_(t.falla)}</div>` : ""}
             ${t.equipo ? `<div class="sanit-chopera"><span>Equipo: <strong>${escapeHtml_(t.equipo)}</strong></span></div>` : ""}
-            <div class="hel-meta">${escapeHtml_(t.id)} · cargado ${escapeHtml_(helFecha_(t.creado))}${t.solicitante ? " por " + escapeHtml_(t.solicitante) : ""}</div>
+            ${otrosEnBoca > 0 ? `<div class="hel-espera">Hay ${otrosEnBoca} ticket(s) abierto(s) más en esta misma boca: conviene verlos en la misma visita.</div>` : ""}
+            <div class="hel-meta">${escapeHtml_(t.id)} · cargado ${escapeHtml_(helFecha_(t.creado))}${helQuienCargo_(t) ? " por " + escapeHtml_(helQuienCargo_(t)) : ""}</div>
             ${asignado}${espera}${cierre}
             <div class="sanit-actions hel-actions">${helBotones_(t)}</div>
             <div class="sanit-detalle">
+              ${abierto && t.fotosForm.length ? `<div class="hel-thumbs">${t.fotosForm.map((u, n) => {
+                const idFoto = helIdDrive_(u);
+                return idFoto
+                  ? `<a href="${escapeHtml_(u)}" target="_blank" rel="noopener" class="hel-foto-form"><img loading="lazy" alt="Foto del reclamo ${n + 1}" src="https://drive.google.com/thumbnail?id=${encodeURIComponent(idFoto)}&sz=w400" onerror="this.parentNode.textContent='Foto ${n + 1}'" /></a>`
+                  : "";
+              }).join("")}</div>` : ""}
               ${t.fotosForm.length ? `<div class="comodato-actions">${helLinks_(t.fotosForm, "Foto del reclamo")}</div>` : ""}
               <dl class="hel-respuestas">${respuestas}</dl>
               ${historial}
@@ -3418,6 +3472,7 @@
 
         heladeras = res.tickets || [];
         helMotivos = res.motivosNoResuelto || [];
+        if (res.tecnicos && res.tecnicos.length) helMontarTecnicos_(res.tecnicos);
 
         // Los que no estaban en la carga anterior se marcan como nuevos
         const ids = {};
@@ -3525,7 +3580,7 @@
       if (!t || !cfg) return;
       helNotaAccion = { accion: accion, id: id };
       helNotaTitulo.textContent = cfg.titulo;
-      helNotaCliente.textContent = (t.cliente || "PDV sin nombre") + " · " + t.id;
+      helNotaCliente.textContent = helNombre_(t) + " · " + t.id;
       helNotaAyuda.textContent = cfg.ayuda;
       helNotaLabel.textContent = cfg.label;
       helNotaTexto.value = "";
@@ -3619,7 +3674,7 @@
       const t = helBuscar_(id);
       if (!t) return;
       helFinalizarId = id;
-      helFinalizarCliente.textContent = (t.cliente || "PDV sin nombre") + " · " + t.id + (t.falla ? " · " + t.falla : "");
+      helFinalizarCliente.textContent = helNombre_(t) + " · " + t.id + (t.falla ? " · " + t.falla : "");
       helMotivo.innerHTML = helMotivos.map(m => `<option value="${escapeHtml_(m)}">${escapeHtml_(m)}</option>`).join("");
       helTrabajo.value = "";
       helRepuestos.value = "";
@@ -3732,13 +3787,47 @@
       helRenderLista_();
     });
 
-    heladerasTecnicoInput.addEventListener("change", () => {
-      if (heladerasTecnicoInput.value) {
-        localStorage.setItem(TECNICO_STORAGE_KEY, heladerasTecnicoInput.value);
-        fijarTecnico_(heladerasTecnicoInput.value);
-      }
-      if (heladeras.length) helRenderLista_();
-      else cargarHeladeras();
+    /*
+     * Selector de técnico propio de Heladeras. La lista la manda el servidor
+     * (CONFIG.HELADERAS_TECNICOS): el servicio SMK puede ser otra gente que
+     * las choperas, así que no se sincroniza con el técnico de las otras solapas.
+     */
+    const HEL_TECNICO_KEY = "heladeras_tecnico_nombre";
+    const heladerasTecnicoBotones = document.getElementById("heladerasTecnicoBotones");
+    let helTecnicos = [];
+
+    function helMontarTecnicos_(lista) {
+      if (JSON.stringify(lista) === JSON.stringify(helTecnicos)) return;
+      helTecnicos = lista.slice();
+
+      heladerasTecnicoBotones.innerHTML = helTecnicos.map(t => `
+        <button type="button" class="tecnico-btn" data-hel-tecnico="${escapeHtml_(t)}" aria-pressed="false">${escapeHtml_(t)}</button>
+      `).join("");
+
+      let guardado = "";
+      try { guardado = localStorage.getItem(HEL_TECNICO_KEY) || localStorage.getItem(TECNICO_STORAGE_KEY) || ""; } catch (e) {}
+      heladerasTecnicoInput.value = helTecnicos.indexOf(guardado) !== -1 ? guardado : "";
+      helSincronizarTecnico_();
+
+      helTabTecnico.innerHTML = `<option value="">Todos</option>` +
+        helTecnicos.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`).join("");
+    }
+
+    function helSincronizarTecnico_() {
+      heladerasTecnicoBotones.querySelectorAll("[data-hel-tecnico]").forEach(b => {
+        const activo = b.getAttribute("data-hel-tecnico") === heladerasTecnicoInput.value;
+        b.classList.toggle("is-active", activo);
+        b.setAttribute("aria-pressed", String(activo));
+      });
+    }
+
+    heladerasTecnicoBotones.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-hel-tecnico]");
+      if (!b) return;
+      heladerasTecnicoInput.value = b.getAttribute("data-hel-tecnico");
+      try { localStorage.setItem(HEL_TECNICO_KEY, heladerasTecnicoInput.value); } catch (err) {}
+      helSincronizarTecnico_();
+      helRenderLista_();
     });
 
     heladerasRefreshBtn.addEventListener("click", () => cargarHeladeras());
@@ -3813,8 +3902,6 @@
     // Ticket abierto desde el tablero: se muestra aunque sea un cerrado viejo
     let helForzarVisible = "";
 
-    helTabTecnico.innerHTML = `<option value="">Todos</option>` +
-      TECNICOS.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`).join("");
 
     function helHoras_(desde, hasta) {
       const a = parseFechaHora_(desde);
@@ -3910,7 +3997,7 @@
             : helTextoEdad_(helDiasDesde_(t.creado));
           return `
             <button type="button" class="hel-mini" data-hel-ir="${escapeHtml_(t.id)}">
-              <div class="t">${escapeHtml_(t.cliente || "PDV sin nombre")}</div>
+              <div class="t">${escapeHtml_(helNombre_(t))}</div>
               <div class="m">${escapeHtml_([t.localidad, meta, t.tecnico].filter(Boolean).join(" · "))}</div>
             </button>`;
         }).join("");
@@ -3928,7 +4015,7 @@
 
       // Tabla por técnico (compara a todos: ignora el filtro de técnico)
       const base = helTabFiltrados_(true);
-      const nombres = TECNICOS.slice();
+      const nombres = helTecnicos.slice();
       base.forEach(t => { if (t.tecnico && nombres.indexOf(t.tecnico) === -1) nombres.push(t.tecnico); });
       const filas = nombres.map(nombre => {
         const suyos = base.filter(t => t.tecnico === nombre);
@@ -3958,9 +4045,10 @@
 
     function helDescargarCsv_() {
       const columnas = [
-        ["ID", t => t.id], ["Cargado", t => t.creado], ["Cliente", t => t.cliente], ["Código", t => t.codigo],
-        ["Dirección", t => t.direccion], ["Localidad", t => t.localidad], ["Teléfono", t => t.telefono],
-        ["Equipo", t => t.equipo], ["Falla", t => t.falla], ["Cargado por", t => t.solicitante],
+        ["ID", t => t.id], ["Cargado", t => t.creado], ["Negocio", t => t.negocio], ["Tienda / PDV", t => t.cliente],
+        ["Boca / Código", t => t.codigo], ["Dirección", t => t.direccion], ["Localidad", t => t.localidad],
+        ["Teléfono", t => t.telefono], ["Equipo", t => t.equipo], ["Falla", t => t.falla],
+        ["Cargado por", t => t.solicitante], ["Supervisor", t => t.supervisor],
         ["Estado", t => t.estado], ["Técnico", t => t.tecnico], ["Tomado", t => t.tomadoEl], ["Cerrado", t => t.cerradoEl],
         ["Trabajo realizado", t => t.trabajo], ["Repuestos", t => t.repuestos], ["Motivo no resuelto", t => t.motivoNoResuelto],
         ["Nota de espera", t => t.notaEspera],
