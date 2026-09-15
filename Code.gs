@@ -50,6 +50,28 @@ const CONFIG = {
     'Retiro de equipo',
     'Otro'
   ],
+
+  // --- BAJA DE CLIENTES ---
+  // Un cliente dado de baja sale de la cartera y de los indicadores. El
+  // comodato y todo su historial quedan en las hojas; se puede reactivar.
+  BAJAS_SHEET_NAME: 'Bajas_Clientes',
+  BAJAS_PHOTOS_FOLDER_NAME: 'Fotos Bajas',
+  MOTIVOS_BAJA: [
+    'Cierre del local',
+    'Cambio de proveedor',
+    'Bajo consumo',
+    'Falta de pago / deuda',
+    'Decisión del cliente',
+    'Otro'
+  ],
+  RETIRO_EQUIPO_OPCIONES: [
+    'Retirado completo, en buen estado',
+    'Retirado con daños',
+    'Retirado con faltantes',
+    'No se retiró (queda pendiente)',
+    'El cliente no tenía equipo'
+  ],
+
   // --- MÓDULO HELADERAS (tickets que llegan desde un Google Form) ---
   // Hoja de respuestas del Form. Si el Form esta vinculado a ESTE mismo Sheet,
   // HELADERAS_FORM_SPREADSHEET_ID va vacio. Si el nombre de la pestaña no
@@ -130,6 +152,15 @@ const SANIT_HEADERS = [
 const INTERVENCIONES_HEADERS = [
   'IntervencionId', 'Fecha', 'Tecnico', 'Cliente', 'Tipo',
   'Detalle', 'Repuestos', 'FotosUrls', 'Estado', 'Timestamp'
+];
+
+// Encabezados del registro de bajas de clientes (una fila por baja)
+const BAJAS_HEADERS = [
+  'BajaId', 'FechaBaja', 'Tecnico', 'Cliente', 'ComodatoNumero',
+  'Motivo', 'Observaciones', 'RetiroEquipo', 'DetalleRetiro',
+  'Equipo', 'Pilon', 'CantPicos', 'FotosUrls',
+  'Aclaracion', 'DNI', 'FirmaFileId', 'PdfFileId', 'PdfUrl', 'DocUrl',
+  'Estado', 'ReactivadoEl', 'Timestamp'
 ];
 
 // Encabezados de la gestion de tickets de heladeras (una fila por ticket tocado)
@@ -217,12 +248,16 @@ function doGet(e) {
 
     if (action === 'choperas') {
       const t = resolveTecnico_(e.parameter.tecnico);
+      const choperas = getChoperas_(t);
       return jsonOutput_({
         ok: true,
         tecnico: t,
-        choperas: getChoperas_(t),
+        choperas: choperas,
+        bajas: getBajasVigentes_(t, choperas),
         motivos: CONFIG.MOTIVOS_FALLA,
-        tiposIntervencion: CONFIG.TIPOS_INTERVENCION
+        tiposIntervencion: CONFIG.TIPOS_INTERVENCION,
+        motivosBaja: CONFIG.MOTIVOS_BAJA,
+        opcionesRetiro: CONFIG.RETIRO_EQUIPO_OPCIONES
       });
     }
 
@@ -271,6 +306,8 @@ function doPost(e) {
       case 'nuevaIntervencion': return jsonOutput_(nuevaIntervencion_(body));
       case 'cerrarIntervencion': return jsonOutput_(cerrarIntervencion_(body));
       case 'sanitBajaCliente':return jsonOutput_(sanitBajaCliente_(body));
+      case 'bajaCliente':     return jsonOutput_(bajaCliente_(body));
+      case 'reactivarCliente':return jsonOutput_(reactivarCliente_(body));
       case 'heladeraAccion':  return jsonOutput_(heladeraAccion_(body));
       case 'heladeraFinalizar': return jsonOutput_(heladeraFinalizar_(body));
     }
@@ -963,6 +1000,7 @@ function crearHojasSanitizacion() {
   CONFIG.TECNICOS.forEach(t => getSanitSheet_(t));
   getClientesSheet_();
   getIntervencionesSheet_();
+  getBajasSheet_();
   getHeladerasSheet_();
   Logger.log('Hojas de sanitización listas.');
 }
@@ -1058,7 +1096,8 @@ function getCarteraSanitizacion_(tecnico) {
     tecnico,
     leerComodatosAgrupados_()[keyTecnico_(tecnico)] || [],
     leerClientesManualesAgrupados_()[keyTecnico_(tecnico)] || [],
-    readSanitRows_(tecnico)
+    readSanitRows_(tecnico),
+    leerBajasVigentesAgrupadas_()[keyTecnico_(tecnico)] || {}
   );
 }
 
@@ -1066,8 +1105,9 @@ function getCarteraSanitizacion_(tecnico) {
  * Arma la cartera a partir de datos ya leidos. Separada de la carga para que
  * el resumen general pueda reutilizarla sin releer las hojas por cada tecnico.
  */
-function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
+function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows, bajas) {
   const mapa = {};
+  bajas = bajas || {};
 
   // ficha: datos del comodato (razon social, CUIT, PDF...) si el cliente tiene uno
   const push_ = (cliente, direccion, localidad, origen, comodatoNumero, fechaBase, chopera, ficha) => {
@@ -1165,11 +1205,20 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows) {
     if (fin && (!ultima[key] || fin > ultima[key])) ultima[key] = fin;
   });
 
+  // D) Clientes dados de baja: salen de la cartera. Si despues de la baja se
+  // firmo un comodato nuevo con el mismo nombre, el cliente volvio y se muestra.
+  const ultimoComodato = {};
+  comodatos.forEach(c => {
+    const key = norm_(c.nombreFantasia || c.razonSocial);
+    if (key && c.timestamp > (ultimoComodato[key] || 0)) ultimoComodato[key] = c.timestamp;
+  });
+  const deBaja = key => !!bajas[key] && !((ultimoComodato[key] || 0) > bajas[key].timestamp);
+
   const hoy = new Date();
   const ciclo = CONFIG.SANIT_CICLO_DIAS;
   const aviso = CONFIG.SANIT_AVISO_DIAS;
 
-  return Object.keys(mapa).map(key => {
+  return Object.keys(mapa).filter(key => !deBaja(key)).map(key => {
     const c = mapa[key];
     const ult = ultima[key] || null;
     const falla = fallidas[key] || null;
@@ -1256,6 +1305,7 @@ function calcularResumen_(cartera, filas) {
 function getResumenGeneral_() {
   const comodatos = leerComodatosAgrupados_();
   const clientes = leerClientesManualesAgrupados_();
+  const bajas = leerBajasVigentesAgrupadas_();
 
   const totales = {
     totalClientes: 0, alDia: 0, porVencer: 0, vencidos: 0, sinRegistro: 0,
@@ -1267,7 +1317,7 @@ function getResumenGeneral_() {
   const porTecnico = CONFIG.TECNICOS.map(tecnico => {
     const key = keyTecnico_(tecnico);
     const filas = readSanitRows_(tecnico);
-    const cartera = construirCartera_(tecnico, comodatos[key] || [], clientes[key] || [], filas);
+    const cartera = construirCartera_(tecnico, comodatos[key] || [], clientes[key] || [], filas, bajas[key] || {});
     const r = calcularResumen_(cartera, filas);
 
     totales.totalClientes += r.totalClientes;
@@ -1429,11 +1479,15 @@ function sanitAltaCliente_(body) {
     const cliente = safe_(body.cliente).trim();
     if (!cliente) throw new Error('Falta el nombre del cliente.');
 
+    // Volver a cargar a mano un cliente dado de baja lo reactiva
+    const reactivadas = reactivarBajasDe_(tecnico, cliente);
+
     const sheet = getClientesSheet_();
     const lastRow = sheet.getLastRow();
     if (lastRow >= 2) {
       const rows = sheet.getRange(2, 1, lastRow - 1, CLIENTES_HEADERS.length).getValues();
       const duplicado = rows.some(f => keyTecnico_(f[0]) === keyTecnico_(tecnico) && norm_(f[1]) === norm_(cliente));
+      if (duplicado && reactivadas) return { ok: true, message: 'El cliente estaba dado de baja: quedó reactivado en la cartera.' };
       if (duplicado) return { ok: false, message: 'Ese cliente ya está en tu cartera.' };
     }
 
@@ -1819,6 +1873,8 @@ function guardarChopera_(body) {
     }
 
     if (renombra) propagarRenombre_(tecnico, original, cliente);
+    // Alta a mano de un cliente dado de baja: vuelve a la cartera
+    if (!original) reactivarBajasDe_(tecnico, cliente);
 
     return { ok: true, message: 'Chopera actualizada.' };
   } finally {
@@ -1902,6 +1958,315 @@ function getIntervencionPhotosFolder_(tecnico) {
   const parent = raiz.hasNext() ? raiz.next() : base.createFolder('Fotos Intervenciones');
   const sub = parent.getFoldersByName(tecnico);
   return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/* ==========================================================================
+ * 9.b BAJA DE CLIENTES
+ *
+ * La baja no borra nada: agrega una fila en Bajas_Clientes con el motivo, el
+ * retiro de la chopera, fotos, firma y un PDF de acta. Mientras la fila este
+ * ACTIVA el cliente no aparece en la cartera ni cuenta en los indicadores.
+ * Reactivar pasa la fila a REACTIVADA y el cliente vuelve con su historial.
+ * ========================================================================== */
+
+function getBajasSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.BAJAS_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.BAJAS_SHEET_NAME);
+  escribirCabecera_(sheet, BAJAS_HEADERS);
+  return sheet;
+}
+
+/** Lee las bajas como objetos, opcionalmente filtradas por tecnico. */
+function readBajas_(tecnico) {
+  const sheet = getBajasSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const filtro = tecnico ? keyTecnico_(tecnico) : '';
+  const values = sheet.getRange(2, 1, lastRow - 1, BAJAS_HEADERS.length).getValues();
+
+  const filas = [];
+  values.forEach((fila, i) => {
+    const obj = { _row: i + 2 };
+    BAJAS_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
+    if (filtro && keyTecnico_(obj.Tecnico) !== filtro) return;
+    filas.push(obj);
+  });
+  return filas;
+}
+
+/** { tecnicoKey: { clienteKey: { bajaId, timestamp } } } con las bajas activas. */
+function leerBajasVigentesAgrupadas_() {
+  const mapa = {};
+  readBajas_().forEach(b => {
+    if (norm_(b.Estado) !== 'activa') return;
+    const tk = keyTecnico_(b.Tecnico);
+    const ck = norm_(b.Cliente);
+    if (!tk || !ck) return;
+    const ts = toDate_(b.Timestamp) ? toDate_(b.Timestamp).getTime() : 0;
+    if (!mapa[tk]) mapa[tk] = {};
+    if (!mapa[tk][ck] || ts > mapa[tk][ck].timestamp) {
+      mapa[tk][ck] = { bajaId: safe_(b.BajaId), timestamp: ts };
+    }
+  });
+  return mapa;
+}
+
+/**
+ * Bajas activas del tecnico que efectivamente dejan al cliente fuera de la
+ * cartera (si firmo un comodato nuevo despues, ya no figura como baja).
+ */
+function getBajasVigentes_(tecnico, cartera) {
+  const enCartera = {};
+  (cartera || getCarteraSanitizacion_(tecnico)).forEach(c => { enCartera[norm_(c.cliente)] = true; });
+
+  return readBajas_(tecnico)
+    .filter(b => norm_(b.Estado) === 'activa' && !enCartera[norm_(b.Cliente)])
+    .map(b => ({
+      bajaId: safe_(b.BajaId),
+      cliente: safe_(b.Cliente),
+      fechaBaja: isoDate_(toDate_(b.FechaBaja)) || safe_(b.FechaBaja),
+      comodatoNumero: safe_(b.ComodatoNumero),
+      motivo: safe_(b.Motivo),
+      observaciones: safe_(b.Observaciones),
+      retiroEquipo: safe_(b.RetiroEquipo),
+      detalleRetiro: safe_(b.DetalleRetiro),
+      equipo: safe_(b.Equipo),
+      pilon: safe_(b.Pilon),
+      fotosUrls: safe_(b.FotosUrls),
+      pdfUrl: safe_(b.PdfUrl),
+      _orden: toDate_(b.Timestamp) ? toDate_(b.Timestamp).getTime() : 0
+    }))
+    .sort((a, b) => b._orden - a._orden);
+}
+
+/** "2026-09-15" -> Date local (new Date("2026-09-15") lo toma en UTC y corre un dia). */
+function fechaLocal_(txt) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(safe_(txt).trim());
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date();
+}
+
+/** Da de baja un cliente: fotos, firma, PDF de acta y fila en Bajas_Clientes. */
+function bajaCliente_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const cliente = safe_(body.cliente).trim();
+    const motivo = safe_(body.motivo).trim();
+    const retiro = safe_(body.retiroEquipo).trim();
+    const aclaracion = safe_(body.aclaracion).trim();
+    const dni = safe_(body.dni).trim();
+
+    if (!cliente) throw new Error('Falta el cliente.');
+    if (!motivo) throw new Error('Indicá el motivo de la baja.');
+    if (!retiro) throw new Error('Indicá qué pasó con la chopera.');
+    if (!body.firmaDataUrl) throw new Error('Falta la firma.');
+    if (!aclaracion || !dni) throw new Error('Completá aclaración y DNI de quien firma.');
+
+    const item = getCarteraSanitizacion_(tecnico).filter(c => norm_(c.cliente) === norm_(cliente))[0];
+    if (!item) {
+      return { ok: false, message: 'Ese cliente no está en la cartera (¿ya estaba dado de baja?).' };
+    }
+
+    const ahora = new Date();
+    const id = 'BAJ-' + ahora.getTime().toString(36).toUpperCase();
+    const fechaBaja = fechaLocal_(body.fecha);
+    const ficha = item.ficha || {};
+
+    const urls = (body.fotos && body.fotos.length)
+      ? savePhotos_(getBajaPhotosFolder_(tecnico), body.fotos, id)
+      : '';
+    const firma = saveSignature_(body.firmaDataUrl, id);
+
+    const archivos = generarPdfBaja_({
+      bajaId: id,
+      fecha: Utilities.formatDate(fechaBaja, Session.getScriptTimeZone(), 'dd/MM/yyyy'),
+      tecnico: tecnico,
+      cliente: item.cliente,
+      razonSocial: ficha.razonSocial,
+      cuit: ficha.cuit,
+      codCliente: ficha.codCliente,
+      distribuidor: ficha.distribuidor,
+      domicilio: ficha.domicilio || item.direccion,
+      localidad: ficha.localidad || item.localidad,
+      comodatoNumero: item.comodatoNumero,
+      fechaComodato: ficha.fecha,
+      motivo: motivo,
+      observaciones: safe_(body.observaciones).trim(),
+      retiroEquipo: retiro,
+      detalleRetiro: safe_(body.detalleRetiro).trim(),
+      equipo: item.equipo,
+      pilon: item.pilon,
+      cantPicos: item.cantPicos,
+      aclaracion: aclaracion,
+      dni: dni
+    }, body.fotos, firma);
+
+    getBajasSheet_().appendRow([
+      id, fechaBaja, tecnico, item.cliente, safe_(item.comodatoNumero),
+      motivo, safe_(body.observaciones).trim(), retiro, safe_(body.detalleRetiro).trim(),
+      item.equipo, item.pilon, toNumber_(item.cantPicos), urls,
+      aclaracion, dni, firma.getId(),
+      archivos.pdfFile.getId(), archivos.pdfFile.getUrl(), archivos.docFile.getUrl(),
+      'ACTIVA', '', ahora
+    ]);
+
+    return { ok: true, message: 'Cliente dado de baja.', bajaId: id, pdfUrl: archivos.pdfFile.getUrl() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Vuelve a poner en la cartera un cliente dado de baja. */
+function reactivarCliente_(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const tecnico = resolveTecnico_(body.tecnico);
+    const id = safe_(body.bajaId).trim();
+    if (!id) throw new Error('Falta el ID de la baja.');
+
+    const fila = readBajas_(tecnico).filter(b => safe_(b.BajaId) === id)[0];
+    if (!fila) throw new Error('No se encontró la baja ' + id);
+    if (norm_(fila.Estado) !== 'activa') return { ok: false, message: 'Ese cliente ya estaba reactivado.' };
+
+    // Reactiva todas las bajas activas del cliente, no solo esta
+    reactivarBajasDe_(tecnico, fila.Cliente);
+    return { ok: true, message: 'Cliente reactivado.', cliente: safe_(fila.Cliente) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Pasa a REACTIVADA las bajas activas de un cliente. Sin lock: lo toma quien llama. */
+function reactivarBajasDe_(tecnico, cliente) {
+  const sheet = getBajasSheet_();
+  const colEstado = BAJAS_HEADERS.indexOf('Estado') + 1;
+  const colReact = BAJAS_HEADERS.indexOf('ReactivadoEl') + 1;
+  const ahora = new Date();
+  let n = 0;
+  readBajas_(tecnico).forEach(b => {
+    if (norm_(b.Estado) !== 'activa' || norm_(b.Cliente) !== norm_(cliente)) return;
+    sheet.getRange(b._row, colEstado).setValue('REACTIVADA');
+    sheet.getRange(b._row, colReact).setValue(ahora);
+    n++;
+  });
+  return n;
+}
+
+function getBajaPhotosFolder_(tecnico) {
+  const base = getPhotosParentFolder_();
+  const raiz = base.getFoldersByName(CONFIG.BAJAS_PHOTOS_FOLDER_NAME);
+  const parent = raiz.hasNext() ? raiz.next() : base.createFolder(CONFIG.BAJAS_PHOTOS_FOLDER_NAME);
+  const sub = parent.getFoldersByName(tecnico);
+  return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/**
+ * Arma el acta de baja en un Doc nuevo (no usa plantilla) y lo exporta a PDF
+ * en la misma carpeta que los PDFs de comodatos.
+ */
+function generarPdfBaja_(d, fotos, signatureFile) {
+  const pdfFolder = DriveApp.getFolderById(CONFIG.PDF_FOLDER_ID);
+  const nombre = 'Baja_' + d.bajaId + '_' + safe_(d.cliente).replace(/[/\\?%*:|"<>]/g, '-');
+
+  const doc = DocumentApp.create(nombre + '_DOC');
+  const docFile = DriveApp.getFileById(doc.getId());
+  docFile.moveTo(pdfFolder);
+
+  const body = doc.getBody();
+  const azul = '#003366';
+
+  const titulo = body.getParagraphs()[0];
+  titulo.setText('ACTA DE BAJA DE CLIENTE')
+    .setHeading(DocumentApp.ParagraphHeading.HEADING1)
+    .setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  titulo.editAsText().setForegroundColor(azul).setBold(true);
+  body.appendParagraph('Trade Marketing Chopp Costa · N° ' + d.bajaId + ' · ' + d.fecha)
+    .setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  const seccion = texto => {
+    const p = body.appendParagraph(texto).setHeading(DocumentApp.ParagraphHeading.HEADING3);
+    p.editAsText().setForegroundColor(azul).setBold(true);
+  };
+  const tabla = filas => {
+    const datos = filas.filter(f => safe_(f[1]).trim()).map(f => [f[0], safe_(f[1])]);
+    if (!datos.length) return;
+    const t = body.appendTable(datos);
+    t.setBorderColor('#cbd5e1');
+    for (let i = 0; i < t.getNumRows(); i++) {
+      t.getRow(i).getCell(0).setWidth(150).editAsText().setBold(true);
+    }
+  };
+
+  seccion('Cliente');
+  tabla([
+    ['Nombre de fantasía', d.cliente],
+    ['Razón social', d.razonSocial],
+    ['CUIT', d.cuit],
+    ['Cód. cliente', d.codCliente],
+    ['Distribuidor', d.distribuidor],
+    ['Domicilio', [d.domicilio, d.localidad].filter(Boolean).join(', ')],
+    ['Comodato', d.comodatoNumero ? d.comodatoNumero + (d.fechaComodato ? ' (' + d.fechaComodato + ')' : '') : 'Sin comodato cargado']
+  ]);
+
+  seccion('Baja');
+  tabla([
+    ['Fecha de baja', d.fecha],
+    ['Técnico', d.tecnico],
+    ['Motivo', d.motivo],
+    ['Observaciones', d.observaciones]
+  ]);
+
+  seccion('Retiro de chopera');
+  tabla([
+    ['Estado del retiro', d.retiroEquipo],
+    ['Detalle / faltantes', d.detalleRetiro],
+    ['Equipo', d.equipo],
+    ['Pilón', d.pilon],
+    ['Cantidad de picos', d.cantPicos ? String(d.cantPicos) : '']
+  ]);
+
+  seccion('Fotos');
+  const pFotos = body.appendParagraph('');
+  if (Array.isArray(fotos) && fotos.length) {
+    fotos.forEach(photo => {
+      try {
+        const blob = Utilities.newBlob(Utilities.base64Decode(photo.data), photo.tipo, photo.nombre);
+        const img = pFotos.appendInlineImage(blob);
+        const ratio = 200 / img.getWidth();
+        img.setWidth(200).setHeight(Math.round(img.getHeight() * ratio));
+        pFotos.appendText('   ');
+      } catch (e) {
+        console.error('Error insertando foto de baja: ' + e.message);
+      }
+    });
+  } else {
+    pFotos.setText('No se adjuntaron fotografías.');
+  }
+
+  seccion('Conformidad');
+  body.appendParagraph(
+    'El cliente deja constancia de la baja del servicio y, en caso de corresponder, de la ' +
+    'restitución del equipo y los materiales entregados en comodato, en el estado detallado en ' +
+    'la presente acta. La firma digital incorporada tiene validez como constancia de conformidad.'
+  );
+
+  const pFirma = body.appendParagraph('');
+  const firmaImg = pFirma.appendInlineImage(signatureFile.getBlob());
+  const ratioFirma = 180 / firmaImg.getWidth();
+  firmaImg.setWidth(180).setHeight(Math.round(firmaImg.getHeight() * ratioFirma));
+  body.appendParagraph('Aclaración: ' + d.aclaracion + '    DNI: ' + d.dni);
+
+  doc.saveAndClose();
+
+  const pdfFile = pdfFolder.createFile(docFile.getAs(MimeType.PDF).setName(nombre + '.pdf'));
+  compartirPorLink_(pdfFile);
+  compartirPorLink_(docFile);
+
+  return { pdfFile: pdfFile, docFile: docFile };
 }
 
 /* ==========================================================================

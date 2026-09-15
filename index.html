@@ -448,6 +448,37 @@
       text-decoration: none;
     }
     .btn-comodato:hover { background: #eff6ff; }
+    .btn-baja {
+      border: 1px solid #dc2626;
+      background: white;
+      color: #b91c1c;
+      border-radius: 10px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-baja:hover { background: #fef2f2; }
+    .btn-baja-confirmar {
+      border: none;
+      background: #dc2626;
+      color: white;
+      border-radius: 10px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-baja-confirmar:disabled { opacity: 0.55; cursor: not-allowed; }
+    #bajaFirmaCanvas {
+      width: 100%;
+      height: 180px;
+      display: block;
+      background: white;
+      border-radius: 10px;
+      touch-action: none;
+      border: 1px solid #d1d5db;
+    }
 
     .sanit-actions {
       display: flex;
@@ -895,6 +926,7 @@
               <option value="CON COMODATO">Con comodato</option>
               <option value="SIN SANITIZAR">Sin sanitizar al día</option>
               <option value="PENDIENTES">Con problemas pendientes</option>
+              <option value="DE BAJA">Clientes dados de baja</option>
             </select>
           </div>
           <button type="button" id="choperasNuevaBtn" class="secondary-btn">+ Agregar chopera</button>
@@ -1082,6 +1114,65 @@
         <div id="choperaFichaContenido" class="mt-3 space-y-1 text-sm"></div>
         <div class="modal-actions">
           <button type="button" id="choperaFichaCerrar" class="secondary-btn">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: BAJA DE CLIENTE -->
+    <div id="bajaModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="bajaTitulo">
+        <h3 id="bajaTitulo" style="color:#b91c1c;">Baja de cliente</h3>
+        <p id="bajaCliente" class="text-sm text-gray-600 mt-1"></p>
+        <p class="small-note mt-1">El cliente sale de la cartera y de los indicadores. El comodato y el historial quedan guardados, y se puede reactivar.</p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="bajaFecha">Fecha de baja</label>
+            <input id="bajaFecha" type="date" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="bajaMotivo">Motivo</label>
+            <select id="bajaMotivo" class="field-select"></select>
+          </div>
+          <div>
+            <label class="field-label" for="bajaObservaciones">Observaciones</label>
+            <textarea id="bajaObservaciones" rows="2" class="field-input" placeholder="Detalle del motivo"></textarea>
+          </div>
+          <div>
+            <label class="field-label" for="bajaRetiro">¿Qué pasó con la chopera?</label>
+            <select id="bajaRetiro" class="field-select"></select>
+          </div>
+          <div>
+            <label class="field-label" for="bajaDetalleRetiro">Detalle del retiro / faltantes</label>
+            <textarea id="bajaDetalleRetiro" rows="2" class="field-input" placeholder="Ej: falta 1 canilla, pilón rayado"></textarea>
+          </div>
+          <div>
+            <label class="field-label" for="bajaFotos">Fotos del retiro</label>
+            <input id="bajaFotos" type="file" accept="image/*" multiple capture="environment" class="field-input" />
+            <p class="small-note mt-1">Se achican antes de subir.</p>
+          </div>
+          <div>
+            <label class="field-label">Firma del cliente</label>
+            <div class="signature-wrap">
+              <canvas id="bajaFirmaCanvas"></canvas>
+              <button type="button" id="bajaFirmaLimpiar" class="secondary-btn mt-2">Limpiar firma</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="field-label" for="bajaAclaracion">Aclaración</label>
+              <input id="bajaAclaracion" type="text" class="field-input" />
+            </div>
+            <div>
+              <label class="field-label" for="bajaDni">DNI</label>
+              <input id="bajaDni" type="text" inputmode="numeric" class="field-input" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="bajaCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="bajaConfirmar" class="btn-baja-confirmar">Confirmar baja</button>
         </div>
       </div>
     </div>
@@ -2794,13 +2885,17 @@
     ];
 
     let choperas = [];
+    let choperasBajas = [];
+    // Deben coincidir con CONFIG.MOTIVOS_BAJA / RETIRO_EQUIPO_OPCIONES; el backend los manda igual
+    let motivosBaja = ["Cierre del local", "Cambio de proveedor", "Bajo consumo", "Falta de pago / deuda", "Decisión del cliente", "Otro"];
+    let opcionesRetiro = ["Retirado completo, en buen estado", "Retirado con daños", "Retirado con faltantes", "No se retiró (queda pendiente)", "El cliente no tenía equipo"];
     let choperasAbiertas = {};
     let choperaEditando = null;
     let intervencionCliente = "";
     let choperasCargando = false;
 
     function choperasRenderResumen_() {
-      if (!choperas.length) { choperasResumenBox.innerHTML = ""; return; }
+      if (!choperas.length && !choperasBajas.length) { choperasResumenBox.innerHTML = ""; return; }
 
       const picos = choperas.reduce((a, c) => a + (Number(c.cantPicos) || 0), 0);
       const cards = [
@@ -2809,7 +2904,8 @@
         { valor: choperas.filter(c => c.sanitizado).length, label: "Sanitizadas al día", clase: "is-aldia" },
         { valor: choperas.filter(c => !c.sanitizado).length, label: "Sin sanitizar", clase: "is-vencido" },
         { valor: choperas.filter(c => c.intervencionesPendientes > 0).length, label: "Con pendientes", clase: "" },
-        { valor: picos, label: "Picos en total", clase: "" }
+        { valor: picos, label: "Picos en total", clase: "" },
+        { valor: choperasBajas.length, label: "Dados de baja", clase: "" }
       ];
 
       choperasResumenBox.innerHTML = cards.map(c => `
@@ -2864,7 +2960,43 @@
       }).join("");
     }
 
+    /** Filtro "De baja": clientes fuera de la cartera, con su acta y el botón Reactivar. */
+    function choperasRenderBajas_() {
+      const texto = choperasBuscarInput.value.trim().toLowerCase();
+      const lista = choperasBajas.filter(b => !texto ||
+        [b.cliente, b.motivo, b.equipo].join(" ").toLowerCase().indexOf(texto) !== -1);
+
+      if (!lista.length) {
+        choperasListaBox.innerHTML = `<p class="small-note">No hay clientes dados de baja${texto ? " que coincidan con la búsqueda" : ""}.</p>`;
+        return;
+      }
+
+      choperasListaBox.innerHTML = lista.map(b => {
+        const fotos = b.fotosUrls
+          ? b.fotosUrls.split("\n").filter(Boolean)
+              .map((u, n) => `<a class="link-pdf" href="${escapeHtml_(u)}" target="_blank" rel="noopener">Foto ${n + 1}</a>`).join(" ")
+          : "";
+        return `
+          <div class="sanit-card">
+            <div class="flex items-start justify-between gap-3">
+              <div class="sanit-cliente">${escapeHtml_(b.cliente)}</div>
+              <span class="badge badge-vencido">DE BAJA</span>
+            </div>
+            <div class="sanit-meta">Baja: <strong>${escapeHtml_(formatFechaCorta_(b.fechaBaja))}</strong> · ${escapeHtml_(b.motivo)}${b.comodatoNumero ? " · Comodato " + escapeHtml_(b.comodatoNumero) : ""}</div>
+            ${b.observaciones ? `<div class="text-sm text-gray-700">${escapeHtml_(b.observaciones)}</div>` : ""}
+            <div class="text-xs text-gray-600">Chopera: ${escapeHtml_(b.retiroEquipo)}${b.detalleRetiro ? " — " + escapeHtml_(b.detalleRetiro) : ""}</div>
+            <div class="sanit-actions">
+              ${b.pdfUrl ? `<a class="btn-comodato" href="${escapeHtml_(b.pdfUrl)}" target="_blank" rel="noopener">Ver PDF baja</a>` : ""}
+              ${fotos}
+              <button type="button" class="btn-checkout" data-reactivar="${escapeHtml_(b.bajaId)}" data-reactivar-cliente="${escapeHtml_(b.cliente)}">Reactivar</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     function choperasRenderLista_() {
+      if (choperasFiltro.value === "DE BAJA") { choperasRenderBajas_(); return; }
       const lista = choperasFiltrar_();
 
       if (!choperas.length) {
@@ -2907,6 +3039,7 @@
               ${c.pdfUrl ? `<a class="btn-comodato" href="${escapeHtml_(c.pdfUrl)}" target="_blank" rel="noopener">Ver PDF comodato</a>` : ""}
               <button type="button" class="btn-comodato" data-editar-chopera="${escapeHtml_(c.cliente)}">Editar</button>
               <button type="button" class="btn-checkin" data-nueva-int="${escapeHtml_(c.cliente)}">+ Arreglo o cambio</button>
+              <button type="button" class="btn-baja" data-baja-cliente="${escapeHtml_(c.cliente)}">Dar de baja</button>
             </div>
             <div class="sanit-detalle">
               <div class="detalle-fila"><span class="etiqueta">Arreglos y cambios</span></div>
@@ -2936,6 +3069,9 @@
         if (!res.ok) throw new Error(res.message || "No se pudieron leer las choperas.");
 
         choperas = res.choperas || [];
+        choperasBajas = res.bajas || [];
+        if (res.motivosBaja && res.motivosBaja.length) motivosBaja = res.motivosBaja;
+        if (res.opcionesRetiro && res.opcionesRetiro.length) opcionesRetiro = res.opcionesRetiro;
         choperasRenderResumen_();
         choperasRenderLista_();
       } catch (error) {
@@ -3117,8 +3253,161 @@
       }
     }
 
+    /* --- Baja de cliente --- */
+    const bajaModal = document.getElementById("bajaModal");
+    const bajaClienteBox = document.getElementById("bajaCliente");
+    const bajaFecha = document.getElementById("bajaFecha");
+    const bajaMotivo = document.getElementById("bajaMotivo");
+    const bajaObservaciones = document.getElementById("bajaObservaciones");
+    const bajaRetiro = document.getElementById("bajaRetiro");
+    const bajaDetalleRetiro = document.getElementById("bajaDetalleRetiro");
+    const bajaFotosInput = document.getElementById("bajaFotos");
+    const bajaAclaracion = document.getElementById("bajaAclaracion");
+    const bajaDni = document.getElementById("bajaDni");
+    const bajaConfirmar = document.getElementById("bajaConfirmar");
+    const bajaCanvas = document.getElementById("bajaFirmaCanvas");
+    const bajaCtx = bajaCanvas.getContext("2d");
+    let bajaClienteNombre = "";
+    let bajaFirmaHecha = false;
+    let bajaDibujando = false;
+    let bajaLast = { x: 0, y: 0 };
+
+    function bajaAjustarCanvas_() {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const rect = bajaCanvas.getBoundingClientRect();
+      bajaCanvas.width = rect.width * ratio;
+      bajaCanvas.height = rect.height * ratio;
+      bajaCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      bajaCtx.lineWidth = 2;
+      bajaCtx.lineCap = "round";
+      bajaCtx.lineJoin = "round";
+      bajaCtx.strokeStyle = "#111827";
+      bajaFirmaHecha = false;
+    }
+
+    function bajaPos_(ev) {
+      const rect = bajaCanvas.getBoundingClientRect();
+      const p = ev.touches ? ev.touches[0] : ev;
+      return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+    }
+    function bajaEmpezar_(ev) { ev.preventDefault(); bajaDibujando = true; bajaLast = bajaPos_(ev); }
+    function bajaTrazar_(ev) {
+      if (!bajaDibujando) return;
+      ev.preventDefault();
+      const p = bajaPos_(ev);
+      bajaCtx.beginPath(); bajaCtx.moveTo(bajaLast.x, bajaLast.y); bajaCtx.lineTo(p.x, p.y); bajaCtx.stroke();
+      bajaLast = p;
+      bajaFirmaHecha = true;
+    }
+    function bajaTerminar_() { bajaDibujando = false; }
+
+    bajaCanvas.addEventListener("mousedown", bajaEmpezar_);
+    bajaCanvas.addEventListener("mousemove", bajaTrazar_);
+    window.addEventListener("mouseup", bajaTerminar_);
+    bajaCanvas.addEventListener("touchstart", bajaEmpezar_, { passive: false });
+    bajaCanvas.addEventListener("touchmove", bajaTrazar_, { passive: false });
+    bajaCanvas.addEventListener("touchend", bajaTerminar_);
+    document.getElementById("bajaFirmaLimpiar").addEventListener("click", bajaAjustarCanvas_);
+
+    function bajaAbrir(cliente) {
+      const c = choperas.filter(x => x.cliente === cliente)[0];
+      if (!c) return;
+      bajaClienteNombre = cliente;
+      bajaClienteBox.textContent = cliente + (c.tieneComodato ? " · Comodato " + c.comodatoNumero : " · Sin comodato");
+
+      const hoy = new Date();
+      bajaFecha.value = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().split("T")[0];
+      const opciones = lista => lista.map(m => `<option value="${escapeHtml_(m)}">${escapeHtml_(m)}</option>`).join("");
+      bajaMotivo.innerHTML = `<option value="">Elegí un motivo...</option>` + opciones(motivosBaja);
+      bajaRetiro.innerHTML = `<option value="">Elegí una opción...</option>` + opciones(opcionesRetiro);
+      bajaObservaciones.value = "";
+      bajaDetalleRetiro.value = "";
+      bajaFotosInput.value = "";
+      bajaAclaracion.value = "";
+      bajaDni.value = "";
+      bajaConfirmar.disabled = false;
+      bajaConfirmar.textContent = "Confirmar baja";
+
+      bajaModal.style.display = "flex";
+      bajaAjustarCanvas_(); // recién ahora el canvas tiene tamaño en pantalla
+    }
+
+    function bajaCerrarModal_() { bajaModal.style.display = "none"; bajaClienteNombre = ""; }
+
+    async function bajaRegistrar() {
+      if (!bajaClienteNombre) return;
+      const error =
+        !bajaMotivo.value ? "Elegí el motivo de la baja." :
+        !bajaRetiro.value ? "Indicá qué pasó con la chopera." :
+        !bajaFirmaHecha ? "Falta la firma del cliente." :
+        !bajaAclaracion.value.trim() || !bajaDni.value.trim() ? "Completá aclaración y DNI." : "";
+      if (error) { alert(error); return; }
+      if (!confirm("¿Dar de baja a " + bajaClienteNombre + "? Va a salir de la cartera.")) return;
+
+      bajaConfirmar.disabled = true;
+      bajaConfirmar.textContent = "Guardando...";
+
+      try {
+        const archivos = Array.from(bajaFotosInput.files || []);
+        const fotos = (await Promise.all(archivos.map(helComprimirFoto_))).filter(Boolean);
+        const cliente = bajaClienteNombre;
+
+        const result = await sanitPost_({
+          action: "bajaCliente",
+          tecnico: choperasTecnicoInput.value,
+          cliente: cliente,
+          fecha: bajaFecha.value,
+          motivo: bajaMotivo.value,
+          observaciones: bajaObservaciones.value.trim(),
+          retiroEquipo: bajaRetiro.value,
+          detalleRetiro: bajaDetalleRetiro.value.trim(),
+          fotos: fotos,
+          firmaDataUrl: bajaCanvas.toDataURL("image/png"),
+          aclaracion: bajaAclaracion.value.trim(),
+          dni: bajaDni.value.trim()
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo dar de baja.");
+
+        bajaCerrarModal_();
+        showStatus(`<strong>${escapeHtml_(cliente)} dado de baja.</strong>` +
+          (result.pdfUrl ? ` <a class="link-pdf" href="${escapeHtml_(result.pdfUrl)}" target="_blank" rel="noopener">Ver PDF de baja</a>` : ""));
+        await cargarChoperas();
+      } catch (err) {
+        showStatus("Error al dar de baja: " + escapeHtml_(err.message), true);
+      } finally {
+        bajaConfirmar.disabled = false;
+        bajaConfirmar.textContent = "Confirmar baja";
+      }
+    }
+
+    async function bajaReactivar(bajaId, cliente) {
+      if (!confirm("¿Reactivar a " + cliente + "? Vuelve a la cartera con todo su historial.")) return;
+      try {
+        const result = await sanitPost_({
+          action: "reactivarCliente",
+          tecnico: choperasTecnicoInput.value,
+          bajaId: bajaId
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo reactivar.");
+        showStatus(escapeHtml_(cliente) + " reactivado.");
+        await cargarChoperas();
+      } catch (err) {
+        showStatus("Error: " + escapeHtml_(err.message), true);
+      }
+    }
+
+    bajaConfirmar.addEventListener("click", bajaRegistrar);
+    document.getElementById("bajaCancelar").addEventListener("click", bajaCerrarModal_);
+    bajaModal.addEventListener("click", (e) => { if (e.target === bajaModal) bajaCerrarModal_(); });
+
     // --- Listeners ---
     choperasListaBox.addEventListener("click", (e) => {
+      const baja = e.target.closest("[data-baja-cliente]");
+      if (baja) { bajaAbrir(baja.getAttribute("data-baja-cliente")); return; }
+
+      const reactivar = e.target.closest("[data-reactivar]");
+      if (reactivar) { bajaReactivar(reactivar.getAttribute("data-reactivar"), reactivar.getAttribute("data-reactivar-cliente")); return; }
+
       const ficha = e.target.closest("[data-ficha-chopera]");
       if (ficha) { choperaAbrirFicha(ficha.getAttribute("data-ficha-chopera")); return; }
 
