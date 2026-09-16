@@ -438,12 +438,15 @@ function compartirArchivosExistentes() {
   if (lastRow >= 2) {
     const datos = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
     const iPdf = HEADERS.indexOf('PdfFileId');
+    const iPdfUrl = HEADERS.indexOf('PdfUrl');
     const iDoc = HEADERS.indexOf('DocFileId');
     const iFotosEq = HEADERS.indexOf('FotosEquiposUrls');
     const iFotosPil = HEADERS.indexOf('FotosPilonesUrls');
 
     datos.forEach(fila => {
       compartirPorId_(fila[iPdf], 'PDF');
+      // En las filas viejas el PDF esta en PdfUrl (ver urlArchivoDrive_)
+      compartirPorId_(idDesdeUrlDrive_(fila[iPdfUrl]), 'PDF');
       compartirPorId_(fila[iDoc], 'Doc');
       [fila[iFotosEq], fila[iFotosPil]].forEach(celda => {
         safe_(celda).split('\n').filter(String).forEach(url => {
@@ -846,8 +849,8 @@ function leerComodatosAgrupados_() {
       razonSocial: safe_(fila[idx.razonSocial]),
       localidad: safe_(fila[idx.localidad]),
       domicilio: safe_(fila[idx.domicilio]),
-      pdfUrl: safe_(fila[idx.pdfUrl]),
-      docUrl: safe_(fila[idx.docUrl]),
+      pdfUrl: urlArchivoDrive_(fila[idx.pdfUrl]),
+      docUrl: safe_(fila[idx.docUrl]).indexOf('http') === 0 ? safe_(fila[idx.docUrl]) : '',
       equipo: resumirEquipos_(fila[idx.equiposDetalle]),
       pilon: resumirPilones_(fila[idx.pilonesDetalle]),
       cantPicos: toNumber_(fila[idx.cantPicos]),
@@ -1575,6 +1578,18 @@ function papeleraPorId_(id, etiqueta, log) {
 function idDesdeUrlDrive_(url) {
   const m = safe_(url).match(/[-\w]{25,}/);
   return m ? m[0] : '';
+}
+
+/**
+ * Link para abrir un archivo de Drive. Los comodatos viejos (hasta TCC-00056
+ * aprox.) se cargaron con otro orden de columnas y en PdfUrl quedo el ID del
+ * PDF en vez del link: sin esto, "Ver PDF" abria una direccion invalida.
+ */
+function urlArchivoDrive_(valor) {
+  const txt = safe_(valor).trim();
+  if (!txt || txt.indexOf('http') === 0) return txt;
+  const id = idDesdeUrlDrive_(txt);
+  return id === txt ? 'https://drive.google.com/file/d/' + id + '/view' : '';
 }
 
 function limpiarPruebasClaude() {

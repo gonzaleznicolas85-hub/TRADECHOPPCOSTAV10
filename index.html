@@ -2021,6 +2021,15 @@
       return div.innerHTML;
     }
 
+    // Los comodatos viejos traen el ID del PDF en vez del link (ver
+    // urlArchivoDrive_ en Code.gs). Se arma aca tambien por si el backend
+    // publicado todavia es el anterior.
+    function urlPdf_(valor) {
+      const txt = String(valor || "").trim();
+      if (!txt || txt.startsWith("http")) return txt;
+      return /^[-\w]{25,}$/.test(txt) ? `https://drive.google.com/file/d/${txt}/view` : "";
+    }
+
     function formatFecha_(fecha) {
       const d = new Date(fecha);
       if (isNaN(d.getTime())) return fecha;
@@ -2035,8 +2044,9 @@
       misComodatosResultado.innerHTML = lista.map(c => {
         const cliente = c.nombreFantasia || c.razonSocial || "Cliente sin nombre";
         const ubicacion = [c.domicilio, c.localidad].filter(Boolean).join(", ");
+        const pdfUrl = urlPdf_(c.pdfUrl);
         const mensajeWA = encodeURIComponent(
-          `Hola, te comparto el registro del comodato de la chopera. N° ${c.comodatoNumero} ${cliente}. Puedes ver el PDF aquí: ${c.pdfUrl}`
+          `Hola, te comparto el registro del comodato de la chopera. N° ${c.comodatoNumero} ${cliente}. Puedes ver el PDF aquí: ${pdfUrl}`
         );
         return `
           <div class="comodato-card">
@@ -2044,8 +2054,8 @@
             <div class="text-sm text-gray-700">${escapeHtml_(cliente)}${c.distribuidor ? " · " + escapeHtml_(c.distribuidor) : ""}</div>
             ${ubicacion ? `<div class="text-xs text-gray-500">${escapeHtml_(ubicacion)}</div>` : ""}
             <div class="comodato-actions">
-              ${c.pdfUrl ? `<a class="link-pdf" href="${c.pdfUrl}" target="_blank">Ver PDF</a>` : ""}
-              ${c.pdfUrl ? `<a class="link-wa" href="https://wa.me/?text=${mensajeWA}" target="_blank">Compartir WhatsApp</a>` : ""}
+              ${pdfUrl ? `<a class="link-pdf" href="${escapeHtml_(pdfUrl)}" target="_blank" rel="noopener">Ver PDF</a>` : ""}
+              ${pdfUrl ? `<a class="link-wa" href="https://wa.me/?text=${mensajeWA}" target="_blank">Compartir WhatsApp</a>` : ""}
             </div>
           </div>
         `;
@@ -3036,7 +3046,7 @@
             <div class="sanit-fechas">Última sanitización: <strong>${escapeHtml_(formatFechaCorta_(c.ultimaSanitizacion))}</strong> · Próxima: <strong>${escapeHtml_(formatFechaCorta_(c.proximaSanitizacion))}</strong></div>
             <div class="sanit-actions">
               <button type="button" class="btn-comodato" data-ficha-chopera="${escapeHtml_(c.cliente)}">Ver ficha</button>
-              ${c.pdfUrl ? `<a class="btn-comodato" href="${escapeHtml_(c.pdfUrl)}" target="_blank" rel="noopener">Ver PDF comodato</a>` : ""}
+              ${urlPdf_(c.pdfUrl) ? `<a class="btn-comodato" href="${escapeHtml_(urlPdf_(c.pdfUrl))}" target="_blank" rel="noopener">Ver PDF comodato</a>` : ""}
               <button type="button" class="btn-comodato" data-editar-chopera="${escapeHtml_(c.cliente)}">Editar</button>
               <button type="button" class="btn-checkin" data-nueva-int="${escapeHtml_(c.cliente)}">+ Arreglo o cambio</button>
               <button type="button" class="btn-baja" data-baja-cliente="${escapeHtml_(c.cliente)}">Dar de baja</button>
@@ -3122,7 +3132,7 @@
       ];
 
       const acciones = [
-        c.pdfUrl ? `<a class="link-pdf" href="${escapeHtml_(c.pdfUrl)}" target="_blank" rel="noopener">Ver PDF comodato</a>` : "",
+        urlPdf_(c.pdfUrl) ? `<a class="link-pdf" href="${escapeHtml_(urlPdf_(c.pdfUrl))}" target="_blank" rel="noopener">Ver PDF comodato</a>` : "",
         ubicacion ? `<a class="link-pdf" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.cliente + " " + ubicacion)}">Cómo llegar</a>` : ""
       ].filter(Boolean).join("");
 
