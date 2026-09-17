@@ -2129,10 +2129,13 @@
       sincronizarBotonesTecnico_();
     }
 
-    // Si un tecnico cambio de nombre, el que quedo guardado en su celular ya no
-    // matchea. Debe coincidir con CONFIG.NOMBRES_ANTERIORES del Code.gs.
+    // Si un tecnico cambio de nombre, o quedo cargado con el apellido primero,
+    // el que tiene guardado en su celular ya no matchea.
+    // Debe coincidir con CONFIG.NOMBRES_ANTERIORES del Code.gs.
     const NOMBRES_ANTERIORES = {
-      "José Alejandro Caporaletti": ["Jose Caporaletti"]
+      "José Alejandro Caporaletti": ["Jose Caporaletti"],
+      "Federico Barbutti": ["Barbutti Federico"],
+      "Ramon Lazarte": ["Lazarte Ramon"]
     };
 
     /** Traduce un nombre guardado viejo al nombre actual. */

@@ -119,11 +119,19 @@ const CONFIG = {
     'Otro'
   ],
 
-  // Nombres con los que un tecnico quedo cargado antes de un cambio de nombre.
-  // Los comodatos viejos siguen teniendo el nombre anterior y no se reescriben
-  // (son el registro firmado), asi que el cruce tiene que reconocer los dos.
+  // Otras formas con las que un tecnico quedo cargado en la hoja: nombres
+  // anteriores a un cambio de nombre, y el apellido escrito primero. Los
+  // comodatos viejos no se reescriben (son el registro firmado), asi que el
+  // cruce tiene que reconocer todas.
+  //
+  // Sin esto, esas filas quedan huerfanas: no le figuran al tecnico en Mis
+  // Comodatos y sus clientes no entran en la cartera, asi que nadie les corre
+  // el ciclo de sanitizacion. Aparecieron en la tabla general como si fueran
+  // tecnicos aparte (TCC-00028 y TCC-00005 de Barbutti, TCC-00072 de Lazarte).
   NOMBRES_ANTERIORES: {
-    'José Alejandro Caporaletti': ['Jose Caporaletti']
+    'José Alejandro Caporaletti': ['Jose Caporaletti'],
+    'Federico Barbutti': ['Barbutti Federico'],
+    'Ramon Lazarte': ['Lazarte Ramon']
   },
 
   TECNICOS: [
