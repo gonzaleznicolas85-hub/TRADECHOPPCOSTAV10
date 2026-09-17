@@ -214,6 +214,8 @@ function crearEstructuraPrueba() {
  *    - action=nextNumber          -> próximo número de comodato
  *    - action=listTecnicos        -> lista de técnicos ya cargados en la hoja
  *    - action=comodatosPorTecnico -> historial de comodatos de un técnico (param "tecnico")
+ *    - action=comodatosGeneral    -> todos los comodatos de todos los técnicos
+ *    - action=choperasGeneral     -> todas las choperas de todos los técnicos
  */
 function doGet(e) {
   try {
@@ -273,6 +275,14 @@ function doGet(e) {
         motivosNoResuelto: CONFIG.HELADERAS_MOTIVOS_NO_RESUELTO,
         tecnicos: tecnicosHeladeras_()
       });
+    }
+
+    if (action === 'comodatosGeneral') {
+      return jsonOutput_({ ok: true, general: getComodatosGeneral_() });
+    }
+
+    if (action === 'choperasGeneral') {
+      return jsonOutput_({ ok: true, general: getChoperasGeneral_() });
     }
 
     if (action === 'comodatosPorTecnico') {
@@ -839,6 +849,9 @@ function leerComodatosAgrupados_() {
     if (!mapa[key]) mapa[key] = [];
     mapa[key].push({
       comodatoNumero: safe_(fila[idx.comodatoNumero]),
+      // Nombre tal como quedo cargado en la fila: el tablero general necesita
+      // saber de quien es cada comodato, la vista por tecnico lo ignora.
+      tecnico: safe_(fila[idx.tecnico]),
       fecha: safe_(fila[idx.fecha]),
       distribuidor: safe_(fila[idx.distribuidor]),
       codCliente: safe_(fila[idx.codCliente]),
@@ -1775,9 +1788,15 @@ function sanitVisitaFallida_(body) {
  * de sanitizacion, los datos del equipo y las intervenciones de cada PDV.
  */
 function getChoperas_(tecnico) {
-  const cartera = getCarteraSanitizacion_(tecnico);
-  const intervenciones = readIntervenciones_(tecnico);
+  return armarChoperas_(getCarteraSanitizacion_(tecnico), readIntervenciones_(tecnico));
+}
 
+/**
+ * Cruza una cartera ya armada con su historial de intervenciones. Separada de
+ * la carga para que el tablero general la reutilice sin releer las hojas una
+ * vez por tecnico.
+ */
+function armarChoperas_(cartera, intervenciones) {
   const porCliente = {};
   intervenciones.forEach(i => {
     const key = norm_(i.Cliente);
@@ -1821,7 +1840,8 @@ function getChoperas_(tecnico) {
       visitasFallidas: c.visitasFallidas,
       motivoUltimaFalla: c.motivoUltimaFalla,
       intervenciones: lista,
-      intervencionesPendientes: pendientes.length
+      intervencionesPendientes: pendientes.length,
+      intervencionesTotal: lista.length
     };
   });
 }
@@ -3053,4 +3073,225 @@ function probarWhatsApp() {
   const texto = CONFIG.WHATSAPP_PROVEEDOR === 'meta' ? null : '✅ Prueba de avisos de heladeras\n\n' + textoAvisoTicket_(ticket);
   const r = enviarAvisoWhatsApp_(ticket, texto);
   Logger.log('Prueba de WhatsApp: ' + JSON.stringify(r) + '. Mirá la hoja ' + CONFIG.WHATSAPP_SHEET_NAME + ' para el detalle.');
+}
+
+/* ==========================================================================
+ * 12. TABLEROS GENERALES (todos los tecnicos en una sola tabla)
+ *
+ * "Mis Comodatos" y "Mis Choperas" muestran la cartera de UN tecnico. Estas
+ * dos funciones arman la misma informacion para los seis juntos: una lista
+ * plana con el tecnico como columna, mas un resumen por tecnico para comparar.
+ *
+ * Las hojas se leen una sola vez y la cartera de cada tecnico se arma en
+ * memoria, igual que getResumenGeneral_: leer por tecnico multiplicaba por
+ * seis las llamadas al Sheet y se iba de tiempo.
+ * ========================================================================== */
+
+/**
+ * Nombre canonico del tecnico si esta en CONFIG.TECNICOS; si no, el nombre tal
+ * como quedo cargado. A diferencia de resolveTecnico_ no lanza: los tableros
+ * generales tienen que poder mostrar tambien filas de tecnicos que ya no estan
+ * en la lista.
+ */
+function nombreTecnico_(valor) {
+  const key = keyTecnico_(valor);
+  if (!key) return '';
+  for (let i = 0; i < CONFIG.TECNICOS.length; i++) {
+    if (keyTecnico_(CONFIG.TECNICOS[i]) === key) return CONFIG.TECNICOS[i];
+  }
+  return safe_(valor).trim();
+}
+
+/** Dias transcurridos desde una fecha, o null si no se puede leer. */
+function diasDesdeFecha_(valor) {
+  const d = toDate_(valor);
+  return d ? diffDays_(d, new Date()) : null;
+}
+
+/** Fila vacia del resumen de comodatos de un tecnico. */
+function filaResumenComodatos_(tecnico) {
+  return {
+    tecnico: tecnico, comodatos: 0, ultimos30: 0, ultimos90: 0, picos: 0,
+    clientes: 0, ultimoNumero: '', ultimaFecha: '', diasSinCargar: null, _clientes: {}
+  };
+}
+
+/**
+ * Tablero general de comodatos: todos los comodatos cargados, de todos los
+ * tecnicos, mas un resumen por tecnico.
+ */
+function getComodatosGeneral_() {
+  const mapa = leerComodatosAgrupados_();
+
+  const lista = [];
+  const resumen = {};
+  const clientesTotales = {};
+
+  // Los seis tecnicos siempre aparecen, aunque no tengan comodatos cargados
+  CONFIG.TECNICOS.forEach(t => { resumen[keyTecnico_(t)] = filaResumenComodatos_(t); });
+
+  Object.keys(mapa).forEach(key => {
+    mapa[key].forEach(c => {
+      const tecnico = nombreTecnico_(c.tecnico) || nombreTecnico_(key);
+      const cliente = c.nombreFantasia || c.razonSocial || '';
+
+      const fila = {};
+      for (const p in c) fila[p] = c[p];
+      fila.tecnico = tecnico;
+      fila.cliente = cliente;
+      lista.push(fila);
+
+      if (cliente) clientesTotales[norm_(cliente)] = true;
+
+      if (!resumen[key]) resumen[key] = filaResumenComodatos_(tecnico);
+      const r = resumen[key];
+      r.comodatos++;
+      r.picos += toNumber_(c.cantPicos);
+      if (cliente) r._clientes[norm_(cliente)] = true;
+
+      const dias = diasDesdeFecha_(c.fecha);
+      if (dias !== null && dias >= 0) {
+        if (dias <= 30) r.ultimos30++;
+        if (dias <= 90) r.ultimos90++;
+      }
+    });
+
+    // mapa[key] ya viene de la mas reciente a la mas vieja
+    const ultimo = mapa[key][0];
+    const r = resumen[key];
+    if (ultimo && r) {
+      r.ultimoNumero = ultimo.comodatoNumero;
+      r.ultimaFecha = isoDate_(toDate_(ultimo.fecha)) || safe_(ultimo.fecha);
+      r.diasSinCargar = diasDesdeFecha_(ultimo.fecha);
+    }
+  });
+
+  lista.sort((a, b) => b.timestamp - a.timestamp);
+
+  const porTecnico = Object.keys(resumen).map(k => {
+    const r = resumen[k];
+    r.clientes = Object.keys(r._clientes).length;
+    delete r._clientes;
+    return r;
+  }).sort((a, b) => b.comodatos - a.comodatos);
+
+  return {
+    comodatos: lista,
+    porTecnico: porTecnico,
+    totales: {
+      comodatos: lista.length,
+      tecnicos: porTecnico.filter(t => t.comodatos > 0).length,
+      clientes: Object.keys(clientesTotales).length,
+      picos: porTecnico.reduce((a, t) => a + t.picos, 0),
+      ultimos30: porTecnico.reduce((a, t) => a + t.ultimos30, 0),
+      ultimos90: porTecnico.reduce((a, t) => a + t.ultimos90, 0)
+    }
+  };
+}
+
+/**
+ * Tablero general de choperas: la cartera de los seis tecnicos en una sola
+ * lista, con estado de comodato y de sanitizacion, mas un resumen por tecnico.
+ *
+ * La lista no trae la ficha del comodato ni el detalle de cada intervencion
+ * (solo los contadores): son seis carteras juntas y el payload se iba a varios
+ * MB. Para el detalle de un cliente esta la vista por tecnico.
+ */
+function getChoperasGeneral_() {
+  const comodatos = leerComodatosAgrupados_();
+  const clientes = leerClientesManualesAgrupados_();
+  const bajas = leerBajasVigentesAgrupadas_();
+
+  // Una sola lectura de Intervenciones para los seis, agrupada por tecnico
+  const intervencionesPorTecnico = {};
+  readIntervenciones_('').forEach(i => {
+    const k = keyTecnico_(i.Tecnico);
+    if (!k) return;
+    if (!intervencionesPorTecnico[k]) intervencionesPorTecnico[k] = [];
+    intervencionesPorTecnico[k].push(i);
+  });
+
+  const lista = [];
+
+  const porTecnico = CONFIG.TECNICOS.map(tecnico => {
+    const key = keyTecnico_(tecnico);
+    const filas = readSanitRows_(tecnico);
+    const cartera = construirCartera_(
+      tecnico, comodatos[key] || [], clientes[key] || [], filas, bajas[key] || {}
+    );
+    const suyas = armarChoperas_(cartera, intervencionesPorTecnico[key] || []);
+
+    suyas.forEach(c => {
+      lista.push({
+        tecnico: tecnico,
+        cliente: c.cliente,
+        direccion: c.direccion,
+        localidad: c.localidad,
+        origen: c.origen,
+        tieneComodato: c.tieneComodato,
+        comodatoNumero: c.comodatoNumero,
+        pdfUrl: c.pdfUrl,
+        equipo: c.equipo,
+        pilon: c.pilon,
+        cantPicos: c.cantPicos,
+        estadoSanitizacion: c.estadoSanitizacion,
+        sanitizado: c.sanitizado,
+        ultimaSanitizacion: c.ultimaSanitizacion,
+        proximaSanitizacion: c.proximaSanitizacion,
+        diasRestantes: c.diasRestantes,
+        visitasFallidas: c.visitasFallidas,
+        motivoUltimaFalla: c.motivoUltimaFalla,
+        intervencionesPendientes: c.intervencionesPendientes,
+        intervencionesTotal: c.intervencionesTotal
+      });
+    });
+
+    // Bajas vigentes: las del tecnico que hoy no estan en su cartera
+    const enCartera = {};
+    cartera.forEach(c => { enCartera[norm_(c.cliente)] = true; });
+    const bajasVigentes = Object.keys(bajas[key] || {}).filter(ck => !enCartera[ck]).length;
+
+    const contar = filtro => suyas.filter(filtro).length;
+    let peor = null;
+    suyas.forEach(c => {
+      if (c.diasRestantes === null || c.diasRestantes === undefined) return;
+      if (peor === null || c.diasRestantes < peor) peor = c.diasRestantes;
+    });
+
+    return {
+      tecnico: tecnico,
+      choperas: suyas.length,
+      sinComodato: contar(c => !c.tieneComodato),
+      conComodato: contar(c => c.tieneComodato),
+      sanitizadas: contar(c => c.sanitizado),
+      sinSanitizar: contar(c => !c.sanitizado),
+      vencidas: contar(c => c.estadoSanitizacion === 'VENCIDO'),
+      porVencer: contar(c => c.estadoSanitizacion === 'POR VENCER'),
+      sinRegistro: contar(c => c.estadoSanitizacion === 'SIN REGISTRO'),
+      pendientes: contar(c => c.intervencionesPendientes > 0),
+      picos: suyas.reduce((a, c) => a + toNumber_(c.cantPicos), 0),
+      bajas: bajasVigentes,
+      diasMasAtrasado: peor
+    };
+  }).sort((a, b) => (b.sinSanitizar - a.sinSanitizar) || (b.choperas - a.choperas));
+
+  const sumar = campo => porTecnico.reduce((a, t) => a + t[campo], 0);
+
+  return {
+    choperas: lista,
+    porTecnico: porTecnico,
+    totales: {
+      choperas: lista.length,
+      sinComodato: sumar('sinComodato'),
+      conComodato: sumar('conComodato'),
+      sanitizadas: sumar('sanitizadas'),
+      sinSanitizar: sumar('sinSanitizar'),
+      vencidas: sumar('vencidas'),
+      porVencer: sumar('porVencer'),
+      sinRegistro: sumar('sinRegistro'),
+      pendientes: sumar('pendientes'),
+      picos: sumar('picos'),
+      bajas: sumar('bajas')
+    }
+  };
 }

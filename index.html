@@ -635,7 +635,8 @@
     .hel-actions { align-items: center; }
 
     /* Tablero general */
-    .hel-modo {
+    .hel-modo,
+    .modo-tabs {
       display: grid;
       grid-template-columns: 1fr 1fr;
       background: #e2e8f0;
@@ -643,7 +644,8 @@
       padding: 4px;
       gap: 4px;
     }
-    .hel-modo button {
+    .hel-modo button,
+    .modo-tabs button {
       border: none;
       background: transparent;
       color: #475569;
@@ -652,10 +654,13 @@
       font-weight: 800;
       cursor: pointer;
     }
-    .hel-modo button.is-active { background: white; color: var(--brand); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
-    .hel-filtros { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .hel-modo button.is-active,
+    .modo-tabs button.is-active { background: white; color: var(--brand); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+    .hel-filtros,
+    .gen-filtros { display: grid; grid-template-columns: 1fr; gap: 10px; }
     @media (min-width: 768px) {
-      .hel-filtros { grid-template-columns: 1fr 1fr auto; align-items: end; }
+      .hel-filtros,
+      .gen-filtros { grid-template-columns: 1fr 1fr auto; align-items: end; }
     }
     .hel-barra {
       display: flex;
@@ -709,11 +714,22 @@
     .hel-mini:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .hel-mini .t { font-weight: 700; font-size: 0.85rem; color: #0f172a; }
     .hel-mini .m { font-size: 0.75rem; color: #64748b; }
-    .hel-tabla { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 8px; }
-    .hel-tabla th, .hel-tabla td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; }
-    .hel-tabla th:first-child, .hel-tabla td:first-child { text-align: left; }
-    .hel-tabla th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: #64748b; }
-    .hel-tabla td { font-variant-numeric: tabular-nums; color: #1f2937; }
+    /* Tablas generales de Mis Comodatos / Mis Choperas */
+    .tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabla-general tbody tr.is-clickable { cursor: pointer; }
+    .tabla-general tbody tr.is-clickable:hover { background: #f1f5f9; }
+    .tabla-general .badge { font-size: 0.68rem; }
+
+    .hel-tabla,
+    .tabla-general { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 8px; }
+    .hel-tabla th, .hel-tabla td,
+    .tabla-general th, .tabla-general td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; }
+    .hel-tabla th:first-child, .hel-tabla td:first-child,
+    .tabla-general th:first-child, .tabla-general td:first-child { text-align: left; }
+    .hel-tabla th,
+    .tabla-general th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: #64748b; }
+    .hel-tabla td,
+    .tabla-general td { font-variant-numeric: tabular-nums; color: #1f2937; }
     .hel-actions a, .hel-card .comodato-actions a {
       text-decoration: none;
       font-size: 0.85rem;
@@ -837,16 +853,64 @@
         <h2 class="text-lg md:text-xl font-bold">Mis Comodatos</h2>
       </div>
       <div class="p-4 md:p-5 space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
-          <div>
-            <label class="field-label" for="misComodatosTecnico">Técnico</label>
-            <input type="hidden" id="misComodatosTecnico" />
-            <div class="tecnico-picker" id="misComodatosTecnicoBotones" role="group" aria-label="Técnico"></div>
-          </div>
-          <button type="button" id="buscarMisComodatosBtn" class="submit-btn" style="width:auto;">Buscar</button>
+
+        <div class="modo-tabs" role="tablist" aria-label="Vista de comodatos">
+          <button type="button" role="tab" data-com-modo="mios" class="is-active" aria-selected="true">Mis comodatos</button>
+          <button type="button" role="tab" data-com-modo="general" aria-selected="false">Tabla general</button>
         </div>
-        <p class="small-note">Se guarda tu nombre en este dispositivo para la próxima vez.</p>
-        <div id="misComodatosResultado" class="space-y-3"></div>
+
+        <div id="comMiosBloque" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+            <div>
+              <label class="field-label" for="misComodatosTecnico">Técnico</label>
+              <input type="hidden" id="misComodatosTecnico" />
+              <div class="tecnico-picker" id="misComodatosTecnicoBotones" role="group" aria-label="Técnico"></div>
+            </div>
+            <button type="button" id="buscarMisComodatosBtn" class="submit-btn" style="width:auto;">Buscar</button>
+          </div>
+          <p class="small-note">Se guarda tu nombre en este dispositivo para la próxima vez.</p>
+          <div id="misComodatosResultado" class="space-y-3"></div>
+        </div>
+
+        <div id="comGeneralBloque" class="space-y-4" style="display:none;">
+          <div class="gen-filtros">
+            <div>
+              <label class="field-label" for="comGenBuscar">Buscar</label>
+              <input id="comGenBuscar" type="text" class="field-input" placeholder="Cliente, N° de comodato, localidad o distribuidor" />
+            </div>
+            <div>
+              <label class="field-label" for="comGenTecnico">Técnico</label>
+              <select id="comGenTecnico" class="field-select"><option value="">Todos</option></select>
+            </div>
+            <button type="button" id="comGenRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
+          </div>
+
+          <div class="gen-filtros">
+            <div>
+              <label class="field-label" for="comGenPeriodo">Período</label>
+              <select id="comGenPeriodo" class="field-select">
+                <option value="0">Todos</option>
+                <option value="30">Últimos 30 días</option>
+                <option value="90">Últimos 90 días</option>
+                <option value="365">Último año</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="comGenOrden">Ordenar por</label>
+              <select id="comGenOrden" class="field-select">
+                <option value="fecha">Más recientes primero</option>
+                <option value="antiguos">Más viejos primero</option>
+                <option value="cliente">Cliente (A-Z)</option>
+                <option value="tecnico">Técnico (A-Z)</option>
+              </select>
+            </div>
+            <button type="button" id="comGenCsvBtn" class="secondary-btn">Exportar CSV</button>
+          </div>
+
+          <div id="comGenKpis" class="kpi-grid"></div>
+          <div id="comGenTecnicos"></div>
+          <div id="comGenTabla"></div>
+        </div>
       </div>
     </section>
 
@@ -902,6 +966,56 @@
       </div>
       <div class="p-4 md:p-5 space-y-5">
 
+        <div class="modo-tabs" role="tablist" aria-label="Vista de choperas">
+          <button type="button" role="tab" data-chop-modo="mias" class="is-active" aria-selected="true">Mis choperas</button>
+          <button type="button" role="tab" data-chop-modo="general" aria-selected="false">Tabla general</button>
+        </div>
+
+        <div id="chopGeneralBloque" class="space-y-4" style="display:none;">
+          <div class="gen-filtros">
+            <div>
+              <label class="field-label" for="chopGenBuscar">Buscar</label>
+              <input id="chopGenBuscar" type="text" class="field-input" placeholder="Cliente, equipo, localidad o N° de comodato" />
+            </div>
+            <div>
+              <label class="field-label" for="chopGenTecnico">Técnico</label>
+              <select id="chopGenTecnico" class="field-select"><option value="">Todos</option></select>
+            </div>
+            <button type="button" id="chopGenRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
+          </div>
+
+          <div class="gen-filtros">
+            <div>
+              <label class="field-label" for="chopGenFiltro">Ver</label>
+              <select id="chopGenFiltro" class="field-select">
+                <option value="TODAS">Todas</option>
+                <option value="SIN COMODATO">Sin comodato</option>
+                <option value="CON COMODATO">Con comodato</option>
+                <option value="SIN SANITIZAR">Sin sanitizar al día</option>
+                <option value="VENCIDO">Sanitización vencida</option>
+                <option value="POR VENCER">Por vencer (7 días)</option>
+                <option value="SIN REGISTRO">Sin registro</option>
+                <option value="PENDIENTES">Con problemas pendientes</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="chopGenOrden">Ordenar por</label>
+              <select id="chopGenOrden" class="field-select">
+                <option value="urgencia">Más urgentes primero</option>
+                <option value="cliente">Cliente (A-Z)</option>
+                <option value="tecnico">Técnico (A-Z)</option>
+                <option value="localidad">Localidad (A-Z)</option>
+              </select>
+            </div>
+            <button type="button" id="chopGenCsvBtn" class="secondary-btn">Exportar CSV</button>
+          </div>
+
+          <div id="chopGenKpis" class="kpi-grid"></div>
+          <div id="chopGenTecnicos"></div>
+          <div id="chopGenTabla"></div>
+        </div>
+
+        <div id="chopMiasBloque" class="space-y-5">
         <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
           <div>
             <label class="field-label">Técnico</label>
@@ -933,6 +1047,7 @@
         </div>
 
         <div id="choperasLista" class="space-y-3"></div>
+        </div>
       </div>
     </section>
 
@@ -1904,7 +2019,7 @@
       });
 
       if (activa === "sanitizaciones") cargarSanitizaciones();
-      if (activa === "choperas") cargarChoperas();
+      if (activa === "choperas") chopCargarSegunModo_();
       if (activa === "heladeras") {
         helTomarTecnicoCompartido_();
         cargarHeladeras();
@@ -3480,6 +3595,448 @@
     intervencionGuardar.addEventListener("click", intervencionRegistrar);
     intervencionModal.addEventListener("click", (e) => {
       if (e.target === intervencionModal) intervencionModal.style.display = "none";
+    });
+
+    /* ======================================================================
+     * TABLAS GENERALES (todos los técnicos juntos)
+     *
+     * Cada solapa tiene dos modos: la vista de siempre, que es la cartera de
+     * UN técnico y desde donde se trabaja, y esta tabla general, que es solo
+     * para mirar y comparar. Los datos vienen de las acciones comodatosGeneral
+     * y choperasGeneral del Code.gs, que leen las hojas una sola vez.
+     * ====================================================================== */
+
+    /** Descarga una tabla como CSV que Excel en español abre en columnas. */
+    function genDescargarCsv_(nombre, columnas, filas) {
+      const celda = v => '"' + String(v === undefined || v === null ? "" : v).replace(/"/g, '""') + '"';
+      const lineas = [columnas.map(c => celda(c[0])).join(";")]
+        .concat(filas.map(f => columnas.map(c => celda(c[1](f))).join(";")));
+      // BOM + punto y coma: sin eso Excel rompe los acentos y mete todo en una columna
+      const blob = new Blob(["﻿" + lineas.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = nombre + "_" + new Date().toISOString().slice(0, 10) + ".csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    function genRenderKpis_(caja, cards) {
+      caja.innerHTML = cards.map(k => `
+        <div class="kpi-card ${k.clase || ""}">
+          <div class="kpi-value">${escapeHtml_(String(k.valor))}</div>
+          <div class="kpi-label">${escapeHtml_(k.label)}</div>
+          ${k.nota ? `<div class="small-note">${escapeHtml_(k.nota)}</div>` : ""}
+        </div>`).join("");
+    }
+
+    /** Llena un <select> de técnicos dejando la opción "Todos" adelante. */
+    function genMontarSelectTecnicos_(select, nombres) {
+      const actual = select.value;
+      select.innerHTML = [`<option value="">Todos los técnicos</option>`]
+        .concat(nombres.map(n => `<option value="${escapeHtml_(n)}">${escapeHtml_(n)}</option>`)).join("");
+      select.value = nombres.indexOf(actual) !== -1 ? actual : "";
+    }
+
+    function genTextoDias_(dias) {
+      if (dias === null || dias === undefined) return "—";
+      if (dias < 0) return "vencida hace " + Math.abs(dias) + " d";
+      if (dias === 0) return "vence hoy";
+      return "en " + dias + " d";
+    }
+
+    /* ---------------------------------------------------------------------
+     * Tabla general de comodatos
+     * ------------------------------------------------------------------- */
+
+    const comMiosBloque = document.getElementById("comMiosBloque");
+    const comGeneralBloque = document.getElementById("comGeneralBloque");
+    const comGenBuscar = document.getElementById("comGenBuscar");
+    const comGenTecnico = document.getElementById("comGenTecnico");
+    const comGenPeriodo = document.getElementById("comGenPeriodo");
+    const comGenOrden = document.getElementById("comGenOrden");
+    const comGenKpis = document.getElementById("comGenKpis");
+    const comGenTecnicos = document.getElementById("comGenTecnicos");
+    const comGenTabla = document.getElementById("comGenTabla");
+    const comGenRefreshBtn = document.getElementById("comGenRefreshBtn");
+    const comGenCsvBtn = document.getElementById("comGenCsvBtn");
+
+    let comModo = "mios";
+    let comGeneral = null;
+    let comGenCargando = false;
+
+    /** Días transcurridos desde la fecha del comodato, o null si no se entiende. */
+    function comGenDias_(fecha) {
+      const d = parseFechaHora_(fecha);
+      if (!d) return null;
+      return Math.floor((Date.now() - d.getTime()) / 86400000);
+    }
+
+    function comGenFiltrados_() {
+      if (!comGeneral) return [];
+      const texto = comGenBuscar.value.trim().toLowerCase();
+      const tecnico = comGenTecnico.value;
+      const dias = Number(comGenPeriodo.value);
+
+      const lista = comGeneral.comodatos.filter(c => {
+        if (tecnico && c.tecnico !== tecnico) return false;
+        if (dias > 0) {
+          const d = comGenDias_(c.fecha);
+          if (d === null || d > dias) return false;
+        }
+        if (!texto) return true;
+        return [c.cliente, c.comodatoNumero, c.localidad, c.domicilio, c.distribuidor, c.tecnico, c.equipo, c.codCliente]
+          .join(" ").toLowerCase().indexOf(texto) !== -1;
+      });
+
+      const orden = comGenOrden.value;
+      const porTexto = (a, b) => String(a || "").localeCompare(String(b || ""), "es");
+      if (orden === "antiguos") lista.sort((a, b) => a.timestamp - b.timestamp);
+      else if (orden === "cliente") lista.sort((a, b) => porTexto(a.cliente, b.cliente));
+      else if (orden === "tecnico") lista.sort((a, b) => porTexto(a.tecnico, b.tecnico) || (b.timestamp - a.timestamp));
+      else lista.sort((a, b) => b.timestamp - a.timestamp);
+
+      return lista;
+    }
+
+    function comGenRender_() {
+      if (!comGeneral) return;
+
+      const lista = comGenFiltrados_();
+      const t = comGeneral.totales;
+      const picosFiltrados = lista.reduce((a, c) => a + (Number(c.cantPicos) || 0), 0);
+
+      genRenderKpis_(comGenKpis, [
+        { valor: t.comodatos, label: "Comodatos cargados", nota: "de los " + t.tecnicos + " técnicos con carga" },
+        { valor: t.clientes, label: "Clientes distintos" },
+        { valor: t.ultimos30, label: "Últimos 30 días", clase: "is-aldia" },
+        { valor: t.ultimos90, label: "Últimos 90 días" },
+        { valor: t.picos, label: "Picos en total" },
+        { valor: lista.length, label: "En la tabla", nota: picosFiltrados + " picos · " + (comGenTecnico.value || "todos") }
+      ]);
+
+      // Resumen por técnico: tocar una fila filtra la tabla por ese técnico
+      comGenTecnicos.innerHTML = `
+        <table class="tabla-general">
+          <thead><tr><th>Técnico</th><th>Comodatos</th><th>Clientes</th><th>30 días</th><th>90 días</th><th>Picos</th><th>Último</th></tr></thead>
+          <tbody>
+            ${comGeneral.porTecnico.map(f => `
+              <tr class="is-clickable" data-com-gen-tecnico="${escapeHtml_(f.tecnico)}">
+                <td>${escapeHtml_(f.tecnico)}</td>
+                <td>${f.comodatos}</td>
+                <td>${f.clientes}</td>
+                <td>${f.ultimos30}</td>
+                <td>${f.ultimos90}</td>
+                <td>${f.picos}</td>
+                <td>${escapeHtml_(f.ultimaFecha ? formatFechaCorta_(f.ultimaFecha) + (f.diasSinCargar !== null ? " (" + f.diasSinCargar + " d)" : "") : "—")}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+        <p class="small-note mt-2">Tocá un técnico para filtrar la tabla de abajo. "Último": fecha del último comodato cargado.</p>`;
+
+      if (!lista.length) {
+        comGenTabla.innerHTML = `<p class="small-note">Ningún comodato coincide con los filtros.</p>`;
+        return;
+      }
+
+      comGenTabla.innerHTML = `
+        <div class="tabla-scroll">
+          <table class="tabla-general">
+            <thead><tr><th>Fecha</th><th>N°</th><th>Técnico</th><th>Cliente</th><th>Localidad</th><th>Distribuidor</th><th>Equipo</th><th>Picos</th><th>PDF</th></tr></thead>
+            <tbody>
+              ${lista.map(c => {
+                const pdf = urlPdf_(c.pdfUrl);
+                return `
+                <tr>
+                  <td>${escapeHtml_(formatFechaCorta_(c.fecha))}</td>
+                  <td>${escapeHtml_(c.comodatoNumero)}</td>
+                  <td>${escapeHtml_(c.tecnico)}</td>
+                  <td>${escapeHtml_(c.cliente || c.razonSocial || "—")}</td>
+                  <td>${escapeHtml_(c.localidad || "—")}</td>
+                  <td>${escapeHtml_(c.distribuidor || "—")}</td>
+                  <td>${escapeHtml_(c.equipo || "—")}</td>
+                  <td>${Number(c.cantPicos) || 0}</td>
+                  <td>${pdf ? `<a class="link-pdf" href="${escapeHtml_(pdf)}" target="_blank" rel="noopener">Ver</a>` : "—"}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+        <p class="small-note mt-2">${lista.length} comodato(s) en pantalla, de ${comGeneral.totales.comodatos} cargados en total.</p>`;
+    }
+
+    async function comGenCargar_(forzar) {
+      if (comGenCargando) return;
+      if (comGeneral && !forzar) { comGenRender_(); return; }
+
+      comGenCargando = true;
+      comGenTabla.innerHTML = `<p class="small-note">Cargando los comodatos de todos los técnicos...</p>`;
+      try {
+        const res = await fetch(APP_SCRIPT_URL + "?action=comodatosGeneral").then(r => r.json());
+        if (!res.ok) throw new Error(res.message || "No se pudo leer el listado general.");
+        comGeneral = res.general;
+
+        const nombres = comGeneral.porTecnico.map(f => f.tecnico);
+        genMontarSelectTecnicos_(comGenTecnico, nombres);
+        comGenRender_();
+      } catch (error) {
+        comGenKpis.innerHTML = "";
+        comGenTecnicos.innerHTML = "";
+        comGenTabla.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      } finally {
+        comGenCargando = false;
+      }
+    }
+
+    function comCambiarModo_(modo) {
+      comModo = modo;
+      viewMisComodatos.querySelectorAll("[data-com-modo]").forEach(b => {
+        const activo = b.getAttribute("data-com-modo") === modo;
+        b.classList.toggle("is-active", activo);
+        b.setAttribute("aria-selected", String(activo));
+      });
+      comMiosBloque.style.display = modo === "mios" ? "" : "none";
+      comGeneralBloque.style.display = modo === "general" ? "" : "none";
+      if (modo === "general") comGenCargar_(false);
+    }
+
+    viewMisComodatos.querySelector(".modo-tabs").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-com-modo]");
+      if (b && b.getAttribute("data-com-modo") !== comModo) comCambiarModo_(b.getAttribute("data-com-modo"));
+    });
+
+    comGenBuscar.addEventListener("input", sanitDebounce_(comGenRender_, 200));
+    comGenTecnico.addEventListener("change", comGenRender_);
+    comGenPeriodo.addEventListener("change", comGenRender_);
+    comGenOrden.addEventListener("change", comGenRender_);
+    comGenRefreshBtn.addEventListener("click", () => comGenCargar_(true));
+    comGenCsvBtn.addEventListener("click", () => genDescargarCsv_("comodatos_general", [
+      ["Fecha", c => c.fecha], ["Numero", c => c.comodatoNumero], ["Tecnico", c => c.tecnico],
+      ["Cliente", c => c.cliente], ["Razon social", c => c.razonSocial], ["CUIT", c => c.cuit],
+      ["Codigo cliente", c => c.codCliente], ["Domicilio", c => c.domicilio], ["Localidad", c => c.localidad],
+      ["Distribuidor", c => c.distribuidor], ["Equipo", c => c.equipo], ["Pilon", c => c.pilon],
+      ["Picos", c => c.cantPicos], ["PDF", c => urlPdf_(c.pdfUrl)]
+    ], comGenFiltrados_()));
+
+    comGenTecnicos.addEventListener("click", (e) => {
+      const fila = e.target.closest("[data-com-gen-tecnico]");
+      if (!fila) return;
+      const nombre = fila.getAttribute("data-com-gen-tecnico");
+      comGenTecnico.value = comGenTecnico.value === nombre ? "" : nombre;
+      comGenRender_();
+    });
+
+    /* ---------------------------------------------------------------------
+     * Tabla general de choperas
+     * ------------------------------------------------------------------- */
+
+    const chopMiasBloque = document.getElementById("chopMiasBloque");
+    const chopGeneralBloque = document.getElementById("chopGeneralBloque");
+    const chopGenBuscar = document.getElementById("chopGenBuscar");
+    const chopGenTecnico = document.getElementById("chopGenTecnico");
+    const chopGenFiltro = document.getElementById("chopGenFiltro");
+    const chopGenOrden = document.getElementById("chopGenOrden");
+    const chopGenKpis = document.getElementById("chopGenKpis");
+    const chopGenTecnicos = document.getElementById("chopGenTecnicos");
+    const chopGenTabla = document.getElementById("chopGenTabla");
+    const chopGenRefreshBtn = document.getElementById("chopGenRefreshBtn");
+    const chopGenCsvBtn = document.getElementById("chopGenCsvBtn");
+
+    let chopModo = "mias";
+    let chopGeneral = null;
+    let chopGenCargando = false;
+
+    function chopGenFiltrados_() {
+      if (!chopGeneral) return [];
+      const texto = chopGenBuscar.value.trim().toLowerCase();
+      const tecnico = chopGenTecnico.value;
+      const filtro = chopGenFiltro.value;
+
+      const lista = chopGeneral.choperas.filter(c => {
+        if (tecnico && c.tecnico !== tecnico) return false;
+        if (filtro === "SIN COMODATO" && c.tieneComodato) return false;
+        if (filtro === "CON COMODATO" && !c.tieneComodato) return false;
+        if (filtro === "SIN SANITIZAR" && c.sanitizado) return false;
+        if (filtro === "PENDIENTES" && !c.intervencionesPendientes) return false;
+        if (["VENCIDO", "POR VENCER", "SIN REGISTRO"].indexOf(filtro) !== -1 && c.estadoSanitizacion !== filtro) return false;
+        if (!texto) return true;
+        return [c.cliente, c.direccion, c.localidad, c.equipo, c.pilon, c.tecnico, c.comodatoNumero]
+          .join(" ").toLowerCase().indexOf(texto) !== -1;
+      });
+
+      const orden = chopGenOrden.value;
+      const porTexto = (a, b) => String(a || "").localeCompare(String(b || ""), "es");
+      const dias = c => (c.diasRestantes === null || c.diasRestantes === undefined) ? -99999 : c.diasRestantes;
+      if (orden === "cliente") lista.sort((a, b) => porTexto(a.cliente, b.cliente));
+      else if (orden === "tecnico") lista.sort((a, b) => porTexto(a.tecnico, b.tecnico) || porTexto(a.cliente, b.cliente));
+      else if (orden === "localidad") lista.sort((a, b) => porTexto(a.localidad, b.localidad) || porTexto(a.cliente, b.cliente));
+      else lista.sort((a, b) => dias(a) - dias(b) || (b.intervencionesPendientes - a.intervencionesPendientes));
+
+      return lista;
+    }
+
+    function chopGenRender_() {
+      if (!chopGeneral) return;
+
+      const lista = chopGenFiltrados_();
+      const t = chopGeneral.totales;
+      const picos = lista.reduce((a, c) => a + (Number(c.cantPicos) || 0), 0);
+
+      genRenderKpis_(chopGenKpis, [
+        { valor: t.choperas, label: "Choperas en cartera", nota: t.conComodato + " con comodato" },
+        { valor: t.sinComodato, label: "Sin comodato", clase: t.sinComodato ? "is-porvencer" : "is-aldia" },
+        { valor: t.vencidas, label: "Sanitización vencida", clase: t.vencidas ? "is-vencido" : "is-aldia" },
+        { valor: t.porVencer, label: "Por vencer (7 días)", clase: "is-porvencer" },
+        { valor: t.sanitizadas, label: "Sanitizadas al día", clase: "is-aldia" },
+        { valor: t.pendientes, label: "Con problemas pendientes" },
+        { valor: t.picos, label: "Picos en total" },
+        { valor: lista.length, label: "En la tabla", nota: picos + " picos · " + (chopGenTecnico.value || "todos") }
+      ]);
+
+      chopGenTecnicos.innerHTML = `
+        <div class="tabla-scroll">
+          <table class="tabla-general">
+            <thead><tr><th>Técnico</th><th>Choperas</th><th>Sin comodato</th><th>Vencidas</th><th>Por vencer</th><th>Sin registro</th><th>Al día</th><th>Pendientes</th><th>Picos</th><th>De baja</th></tr></thead>
+            <tbody>
+              ${chopGeneral.porTecnico.map(f => `
+                <tr class="is-clickable" data-chop-gen-tecnico="${escapeHtml_(f.tecnico)}">
+                  <td>${escapeHtml_(f.tecnico)}</td>
+                  <td>${f.choperas}</td>
+                  <td>${f.sinComodato}</td>
+                  <td>${f.vencidas}</td>
+                  <td>${f.porVencer}</td>
+                  <td>${f.sinRegistro}</td>
+                  <td>${f.sanitizadas}</td>
+                  <td>${f.pendientes}</td>
+                  <td>${f.picos}</td>
+                  <td>${f.bajas}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+        <p class="small-note mt-2">Tocá un técnico para filtrar la tabla de abajo.</p>`;
+
+      if (!lista.length) {
+        chopGenTabla.innerHTML = `<p class="small-note">Ninguna chopera coincide con los filtros.</p>`;
+        return;
+      }
+
+      chopGenTabla.innerHTML = `
+        <div class="tabla-scroll">
+          <table class="tabla-general">
+            <thead><tr><th>Cliente</th><th>Técnico</th><th>Localidad</th><th>Comodato</th><th>Equipo</th><th>Picos</th><th>Sanitización</th><th>Última</th><th>Próxima</th><th>Pendientes</th></tr></thead>
+            <tbody>
+              ${lista.map(c => `
+                <tr class="is-clickable" data-chop-gen-ir="${escapeHtml_(c.cliente)}" data-chop-gen-ir-tecnico="${escapeHtml_(c.tecnico)}">
+                  <td>${escapeHtml_(c.cliente)}</td>
+                  <td>${escapeHtml_(c.tecnico)}</td>
+                  <td>${escapeHtml_(c.localidad || "—")}</td>
+                  <td>${c.tieneComodato ? escapeHtml_(c.comodatoNumero) : `<span class="badge badge-sincomodato">Sin comodato</span>`}</td>
+                  <td>${escapeHtml_(c.equipo || "—")}</td>
+                  <td>${Number(c.cantPicos) || 0}</td>
+                  <td><span class="badge badge-${estadoClase_(c.estadoSanitizacion)}">${escapeHtml_(c.estadoSanitizacion)}</span></td>
+                  <td>${escapeHtml_(formatFechaCorta_(c.ultimaSanitizacion))}</td>
+                  <td>${escapeHtml_(formatFechaCorta_(c.proximaSanitizacion))} <span class="small-note">${escapeHtml_(genTextoDias_(c.diasRestantes))}</span></td>
+                  <td>${c.intervencionesPendientes || "—"}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+        <p class="small-note mt-2">${lista.length} chopera(s) en pantalla, de ${chopGeneral.totales.choperas} en la cartera de los ${chopGeneral.porTecnico.length} técnicos. Tocá una fila para abrirla en la vista del técnico y poder trabajarla.</p>`;
+    }
+
+    async function chopGenCargar_(forzar) {
+      if (chopGenCargando) return;
+      if (chopGeneral && !forzar) { chopGenRender_(); return; }
+
+      chopGenCargando = true;
+      chopGenTabla.innerHTML = `<p class="small-note">Cargando las choperas de todos los técnicos...</p>`;
+      try {
+        const res = await fetch(APP_SCRIPT_URL + "?action=choperasGeneral").then(r => r.json());
+        if (!res.ok) throw new Error(res.message || "No se pudo leer el listado general.");
+        chopGeneral = res.general;
+
+        genMontarSelectTecnicos_(chopGenTecnico, chopGeneral.porTecnico.map(f => f.tecnico));
+        chopGenRender_();
+      } catch (error) {
+        chopGenKpis.innerHTML = "";
+        chopGenTecnicos.innerHTML = "";
+        chopGenTabla.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      } finally {
+        chopGenCargando = false;
+      }
+    }
+
+    function chopCambiarModo_(modo) {
+      chopModo = modo;
+      viewChoperas.querySelectorAll("[data-chop-modo]").forEach(b => {
+        const activo = b.getAttribute("data-chop-modo") === modo;
+        b.classList.toggle("is-active", activo);
+        b.setAttribute("aria-selected", String(activo));
+      });
+      chopMiasBloque.style.display = modo === "mias" ? "" : "none";
+      chopGeneralBloque.style.display = modo === "general" ? "" : "none";
+      if (modo === "general") chopGenCargar_(false);
+      else cargarChoperas();
+    }
+
+    /** Lo que hay que cargar al entrar a la solapa, según el modo en que quedó. */
+    function chopCargarSegunModo_() {
+      if (chopModo === "general") chopGenCargar_(false);
+      else cargarChoperas();
+    }
+
+    viewChoperas.querySelector(".modo-tabs").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-chop-modo]");
+      if (b && b.getAttribute("data-chop-modo") !== chopModo) chopCambiarModo_(b.getAttribute("data-chop-modo"));
+    });
+
+    chopGenBuscar.addEventListener("input", sanitDebounce_(chopGenRender_, 200));
+    chopGenTecnico.addEventListener("change", chopGenRender_);
+    chopGenFiltro.addEventListener("change", chopGenRender_);
+    chopGenOrden.addEventListener("change", chopGenRender_);
+    chopGenRefreshBtn.addEventListener("click", () => chopGenCargar_(true));
+    chopGenCsvBtn.addEventListener("click", () => genDescargarCsv_("choperas_general", [
+      ["Tecnico", c => c.tecnico], ["Cliente", c => c.cliente], ["Direccion", c => c.direccion],
+      ["Localidad", c => c.localidad], ["Origen", c => c.origen],
+      ["Comodato", c => c.comodatoNumero], ["Tiene comodato", c => c.tieneComodato ? "SI" : "NO"],
+      ["Equipo", c => c.equipo], ["Pilon", c => c.pilon], ["Picos", c => c.cantPicos],
+      ["Estado sanitizacion", c => c.estadoSanitizacion],
+      ["Ultima sanitizacion", c => c.ultimaSanitizacion], ["Proxima sanitizacion", c => c.proximaSanitizacion],
+      ["Dias restantes", c => c.diasRestantes], ["Visitas fallidas", c => c.visitasFallidas],
+      ["Motivo ultima falla", c => c.motivoUltimaFalla],
+      ["Intervenciones pendientes", c => c.intervencionesPendientes],
+      ["Intervenciones totales", c => c.intervencionesTotal],
+      ["PDF comodato", c => urlPdf_(c.pdfUrl)]
+    ], chopGenFiltrados_()));
+
+    chopGenTecnicos.addEventListener("click", (e) => {
+      const fila = e.target.closest("[data-chop-gen-tecnico]");
+      if (!fila) return;
+      const nombre = fila.getAttribute("data-chop-gen-tecnico");
+      chopGenTecnico.value = chopGenTecnico.value === nombre ? "" : nombre;
+      chopGenRender_();
+    });
+
+    /**
+     * Desde la tabla general a la chopera: la tabla general es de solo lectura,
+     * asi que el paso a trabajarla es cambiar al tecnico dueño y abrirle la
+     * ficha en su propia vista.
+     */
+    chopGenTabla.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;
+      const fila = e.target.closest("[data-chop-gen-ir]");
+      if (!fila) return;
+      const cliente = fila.getAttribute("data-chop-gen-ir");
+      const tecnico = fila.getAttribute("data-chop-gen-ir-tecnico");
+
+      if (TECNICOS.indexOf(tecnico) === -1) return;
+      fijarTecnico_(tecnico);
+      localStorage.setItem(TECNICO_STORAGE_KEY, tecnico);
+      choperasAbiertas = {};
+      choperasAbiertas[cliente] = true;
+      chopCambiarModo_("mias");
     });
 
     /* ======================================================================
