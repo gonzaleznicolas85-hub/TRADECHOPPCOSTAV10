@@ -1708,7 +1708,20 @@
       fechaInput.value = localDate;
     }
 
+    /**
+     * Identifica al comodato que se esta cargando, no al toque del boton: los
+     * dos toques de un doble toque mandan el mismo id y el backend guarda uno
+     * solo. Se renueva recien cuando arranca un comodato nuevo.
+     */
+    let envioIdActual = nuevoEnvioId_();
+
+    function nuevoEnvioId_() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "e" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+    }
+
     async function fetchNextNumber() {
+      envioIdActual = nuevoEnvioId_();
       try {
         const response = await fetch(APP_SCRIPT_URL + "?action=nextNumber");
         const result = await response.json();
@@ -1880,6 +1893,7 @@
       const fotosPilonesData = await getBase64Files("fotoPilones");
 
       return {
+        envioId: envioIdActual,
         comodatoNumero: value("comodatoNumero"), fecha: value("fecha"), tecnico: value("tecnico"),
         distribuidor: value("distribuidor"), codCliente: value("codCliente"), cuit: value("cuit"),
         nombreFantasia: value("nombreFantasia"), razonSocial: value("razonSocial"), domicilio: value("domicilio"),
@@ -1920,22 +1934,29 @@
 
     refreshNumberBtn.addEventListener("click", fetchNextNumber);
 
+    let enviandoComodato = false;
+
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
+      if (enviandoComodato) return;
       hideStatus();
 
-      const payload = await getPayload();
-      const validationMessage = validateBeforeSend(payload);
-
-      if (validationMessage) {
-        showStatus(validationMessage, true);
-        return;
-      }
-
+      // El boton se cierra antes de getPayload(): leer las fotos del celular
+      // tarda segundos y ahi entraba el segundo toque, que terminaba cargando
+      // el comodato dos veces.
+      enviandoComodato = true;
       submitBtn.disabled = true;
       submitBtn.textContent = "Guardando...";
 
       try {
+        const payload = await getPayload();
+        const validationMessage = validateBeforeSend(payload);
+
+        if (validationMessage) {
+          showStatus(validationMessage, true);
+          return;
+        }
+
         const response = await fetch(APP_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -1955,8 +1976,9 @@
 
         const mensajeExito = `
           <div class="mb-3">
-            <strong>Comodato guardado correctamente.</strong><br>
+            <strong>${result.duplicado ? "Este comodato ya estaba guardado." : "Comodato guardado correctamente."}</strong><br>
             Número: ${result.comodatoNumero}
+            ${result.duplicado ? `<br><span class="text-sm">Se había enviado dos veces, así que no se cargó de nuevo.</span>` : ""}
           </div>
           <a href="${urlWhatsApp}" target="_blank" style="text-decoration: none;" class="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="mr-2" viewBox="0 0 16 16">
@@ -1976,6 +1998,7 @@
       } catch (error) {
         showStatus("Error al guardar: " + error.message, true);
       } finally {
+        enviandoComodato = false;
         submitBtn.disabled = false;
         submitBtn.textContent = "Guardar comodato con firma";
       }

@@ -9,6 +9,17 @@ const CONFIG = {
   NUMBER_DIGITS: 5,
   DEPLOY_VERSION: 'FINAL_V6_MIS_COMODATOS',
 
+  // Ultimo numero de comodato reservado y registro de envios ya procesados.
+  // Viven en las Propiedades del Script porque la hoja llega tarde: mientras
+  // se generan el PDF y las fotos, la fila todavia no esta escrita y otro
+  // tecnico que guarda en ese rato leeria el mismo numero.
+  NUMERO_PROP: 'ULTIMO_NUMERO_COMODATO',
+  ENVIO_PROP_PREFIX: 'ENVIO_',
+  ENVIO_VENCE_HORAS: 72,
+  // Un envio que quedo "en curso" mas tiempo que esto se da por muerto y se
+  // deja reintentar (un guardado normal tarda entre 20 y 60 segundos).
+  ENVIO_EN_CURSO_MINUTOS: 5,
+
   // --- REEMPLAZAR CON TUS IDs DE CARPETAS Y DOCUMENTOS ---
   SIGNATURE_FOLDER_ID: '104KUonvvkDTGRFglhZfimoU10pCAeEw5',
   PDF_FOLDER_ID: '1CBA5rVdj5sAJT3XSFDA5aFQXdLLezeeQ',
@@ -322,64 +333,112 @@ function doPost(e) {
       case 'heladeraFinalizar': return jsonOutput_(heladeraFinalizar_(body));
     }
 
-    const sheet = getSheet_();
-    const data = body;
-    const comodatoNumero = esNumeroComodatoValido_(data.comodatoNumero) ? String(data.comodatoNumero).trim() : getNextComodatoNumber_();
-
-    // Convertimos los arrays de equipos y pilones a texto
-    const txtEquipos = formatEquipos_(data.equipos);
-    const txtPilones = formatPilones_(data.pilones);
-    data.equiposDetalle = txtEquipos;
-    data.pilonesDetalle = txtPilones;
-
-    // Creamos (o reutilizamos) la carpeta de fotos de este comodato
-    const comodatoPhotosFolder = getComodatoPhotosFolder_(comodatoNumero);
-
-    // Guardamos archivos en Drive
-    const urlsEquipos = savePhotos_(comodatoPhotosFolder, data.fotosEquipos, 'EQ_' + comodatoNumero);
-    const urlsPilones = savePhotos_(comodatoPhotosFolder, data.fotosPilones, 'PIL_' + comodatoNumero);
-    const signatureFile = saveSignature_(data.firmaDataUrl, comodatoNumero);
-
-    // Generamos Documento PDF y DOC con fotos incrustadas
-    const archivosGenerados = generatePdfFromTemplate_(data, comodatoNumero, signatureFile);
-    const pdfFile = archivosGenerados.pdfFile;
-    const docFile = archivosGenerados.docFile;
-
-    // Armamos la fila del Excel
-    const row = [
-      new Date(), comodatoNumero, safe_(data.fecha), safe_(data.tecnico), safe_(data.distribuidor),
-      safe_(data.codCliente), safe_(data.cuit), safe_(data.nombreFantasia), safe_(data.razonSocial),
-      safe_(data.domicilio), safe_(data.localidad),
-      txtEquipos,
-      toNumber_(data.regCornelius), toNumber_(data.regMafridis), toNumber_(data.llaveMixta),
-      toNumber_(data.cabezalMM), toNumber_(data.mangueraCerveza), toNumber_(data.mangueraPython),
-      toNumber_(data.canillaNiquelada), toNumber_(data.canillaAgua), toNumber_(data.transformador),
-      toNumber_(data.separadoresCanilla), toNumber_(data.conectorVasera), toNumber_(data.cantPicos),
-      toNumber_(data.medallones), toNumber_(data.tuboGas), toNumber_(data.vaseraRinser),
-      toNumber_(data.rinser), toNumber_(data.mangueraDesague),
-      safe_(data.handle), safe_(data.celli), safe_(data.vasera),
-      txtPilones,
-      safe_(data.descripcion),
-      urlsEquipos, urlsPilones,
-      safe_(data.aclaracion), safe_(data.dni),
-      signatureFile.getId(), signatureFile.getUrl(),
-      docFile.getId(), docFile.getUrl(),
-      pdfFile.getId(), pdfFile.getUrl(),
-      data.aceptaTerminos === true ? 'SI' : 'NO'
-    ];
-
-    sheet.appendRow(row);
-
-    return jsonOutput_({
-      ok: true,
-      message: 'Guardado con éxito',
-      comodatoNumero: comodatoNumero,
-      nombreFantasia: safe_(data.nombreFantasia),
-      pdfUrl: pdfFile.getUrl()
-    });
+    return jsonOutput_(altaComodato_(body));
   } catch (error) {
     return jsonOutput_({ ok: false, message: error.message });
   }
+}
+
+/**
+ * 3.b ALTA DE COMODATO
+ *
+ * El numero definitivo se reserva aca, no lo decide el formulario, y el envio
+ * queda anotado para que un doble toque o un reintento no carguen el comodato
+ * dos veces. Ver reservarNumeroComodato_ y tomarEnvio_.
+ */
+function altaComodato_(body) {
+  const envioId = safe_(body.envioId).trim();
+
+  if (envioId) {
+    const previo = tomarEnvio_(envioId);
+    if (previo && previo.estado === 'OK') {
+      const r = previo.resultado || {};
+      return {
+        ok: true,
+        duplicado: true,
+        message: 'Este comodato ya estaba guardado' + (r.comodatoNumero ? ' con el N° ' + r.comodatoNumero : '') + '. No se cargó de nuevo.',
+        comodatoNumero: safe_(r.comodatoNumero),
+        nombreFantasia: safe_(r.nombreFantasia),
+        pdfUrl: safe_(r.pdfUrl)
+      };
+    }
+    if (previo && previo.estado === 'EN CURSO' &&
+        Date.now() - (previo.ts || 0) < CONFIG.ENVIO_EN_CURSO_MINUTOS * 60000) {
+      throw new Error('Este comodato se está guardando en este momento. Esperá unos segundos y mirá Mis Comodatos antes de volver a intentar.');
+    }
+  }
+
+  try {
+    const resultado = escribirComodato_(body);
+    if (envioId) {
+      cerrarEnvio_(envioId, resultado);
+      purgarEnviosViejos_();
+    }
+    return resultado;
+  } catch (error) {
+    // El envio se libera para que el tecnico pueda reintentar
+    if (envioId) liberarEnvio_(envioId);
+    throw error;
+  }
+}
+
+/** Guarda el comodato: numero, fotos, PDF y la fila en la hoja. */
+function escribirComodato_(body) {
+  const sheet = getSheet_();
+  const data = body;
+  const comodatoNumero = reservarNumeroComodato_(data.comodatoNumero);
+
+  // Convertimos los arrays de equipos y pilones a texto
+  const txtEquipos = formatEquipos_(data.equipos);
+  const txtPilones = formatPilones_(data.pilones);
+  data.equiposDetalle = txtEquipos;
+  data.pilonesDetalle = txtPilones;
+
+  // Creamos (o reutilizamos) la carpeta de fotos de este comodato
+  const comodatoPhotosFolder = getComodatoPhotosFolder_(comodatoNumero);
+
+  // Guardamos archivos en Drive
+  const urlsEquipos = savePhotos_(comodatoPhotosFolder, data.fotosEquipos, 'EQ_' + comodatoNumero);
+  const urlsPilones = savePhotos_(comodatoPhotosFolder, data.fotosPilones, 'PIL_' + comodatoNumero);
+  const signatureFile = saveSignature_(data.firmaDataUrl, comodatoNumero);
+
+  // Generamos Documento PDF y DOC con fotos incrustadas
+  const archivosGenerados = generatePdfFromTemplate_(data, comodatoNumero, signatureFile);
+  const pdfFile = archivosGenerados.pdfFile;
+  const docFile = archivosGenerados.docFile;
+
+  // Armamos la fila del Excel
+  const row = [
+    new Date(), comodatoNumero, safe_(data.fecha), safe_(data.tecnico), safe_(data.distribuidor),
+    safe_(data.codCliente), safe_(data.cuit), safe_(data.nombreFantasia), safe_(data.razonSocial),
+    safe_(data.domicilio), safe_(data.localidad),
+    txtEquipos,
+    toNumber_(data.regCornelius), toNumber_(data.regMafridis), toNumber_(data.llaveMixta),
+    toNumber_(data.cabezalMM), toNumber_(data.mangueraCerveza), toNumber_(data.mangueraPython),
+    toNumber_(data.canillaNiquelada), toNumber_(data.canillaAgua), toNumber_(data.transformador),
+    toNumber_(data.separadoresCanilla), toNumber_(data.conectorVasera), toNumber_(data.cantPicos),
+    toNumber_(data.medallones), toNumber_(data.tuboGas), toNumber_(data.vaseraRinser),
+    toNumber_(data.rinser), toNumber_(data.mangueraDesague),
+    safe_(data.handle), safe_(data.celli), safe_(data.vasera),
+    txtPilones,
+    safe_(data.descripcion),
+    urlsEquipos, urlsPilones,
+    safe_(data.aclaracion), safe_(data.dni),
+    signatureFile.getId(), signatureFile.getUrl(),
+    docFile.getId(), docFile.getUrl(),
+    pdfFile.getId(), pdfFile.getUrl(),
+    data.aceptaTerminos === true ? 'SI' : 'NO'
+  ];
+
+  sheet.appendRow(row);
+
+  return {
+  ok: true,
+  message: 'Guardado con éxito',
+  comodatoNumero: comodatoNumero,
+  nombreFantasia: safe_(data.nombreFantasia),
+  pdfUrl: pdfFile.getUrl()
+  };
 }
 
 /**
@@ -766,17 +825,150 @@ function getSheet_() {
   return sheet;
 }
 
-function getNextComodatoNumber_() {
+/** Numeros de comodato ya escritos en la hoja: { usados: {105: true}, max: 105 }. */
+function numerosDeComodatoUsados_() {
   const sheet = getSheet_();
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return formatComodatoNumber_(1);
-  const values = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
+  const usados = {};
   let max = 0;
-  values.forEach(v => {
-    const match = String(v).match(/(\d+)$/);
-    if (match) max = Math.max(max, Number(match[1]));
+  if (lastRow < 2) return { usados: usados, max: max };
+
+  const col = HEADERS.indexOf('ComodatoNumero') + 1;
+  sheet.getRange(2, col, lastRow - 1, 1).getValues().flat().forEach(v => {
+    const match = String(v).match(/(\d+)\s*$/);
+    if (!match) return;
+    const n = Number(match[1]);
+    usados[n] = true;
+    if (n > max) max = n;
   });
-  return formatComodatoNumber_(max + 1);
+  return { usados: usados, max: max };
+}
+
+/** Numero de la ultima reserva; 0 si todavia no se reservo ninguno. */
+function ultimoNumeroReservado_() {
+  return Number(PropertiesService.getScriptProperties().getProperty(CONFIG.NUMERO_PROP)) || 0;
+}
+
+/** Parte numerica de un "TCC-00105", o 0 si no es un numero valido. */
+function numeroDeComodato_(valor) {
+  if (!esNumeroComodatoValido_(valor)) return 0;
+  const match = String(valor).match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : 0;
+}
+
+/**
+ * El numero que el formulario muestra al abrirse. Es solo una vista previa: el
+ * definitivo lo da reservarNumeroComodato_ cuando se guarda.
+ */
+function getNextComodatoNumber_() {
+  const usados = numerosDeComodatoUsados_();
+  return formatComodatoNumber_(Math.max(usados.max, ultimoNumeroReservado_()) + 1);
+}
+
+/**
+ * Reserva el numero definitivo del comodato que se esta guardando.
+ *
+ * Dos tecnicos que abren el formulario a la vez ven el mismo numero en
+ * pantalla, y hasta ahora los dos lo guardaban: el numero llegaba en el
+ * formulario y se escribia tal cual. Asi se repitieron TCC-00025, 00074 y
+ * 00075. Ahora el numero se saca aca, dentro de un lock, y queda anotado en
+ * las Propiedades del Script, que se actualizan al instante: el segundo en
+ * guardar recibe el siguiente aunque la hoja todavia no tenga la fila del
+ * primero (entre medio se generan el PDF y las fotos, que tardan).
+ *
+ * Si el numero que mando el formulario sigue libre se respeta, para que sea el
+ * mismo que el tecnico vio y le dicto al cliente.
+ */
+function reservarNumeroComodato_(preferido) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const usados = numerosDeComodatoUsados_();
+    const reservado = ultimoNumeroReservado_();
+    const piso = Math.max(usados.max, reservado);
+    const pedido = numeroDeComodato_(preferido);
+
+    // El pedido se acepta solo si esta libre y es el que sigue. Uno mas alto
+    // seria un formulario viejo y dejaria un hueco en la serie.
+    let n = (pedido && !usados.usados[pedido] && pedido > reservado && pedido <= piso + 1)
+      ? pedido
+      : piso + 1;
+    while (usados.usados[n]) n++;
+
+    PropertiesService.getScriptProperties().setProperty(CONFIG.NUMERO_PROP, String(n));
+    return formatComodatoNumber_(n);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * ENVIOS DUPLICADOS
+ *
+ * El formulario le pone un envioId al comodato que esta cargando y lo manda en
+ * cada intento. Si llega dos veces el mismo se devuelve el resultado del
+ * primero en vez de crear un comodato nuevo. Cubre el doble toque en el
+ * celular y el reintento del tecnico cuando se le corta la conexion y el
+ * guardado en realidad habia salido bien.
+ * ------------------------------------------------------------------------ */
+
+function claveEnvio_(envioId) { return CONFIG.ENVIO_PROP_PREFIX + envioId; }
+
+/**
+ * Marca el envio como en curso y devuelve lo que ya se sabia de el (null si
+ * es la primera vez). El lock es para que dos toques casi simultaneos no
+ * pasen los dos por aca creyendo que son el primero.
+ */
+function tomarEnvio_(envioId) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const previo = props.getProperty(claveEnvio_(envioId));
+    if (previo) {
+      try {
+        return JSON.parse(previo);
+      } catch (error) {
+        // Propiedad ilegible: se trata como si no existiera y se reescribe
+      }
+    }
+    props.setProperty(claveEnvio_(envioId), JSON.stringify({ estado: 'EN CURSO', ts: Date.now() }));
+    return null;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Deja anotado que el envio termino bien, con lo que hay que devolver si vuelve. */
+function cerrarEnvio_(envioId, resultado) {
+  PropertiesService.getScriptProperties().setProperty(claveEnvio_(envioId), JSON.stringify({
+    estado: 'OK',
+    ts: Date.now(),
+    resultado: {
+      comodatoNumero: safe_(resultado.comodatoNumero),
+      nombreFantasia: safe_(resultado.nombreFantasia),
+      pdfUrl: safe_(resultado.pdfUrl)
+    }
+  }));
+}
+
+/** Si el guardado fallo, el envio se libera para poder reintentar. */
+function liberarEnvio_(envioId) {
+  PropertiesService.getScriptProperties().deleteProperty(claveEnvio_(envioId));
+}
+
+/** Borra los envios viejos: las Propiedades del Script no son infinitas. */
+function purgarEnviosViejos_() {
+  const props = PropertiesService.getScriptProperties();
+  const todas = props.getProperties();
+  const limite = Date.now() - CONFIG.ENVIO_VENCE_HORAS * 3600000;
+
+  Object.keys(todas).forEach(clave => {
+    if (clave.indexOf(CONFIG.ENVIO_PROP_PREFIX) !== 0) return;
+    let ts = 0;
+    try { ts = JSON.parse(todas[clave]).ts || 0; } catch (error) { ts = 0; }
+    if (ts < limite) props.deleteProperty(clave);
+  });
 }
 
 function formatComodatoNumber_(num) {
