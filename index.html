@@ -3639,6 +3639,19 @@
       select.value = nombres.indexOf(actual) !== -1 ? actual : "";
     }
 
+    /**
+     * Fecha para mostrar. Los comodatos viejos no guardaron la fecha en ISO
+     * sino como fecha larga de JS ("Tue Apr 14 2026 00:00:00 GMT-0300..."),
+     * asi que formatFechaCorta_ sola devolvia ese texto tal cual.
+     */
+    function genFecha_(valor) {
+      if (!valor) return "—";
+      const iso = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) return iso[3] + "/" + iso[2] + "/" + iso[1];
+      const d = new Date(valor);
+      return isNaN(d.getTime()) ? String(valor) : d.toLocaleDateString("es-AR");
+    }
+
     function genTextoDias_(dias) {
       if (dias === null || dias === undefined) return "—";
       if (dias < 0) return "vencida hace " + Math.abs(dias) + " d";
@@ -3729,7 +3742,7 @@
                 <td>${f.ultimos30}</td>
                 <td>${f.ultimos90}</td>
                 <td>${f.picos}</td>
-                <td>${escapeHtml_(f.ultimaFecha ? formatFechaCorta_(f.ultimaFecha) + (f.diasSinCargar !== null ? " (" + f.diasSinCargar + " d)" : "") : "—")}</td>
+                <td>${escapeHtml_(f.ultimaFecha ? genFecha_(f.ultimaFecha) + (f.diasSinCargar !== null ? " (" + f.diasSinCargar + " d)" : "") : "—")}</td>
               </tr>`).join("")}
           </tbody>
         </table>
@@ -3749,7 +3762,7 @@
                 const pdf = urlPdf_(c.pdfUrl);
                 return `
                 <tr>
-                  <td>${escapeHtml_(formatFechaCorta_(c.fecha))}</td>
+                  <td>${escapeHtml_(genFecha_(c.fecha))}</td>
                   <td>${escapeHtml_(c.comodatoNumero)}</td>
                   <td>${escapeHtml_(c.tecnico)}</td>
                   <td>${escapeHtml_(c.cliente || c.razonSocial || "—")}</td>
@@ -3812,7 +3825,7 @@
     comGenOrden.addEventListener("change", comGenRender_);
     comGenRefreshBtn.addEventListener("click", () => comGenCargar_(true));
     comGenCsvBtn.addEventListener("click", () => genDescargarCsv_("comodatos_general", [
-      ["Fecha", c => c.fecha], ["Numero", c => c.comodatoNumero], ["Tecnico", c => c.tecnico],
+      ["Fecha", c => genFecha_(c.fecha)], ["Numero", c => c.comodatoNumero], ["Tecnico", c => c.tecnico],
       ["Cliente", c => c.cliente], ["Razon social", c => c.razonSocial], ["CUIT", c => c.cuit],
       ["Codigo cliente", c => c.codCliente], ["Domicilio", c => c.domicilio], ["Localidad", c => c.localidad],
       ["Distribuidor", c => c.distribuidor], ["Equipo", c => c.equipo], ["Pilon", c => c.pilon],
