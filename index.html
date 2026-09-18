@@ -3446,6 +3446,8 @@
           (result.pdfUrl ? ` <a class="link-pdf" href="${escapeHtml_(result.pdfUrl)}" target="_blank" rel="noopener">Ver PDF de baja</a>` : ""));
         await cargarChoperas();
       } catch (err) {
+        // El modal tapa el mensaje de estado: el error se avisa encima
+        alert("No se pudo dar de baja: " + err.message);
         showStatus("Error al dar de baja: " + escapeHtml_(err.message), true);
       } finally {
         bajaConfirmar.disabled = false;

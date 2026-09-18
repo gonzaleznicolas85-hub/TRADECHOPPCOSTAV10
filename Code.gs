@@ -2432,8 +2432,9 @@ function generarPdfBaja_(d, fotos) {
   const azul = '#003366';
 
   const titulo = body.getParagraphs()[0];
-  titulo.setText('ACTA DE BAJA DE CLIENTE')
-    .setHeading(DocumentApp.ParagraphHeading.HEADING1)
+  // setText no devuelve el parrafo: no se puede encadenar
+  titulo.setText('ACTA DE BAJA DE CLIENTE');
+  titulo.setHeading(DocumentApp.ParagraphHeading.HEADING1)
     .setAlignment(DocumentApp.HorizontalAlignment.CENTER);
   titulo.editAsText().setForegroundColor(azul).setBold(true);
   body.appendParagraph('Trade Marketing Chopp Costa · N° ' + d.bajaId + ' · ' + d.fecha)
