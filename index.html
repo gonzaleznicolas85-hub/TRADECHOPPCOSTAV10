@@ -3256,8 +3256,8 @@
         fila("CUIT", f.cuit),
         fila("Cód. cliente", f.codCliente),
         fila("Distribuidor", f.distribuidor),
-        fila("Domicilio", f.domicilio || c.direccion),
-        fila("Localidad", f.localidad || c.localidad),
+        fila("Domicilio", c.direccion || f.domicilio),
+        fila("Localidad", c.localidad || f.localidad),
         fila("Firmó", [f.aclaracion, f.dni ? "DNI " + f.dni : ""].filter(Boolean).join(" · ")),
         titulo("Comodato"),
         c.tieneComodato

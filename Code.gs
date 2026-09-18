@@ -1380,10 +1380,20 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows, baja
           });
   });
 
-  // B) Clientes del padrón manual
+  // B) Clientes del padrón manual. Es la capa de estado actual que editan los
+  // tecnicos: lo que tenga cargado pisa lo que trae el comodato.
   clientesManuales.forEach(f => {
+    const key = norm_(f[1]);
+    const previo = mapa[key];
     push_(f[1], f[2], f[3], 'MANUAL', '', toDate_(f[5]),
           { equipo: f[6], pilon: f[7], cantPicos: f[8] });
+    if (!previo) return;
+    const pisar = (campo, valor) => { const v = safe_(valor).trim(); if (v) previo[campo] = v; };
+    pisar('direccion', f[2]);
+    pisar('localidad', f[3]);
+    pisar('equipo', f[6]);
+    pisar('pilon', f[7]);
+    if (f[8] !== '' && f[8] !== null && f[8] !== undefined) previo.cantPicos = toNumber_(f[8]);
   });
 
   // C) Cruce con el historial de sanitizaciones
@@ -2324,8 +2334,8 @@ function bajaCliente_(body) {
       cuit: ficha.cuit,
       codCliente: ficha.codCliente,
       distribuidor: ficha.distribuidor,
-      domicilio: ficha.domicilio || item.direccion,
-      localidad: ficha.localidad || item.localidad,
+      domicilio: item.direccion || ficha.domicilio,
+      localidad: item.localidad || ficha.localidad,
       comodatoNumero: item.comodatoNumero,
       fechaComodato: ficha.fecha,
       motivo: motivo,
