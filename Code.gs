@@ -1076,7 +1076,21 @@ function leerComodatosAgrupados_() {
 }
 
 function getComodatosByTecnico_(tecnico) {
-  return leerComodatosAgrupados_()[keyTecnico_(tecnico)] || [];
+  const key = keyTecnico_(tecnico);
+  return sinComodatosDeBaja_(leerComodatosAgrupados_()[key] || [],
+                             leerBajasVigentesAgrupadas_()[key] || {});
+}
+
+/**
+ * Saca de la lista los comodatos de clientes dados de baja. Un comodato
+ * firmado despues de la baja se muestra: el cliente volvio (mismo criterio
+ * que construirCartera_).
+ */
+function sinComodatosDeBaja_(comodatos, bajas) {
+  return comodatos.filter(c => {
+    const baja = bajas[norm_(c.nombreFantasia || c.razonSocial)];
+    return !baja || (c.timestamp || 0) > baja.timestamp;
+  });
 }
 
 /**
@@ -2292,7 +2306,7 @@ function fechaLocal_(txt) {
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date();
 }
 
-/** Da de baja un cliente: fotos, firma, PDF de acta y fila en Bajas_Clientes. */
+/** Da de baja un cliente: fotos, PDF de acta y fila en Bajas_Clientes. Sin firma. */
 function bajaCliente_(body) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -2301,14 +2315,10 @@ function bajaCliente_(body) {
     const cliente = safe_(body.cliente).trim();
     const motivo = safe_(body.motivo).trim();
     const retiro = safe_(body.retiroEquipo).trim();
-    const aclaracion = safe_(body.aclaracion).trim();
-    const dni = safe_(body.dni).trim();
 
     if (!cliente) throw new Error('Falta el cliente.');
     if (!motivo) throw new Error('Indicá el motivo de la baja.');
     if (!retiro) throw new Error('Indicá qué pasó con la chopera.');
-    if (!body.firmaDataUrl) throw new Error('Falta la firma.');
-    if (!aclaracion || !dni) throw new Error('Completá aclaración y DNI de quien firma.');
 
     const item = getCarteraSanitizacion_(tecnico).filter(c => norm_(c.cliente) === norm_(cliente))[0];
     if (!item) {
@@ -2323,7 +2333,6 @@ function bajaCliente_(body) {
     const urls = (body.fotos && body.fotos.length)
       ? savePhotos_(getBajaPhotosFolder_(tecnico), body.fotos, id)
       : '';
-    const firma = saveSignature_(body.firmaDataUrl, id);
 
     const archivos = generarPdfBaja_({
       bajaId: id,
@@ -2344,16 +2353,14 @@ function bajaCliente_(body) {
       detalleRetiro: safe_(body.detalleRetiro).trim(),
       equipo: item.equipo,
       pilon: item.pilon,
-      cantPicos: item.cantPicos,
-      aclaracion: aclaracion,
-      dni: dni
-    }, body.fotos, firma);
+      cantPicos: item.cantPicos
+    }, body.fotos);
 
     getBajasSheet_().appendRow([
       id, fechaBaja, tecnico, item.cliente, safe_(item.comodatoNumero),
       motivo, safe_(body.observaciones).trim(), retiro, safe_(body.detalleRetiro).trim(),
       item.equipo, item.pilon, toNumber_(item.cantPicos), urls,
-      aclaracion, dni, firma.getId(),
+      '', '', '',
       archivos.pdfFile.getId(), archivos.pdfFile.getUrl(), archivos.docFile.getUrl(),
       'ACTIVA', '', ahora
     ]);
@@ -2413,7 +2420,7 @@ function getBajaPhotosFolder_(tecnico) {
  * Arma el acta de baja en un Doc nuevo (no usa plantilla) y lo exporta a PDF
  * en la misma carpeta que los PDFs de comodatos.
  */
-function generarPdfBaja_(d, fotos, signatureFile) {
+function generarPdfBaja_(d, fotos) {
   const pdfFolder = DriveApp.getFolderById(CONFIG.PDF_FOLDER_ID);
   const nombre = 'Baja_' + d.bajaId + '_' + safe_(d.cliente).replace(/[/\\?%*:|"<>]/g, '-');
 
@@ -2491,19 +2498,6 @@ function generarPdfBaja_(d, fotos, signatureFile) {
   } else {
     pFotos.setText('No se adjuntaron fotografías.');
   }
-
-  seccion('Conformidad');
-  body.appendParagraph(
-    'El cliente deja constancia de la baja del servicio y, en caso de corresponder, de la ' +
-    'restitución del equipo y los materiales entregados en comodato, en el estado detallado en ' +
-    'la presente acta. La firma digital incorporada tiene validez como constancia de conformidad.'
-  );
-
-  const pFirma = body.appendParagraph('');
-  const firmaImg = pFirma.appendInlineImage(signatureFile.getBlob());
-  const ratioFirma = 180 / firmaImg.getWidth();
-  firmaImg.setWidth(180).setHeight(Math.round(firmaImg.getHeight() * ratioFirma));
-  body.appendParagraph('Aclaración: ' + d.aclaracion + '    DNI: ' + d.dni);
 
   doc.saveAndClose();
 
@@ -3332,6 +3326,8 @@ function filaResumenComodatos_(tecnico) {
  */
 function getComodatosGeneral_() {
   const mapa = leerComodatosAgrupados_();
+  const bajas = leerBajasVigentesAgrupadas_();
+  Object.keys(mapa).forEach(k => { mapa[k] = sinComodatosDeBaja_(mapa[k], bajas[k] || {}); });
 
   const lista = [];
   const resumen = {};

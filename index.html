@@ -470,15 +470,6 @@
       cursor: pointer;
     }
     .btn-baja-confirmar:disabled { opacity: 0.55; cursor: not-allowed; }
-    #bajaFirmaCanvas {
-      width: 100%;
-      height: 180px;
-      display: block;
-      background: white;
-      border-radius: 10px;
-      touch-action: none;
-      border: 1px solid #d1d5db;
-    }
 
     .sanit-actions {
       display: flex;
@@ -1265,23 +1256,6 @@
             <label class="field-label" for="bajaFotos">Fotos del retiro</label>
             <input id="bajaFotos" type="file" accept="image/*" multiple capture="environment" class="field-input" />
             <p class="small-note mt-1">Se achican antes de subir.</p>
-          </div>
-          <div>
-            <label class="field-label">Firma del cliente</label>
-            <div class="signature-wrap">
-              <canvas id="bajaFirmaCanvas"></canvas>
-              <button type="button" id="bajaFirmaLimpiar" class="secondary-btn mt-2">Limpiar firma</button>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="field-label" for="bajaAclaracion">Aclaración</label>
-              <input id="bajaAclaracion" type="text" class="field-input" />
-            </div>
-            <div>
-              <label class="field-label" for="bajaDni">DNI</label>
-              <input id="bajaDni" type="text" inputmode="numeric" class="field-input" />
-            </div>
           </div>
         </div>
 
@@ -3413,52 +3387,8 @@
     const bajaRetiro = document.getElementById("bajaRetiro");
     const bajaDetalleRetiro = document.getElementById("bajaDetalleRetiro");
     const bajaFotosInput = document.getElementById("bajaFotos");
-    const bajaAclaracion = document.getElementById("bajaAclaracion");
-    const bajaDni = document.getElementById("bajaDni");
     const bajaConfirmar = document.getElementById("bajaConfirmar");
-    const bajaCanvas = document.getElementById("bajaFirmaCanvas");
-    const bajaCtx = bajaCanvas.getContext("2d");
     let bajaClienteNombre = "";
-    let bajaFirmaHecha = false;
-    let bajaDibujando = false;
-    let bajaLast = { x: 0, y: 0 };
-
-    function bajaAjustarCanvas_() {
-      const ratio = Math.max(window.devicePixelRatio || 1, 1);
-      const rect = bajaCanvas.getBoundingClientRect();
-      bajaCanvas.width = rect.width * ratio;
-      bajaCanvas.height = rect.height * ratio;
-      bajaCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      bajaCtx.lineWidth = 2;
-      bajaCtx.lineCap = "round";
-      bajaCtx.lineJoin = "round";
-      bajaCtx.strokeStyle = "#111827";
-      bajaFirmaHecha = false;
-    }
-
-    function bajaPos_(ev) {
-      const rect = bajaCanvas.getBoundingClientRect();
-      const p = ev.touches ? ev.touches[0] : ev;
-      return { x: p.clientX - rect.left, y: p.clientY - rect.top };
-    }
-    function bajaEmpezar_(ev) { ev.preventDefault(); bajaDibujando = true; bajaLast = bajaPos_(ev); }
-    function bajaTrazar_(ev) {
-      if (!bajaDibujando) return;
-      ev.preventDefault();
-      const p = bajaPos_(ev);
-      bajaCtx.beginPath(); bajaCtx.moveTo(bajaLast.x, bajaLast.y); bajaCtx.lineTo(p.x, p.y); bajaCtx.stroke();
-      bajaLast = p;
-      bajaFirmaHecha = true;
-    }
-    function bajaTerminar_() { bajaDibujando = false; }
-
-    bajaCanvas.addEventListener("mousedown", bajaEmpezar_);
-    bajaCanvas.addEventListener("mousemove", bajaTrazar_);
-    window.addEventListener("mouseup", bajaTerminar_);
-    bajaCanvas.addEventListener("touchstart", bajaEmpezar_, { passive: false });
-    bajaCanvas.addEventListener("touchmove", bajaTrazar_, { passive: false });
-    bajaCanvas.addEventListener("touchend", bajaTerminar_);
-    document.getElementById("bajaFirmaLimpiar").addEventListener("click", bajaAjustarCanvas_);
 
     function bajaAbrir(cliente) {
       const c = choperas.filter(x => x.cliente === cliente)[0];
@@ -3474,13 +3404,10 @@
       bajaObservaciones.value = "";
       bajaDetalleRetiro.value = "";
       bajaFotosInput.value = "";
-      bajaAclaracion.value = "";
-      bajaDni.value = "";
       bajaConfirmar.disabled = false;
       bajaConfirmar.textContent = "Confirmar baja";
 
       bajaModal.style.display = "flex";
-      bajaAjustarCanvas_(); // recién ahora el canvas tiene tamaño en pantalla
     }
 
     function bajaCerrarModal_() { bajaModal.style.display = "none"; bajaClienteNombre = ""; }
@@ -3489,11 +3416,9 @@
       if (!bajaClienteNombre) return;
       const error =
         !bajaMotivo.value ? "Elegí el motivo de la baja." :
-        !bajaRetiro.value ? "Indicá qué pasó con la chopera." :
-        !bajaFirmaHecha ? "Falta la firma del cliente." :
-        !bajaAclaracion.value.trim() || !bajaDni.value.trim() ? "Completá aclaración y DNI." : "";
+        !bajaRetiro.value ? "Indicá qué pasó con la chopera." : "";
       if (error) { alert(error); return; }
-      if (!confirm("¿Dar de baja a " + bajaClienteNombre + "? Va a salir de la cartera.")) return;
+      if (!confirm("¿Dar de baja a " + bajaClienteNombre + "? Va a salir de la cartera y de Mis Comodatos.")) return;
 
       bajaConfirmar.disabled = true;
       bajaConfirmar.textContent = "Guardando...";
@@ -3512,10 +3437,7 @@
           observaciones: bajaObservaciones.value.trim(),
           retiroEquipo: bajaRetiro.value,
           detalleRetiro: bajaDetalleRetiro.value.trim(),
-          fotos: fotos,
-          firmaDataUrl: bajaCanvas.toDataURL("image/png"),
-          aclaracion: bajaAclaracion.value.trim(),
-          dni: bajaDni.value.trim()
+          fotos: fotos
         });
         if (!result.ok) throw new Error(result.message || "No se pudo dar de baja.");
 
