@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Trade Marketing Chopp Costa - Comodatos</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --brand: #003366;
@@ -852,40 +855,795 @@
       line-height: 22px;
       cursor: pointer;
     }
+
+    /* ==========================================================
+       REDISEÑO MOBILE 2026 — capa de presentación
+       Reescribe solo la apariencia: no cambia ids, clases ni
+       lógica. Todo lo de arriba sigue vigente; esto lo pisa.
+       ========================================================== */
+    :root {
+      --brand: #0b2e52;
+      --brand-2: #134d80;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --muted: #64748b;
+      --border: #cbd5e1;
+      --line: #e2e8f0;
+      --ink: #0f172a;
+      --mod-nuevo: #0b2e52;
+      --mod-misComodatos: #0e7490;
+      --mod-sanitizaciones: #b45309;
+      --mod-choperas: #7c3aed;
+      --mod-heladeras: #059669;
+    }
+
+    html, body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+      background: #eef1f5;
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------- Shell mobile ---------- */
+    .app-shell {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      margin: 0 auto;
+      background: var(--bg);
+      position: relative;
+      overflow-x: hidden;
+      box-shadow: 0 0 40px rgba(15, 23, 42, 0.08);
+      display: flex;
+      flex-direction: column;
+    }
+    /* En pantallas grandes se ensancha para no romper tableros y tablas */
+    @media (min-width: 1024px) {
+      .app-shell { max-width: 940px; }
+    }
+    .app-main {
+      flex: 1;
+      padding: 16px 14px 90px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ---------- Top bar ---------- */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      min-height: 60px;
+    }
+    .topbar-burger {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+      cursor: pointer;
+      padding: 0;
+    }
+    .topbar-burger span {
+      width: 18px;
+      height: 2px;
+      background: var(--brand);
+      border-radius: 2px;
+      display: block;
+    }
+    .topbar-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .topbar-titles { flex: 1; min-width: 0; }
+    .topbar-title {
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--ink);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar-sub {
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: #eef2f7;
+      border: 1px solid var(--line);
+      color: #475569;
+      font-weight: 800;
+      font-size: 13px;
+      flex-shrink: 0;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    /* ---------- Drawer ---------- */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 45;
+      display: none;
+    }
+    .drawer-overlay.is-open { display: block; }
+    .drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 78%;
+      max-width: 320px;
+      background: #ffffff;
+      z-index: 50;
+      box-shadow: 8px 0 30px rgba(15, 23, 42, 0.2);
+      display: none;
+      flex-direction: column;
+    }
+    .drawer.is-open {
+      display: flex;
+      animation: drawerSlideIn 0.18s ease-out;
+    }
+    @keyframes drawerSlideIn {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(0); }
+    }
+    .drawer-head {
+      padding: 22px 18px 16px;
+      background: var(--brand);
+      color: #fff;
+    }
+    .drawer-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-weight: 800;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .drawer-brand { font-weight: 800; font-size: 17px; }
+    .drawer-sub { font-size: 12.5px; color: #bfd4ea; margin-top: 2px; }
+    .drawer-foot { padding: 14px 18px; border-top: 1px solid var(--line); }
+    .drawer-foot-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .drawer-foot-name { font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 10px; }
+    .drawer-logout {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    /* ---------- Navegación (dentro del drawer) ---------- */
+    .main-nav {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 10px;
+      margin-bottom: 0;
+      overflow-y: auto;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 12px;
+      border-radius: 12px;
+      border: none;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      flex: 0 0 auto !important;
+      align-self: stretch;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .nav-btn .nav-mono {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 11.5px;
+      flex-shrink: 0;
+      color: #fff;
+      background: var(--mod-color, #0b2e52);
+    }
+    .nav-btn .nav-label { font-size: 14.5px; font-weight: 700; line-height: 1.25; }
+    .main-nav .nav-btn + .nav-btn { margin-top: 0; }
+    .nav-btn.active {
+      background: color-mix(in srgb, var(--mod-color, #0b2e52) 10%, transparent);
+      color: var(--mod-color, #0b2e52);
+      border-color: transparent;
+    }
+    .nav-btn[data-mod="nuevo"] { --mod-color: var(--mod-nuevo); }
+    .nav-btn[data-mod="misComodatos"] { --mod-color: var(--mod-misComodatos); }
+    .nav-btn[data-mod="sanitizaciones"] { --mod-color: var(--mod-sanitizaciones); }
+    .nav-btn[data-mod="choperas"] { --mod-color: var(--mod-choperas); }
+    .nav-btn[data-mod="heladeras"] { --mod-color: var(--mod-heladeras); }
+    @media (max-width: 480px) {
+      .nav-btn { font-size: 14.5px; padding: 13px 12px; }
+    }
+
+    /* ---------- Login ---------- */
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      background: #eef1f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 9999;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 340px;
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px 26px;
+      box-shadow: 0 10px 34px rgba(15, 23, 42, 0.12);
+      text-align: center;
+    }
+    .login-logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .login-title { font-size: 18px; font-weight: 800; color: var(--ink); margin: 0 0 4px; }
+    .login-sub { font-size: 13px; color: var(--muted); margin: 0 0 22px; }
+    .login-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px;
+      font-size: 15px;
+      margin-bottom: 12px;
+      font-family: inherit;
+    }
+    .login-btn {
+      width: 100%;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .login-error { color: #dc2626; font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+
+    /* ---------- Superficies ---------- */
+    .section-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: none;
+    }
+    .section-title {
+      background: linear-gradient(90deg, var(--brand), var(--brand-2));
+      color: #fff;
+      border-radius: 15px 15px 0 0;
+      padding: 14px 16px !important;
+    }
+    .section-title h1, .section-title h2 { font-size: 14.5px; font-weight: 800; }
+    .section-title p { font-size: 12px; }
+
+    .field-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 6px;
+    }
+    .field-input, .field-select, .field-textarea {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-family: inherit;
+    }
+    .field-textarea { min-height: 96px; font-size: 14px; }
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(11, 46, 82, 0.12);
+    }
+    .readonly { background: #f1f5f9; color: #334155; font-weight: 700; }
+    .small-note { font-size: 12.5px; color: var(--muted); }
+
+    .submit-btn {
+      background: var(--brand);
+      border-radius: 14px;
+      padding: 15px;
+      font-size: 15px;
+      font-weight: 800;
+      font-family: inherit;
+    }
+    .submit-btn:hover { background: #08233f; }
+    .secondary-btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #334155;
+      font-family: inherit;
+    }
+
+    /* ---------- Chips de técnico ---------- */
+    .tecnico-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .tecnico-btn {
+      flex: none;
+      min-height: 46px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #374151;
+      font-weight: 700;
+      font-size: 12.5px;
+      padding: 8px 10px;
+      white-space: normal;
+      line-height: 1.2;
+    }
+    .tecnico-btn.is-active { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .tecnico-btn.btn-todos { grid-column: 1 / -1; }
+    @media (max-width: 480px) {
+      .tecnico-btn { font-size: 12.5px; padding: 8px 10px; }
+    }
+
+    /* ---------- KPIs ---------- */
+    .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+    @media (min-width: 1024px) {
+      .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+    }
+    .kpi-card { border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .kpi-card .kpi-value { font-size: 22px; }
+    .kpi-card .kpi-label { font-size: 10.5px; }
+
+    /* ---------- Tabs segmentadas ---------- */
+    .modo-tabs, .hel-modo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--line);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      border: none;
+    }
+    .modo-tabs button, .hel-modo button {
+      border: none;
+      border-radius: 9px;
+      padding: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 13.5px;
+      background: transparent;
+      color: #475569;
+      font-family: inherit;
+    }
+    .modo-tabs button.is-active, .hel-modo button.is-active {
+      background: #fff;
+      color: var(--brand);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    }
+
+    /* ---------- Tarjetas de lista ---------- */
+    .comodato-card, .sanit-card, .hel-card, .tecnico-card {
+      border-color: var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .comodato-card .num { color: var(--brand); font-size: 13px; }
+    .sanit-card .sanit-cliente, .hel-card .hel-cliente { font-size: 14.5px; }
+    .sanit-card .sanit-meta, .hel-card .hel-meta { font-size: 12px; }
+    .sanit-card.estado-porvencer { border-left-color: #b45309; }
+    .sanit-card.estado-aldia { border-left-color: #047857; }
+    .sanit-card.estado-encurso { border-left-color: #1d4ed8; }
+    .badge { font-size: 10px; padding: 3px 9px; }
+    .comodato-actions a, .hel-actions a {
+      font-size: 12.5px;
+      padding: 8px 12px;
+      border-radius: 9px;
+    }
+
+    /* ---------- Filtros plegables ---------- */
+    .filtros-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 10px 12px;
+    }
+    .filtros-box > summary {
+      font-weight: 800;
+      font-size: 13.5px;
+      color: var(--ink);
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .filtros-box > summary::-webkit-details-marker { display: none; }
+    .filtros-box > summary::after {
+      content: "Mostrar";
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .filtros-box[open] > summary::after { content: "Ocultar"; }
+    .filtros-box > .sanit-toolbar { margin-top: 10px; }
+    .hel-filtros-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 10px 12px;
+    }
+    .hel-filtros-box > summary { font-weight: 800; font-size: 13.5px; color: var(--ink); }
+    .hel-filtros, .gen-filtros, .sanit-toolbar {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 10px;
+      align-items: stretch !important;
+    }
+    @media (min-width: 1024px) {
+      .hel-filtros { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .gen-filtros, .sanit-toolbar { grid-template-columns: 1.4fr 1fr auto !important; align-items: end !important; }
+    }
+    .gen-filtros .submit-btn, .sanit-toolbar .submit-btn,
+    .gen-filtros .secondary-btn, .sanit-toolbar .secondary-btn { width: 100% !important; }
+    @media (min-width: 1024px) {
+      .gen-filtros .submit-btn, .sanit-toolbar .submit-btn { width: auto !important; }
+    }
+
+    /* ---------- Tablero de heladeras en acordeón ---------- */
+    .hel-board { display: flex !important; flex-direction: column; gap: 10px; }
+    .hel-col {
+      border: 1px solid var(--line);
+      border-top-width: 4px;
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 10px 12px;
+    }
+    .hel-col > summary { font-weight: 800; font-size: 13.5px; color: var(--ink); }
+
+    /* ---------- Tablas convertidas en tarjetas ---------- */
+    .tabla-scroll { overflow: visible; }
+    .tabla-general thead { display: none; }
+    .tabla-general, .tabla-general tbody, .tabla-general tr, .tabla-general td {
+      display: block;
+      width: 100%;
+    }
+    .tabla-general tr {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .tabla-general td {
+      border: none !important;
+      padding: 4px 0 !important;
+      text-align: right !important;
+      white-space: normal !important;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .tabla-general td::before {
+      content: attr(data-col);
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      text-align: left;
+      flex-shrink: 0;
+    }
+    .tabla-general td:empty { display: none; }
+    @media (min-width: 1024px) {
+      .tabla-scroll { overflow-x: auto; }
+      .tabla-general { display: table; }
+      .tabla-general thead { display: table-header-group; }
+      .tabla-general tbody { display: table-row-group; }
+      .tabla-general tr { display: table-row; border: none; border-radius: 0; padding: 0; margin: 0; background: transparent; }
+      .tabla-general td { display: table-cell; padding: 0.5rem 0.6rem !important; border-bottom: 1px solid var(--line) !important; white-space: nowrap !important; }
+      .tabla-general td::before { content: none; }
+    }
+
+    /* ---------- Modales como bottom sheet ---------- */
+    .modal-backdrop {
+      background: rgba(15, 23, 42, 0.55);
+      align-items: flex-end !important;
+      justify-content: center;
+      padding: 0 !important;
+      z-index: 90;
+    }
+    .modal-box {
+      border-radius: 20px 20px 0 0 !important;
+      width: 100% !important;
+      max-width: 480px !important;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 20px 18px calc(22px + env(safe-area-inset-bottom)) !important;
+      margin: 0 !important;
+    }
+    .modal-box::before {
+      content: "";
+      display: block;
+      width: 40px;
+      height: 4px;
+      background: var(--line);
+      border-radius: 99px;
+      margin: 0 auto 14px;
+    }
+    .modal-box h3 { font-size: 16px; font-weight: 800; color: var(--brand); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .modal-actions > button { flex: 1 1 auto; min-width: 120px; border-radius: 12px; padding: 13px; font-weight: 800; }
+    @media (min-width: 1024px) {
+      .modal-backdrop { align-items: center !important; padding: 20px !important; }
+      .modal-box { border-radius: 18px !important; max-width: 640px !important; max-height: 86vh; }
+    }
+
+    /* ---------- Status como snackbar ---------- */
+    .status-box {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      width: calc(100% - 28px);
+      max-width: 452px;
+      z-index: 95;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+      margin-bottom: 0 !important;
+      animation: toastIn 0.15s ease-out;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translate(-50%, 8px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    .status-ok { background: #0f172a; border: 1px solid #0f172a; color: #fff; }
+    .status-error { background: #7f1d1d; border: 1px solid #7f1d1d; color: #fff; }
+    .status-box a { color: #bfdbfe; }
+
+    /* ---------- Wizard de Nuevo Comodato ---------- */
+    .wz-progress { display: flex; gap: 6px; }
+    .wz-progress > button {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+    }
+    .wz-progress .wz-bar {
+      display: block;
+      height: 5px;
+      border-radius: 99px;
+      margin-bottom: 6px;
+      background: var(--line);
+    }
+    .wz-progress .wz-label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--muted);
+    }
+    .wz-progress > button.is-done .wz-bar,
+    .wz-progress > button.is-current .wz-bar { background: var(--brand); }
+    .wz-progress > button.is-current .wz-label { color: var(--brand); }
+    .wz-step { display: none; flex-direction: column; gap: 16px; }
+    .wz-step.is-current { display: flex; }
+    .wz-nav {
+      display: flex;
+      gap: 10px;
+      position: sticky;
+      bottom: 14px;
+      z-index: 20;
+    }
+    .wz-nav button {
+      border-radius: 14px;
+      padding: 15px;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #wzBack { flex: 1; border: 1px solid var(--border); background: #fff; color: #334155; }
+    #wzNext { flex: 2; background: var(--brand); color: #fff; border: none; }
+    .wz-nav #submitBtn { flex: 2; width: auto !important; background: #047857; }
+    .wz-nav #submitBtn:hover { background: #036347; }
+    .wz-resumen { display: flex; flex-direction: column; }
+    .wz-resumen .wz-fila {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13.5px;
+    }
+    .wz-resumen .wz-fila span:first-child { color: var(--muted); font-weight: 600; }
+    .wz-resumen .wz-fila span:last-child { color: var(--ink); font-weight: 700; text-align: right; }
+
+    /* ---------- Stepper de cantidad ---------- */
+    .stepper { display: flex; align-items: center; gap: 12px; }
+    .stepper button {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--brand);
+      cursor: pointer;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .stepper input {
+      flex: 1 1 0;
+      min-width: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      -moz-appearance: textfield;
+      font-family: inherit;
+    }
+    .stepper input::-webkit-outer-spin-button,
+    .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* ---------- Firma ---------- */
+    .signature-wrap { border-radius: 14px; padding: 10px; }
+    #signatureCanvas { height: 180px; }
+    .terms-box { max-height: 140px; font-size: 12.5px; border-radius: 12px; padding: 14px; }
+
+    /* ---------- Retoques varios ---------- */
+    .qty-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
+    @media (min-width: 1024px) {
+      .qty-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    }
+    .hel-segmento { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .hel-segmento button { border-radius: 10px; padding: 12px; font-weight: 800; font-family: inherit; }
+    .hel-falla {
+      font-size: 13px;
+      color: #1f2937;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .btn-checkin, .btn-checkout, .btn-fallida, .btn-tomar, .btn-liberar, .btn-comodato, .btn-baja {
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-weight: 800;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .hel-actions, .sanit-actions, .comodato-actions { gap: 8px; }
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
   </style>
 </head>
 <body>
 
   <!-- PANTALLA DE LOGIN -->
-  <div id="loginScreen" style="position:fixed; inset:0; background:#eef2f7; display:flex; align-items:center; justify-content:center; z-index:9999; font-family:Arial;">
-    <div style="background:white; padding:40px; border-radius:12px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.15); text-align:center;">
-      <h2 style="margin-bottom:20px;font-size:20px;font-weight:bold">Acceso Sistema Comodatos</h2>
-      <input id="passwordInput" type="password" placeholder="Contraseña" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:15px;" />
-      <button onclick="checkPassword()" style="width:100%; padding:10px; background:#003366; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Ingresar</button>
-      <p id="loginError" style="color:red;margin-top:10px;font-size:14px"></p>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">TCC</div>
+      <h2 class="login-title">Trade Marketing Chopp Costa</h2>
+      <p class="login-sub">Sistema digital de comodatos</p>
+      <input id="passwordInput" type="password" placeholder="Contraseña" class="login-input" />
+      <button onclick="checkPassword()" class="login-btn">Ingresar</button>
+      <p id="loginError" class="login-error"></p>
     </div>
   </div>
 
-  <div class="max-w-6xl mx-auto px-4 py-6 md:py-8">
-    <div class="mb-6">
-      <div class="section-card overflow-hidden">
-        <div class="section-title px-5 py-4">
-          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Trade Marketing Chopp Costa</h1>
-          <p class="mt-1 text-sm md:text-base text-blue-100">Sistema digital de gestión de comodatos</p>
-        </div>
-        <div class="px-5 py-4 bg-white">
-          <p class="text-sm text-gray-600">Region Costa</p>
-        </div>
-      </div>
-    </div>
+  <div class="app-shell">
 
-    <nav class="main-nav">
-      <button type="button" id="navNuevoBtn" class="nav-btn active">Nuevo Comodato</button>
-      <button type="button" id="navMisComodatosBtn" class="nav-btn">Mis Comodatos</button>
-      <button type="button" id="navSanitizacionesBtn" class="nav-btn">Sanitizaciones</button>
-      <button type="button" id="navChoperasBtn" class="nav-btn">Mis Choperas</button>
-      <button type="button" id="navHeladerasBtn" class="nav-btn">Heladeras</button>
-    </nav>
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <button type="button" id="drawerToggle" class="topbar-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="appDrawer">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar-logo" aria-hidden="true">TCC</div>
+      <div class="topbar-titles">
+        <div class="topbar-title" id="topbarTitulo">Nuevo Comodato</div>
+        <div class="topbar-sub">Región Costa · <span id="topbarTecnico">sin técnico</span></div>
+      </div>
+      <button type="button" id="topbarAvatar" class="topbar-avatar" aria-label="Cerrar sesión" title="Cerrar sesión">·</button>
+    </header>
+
+    <!-- DRAWER -->
+    <div id="drawerOverlay" class="drawer-overlay"></div>
+    <aside id="appDrawer" class="drawer" aria-label="Menú principal">
+      <div class="drawer-head">
+        <div class="drawer-logo" aria-hidden="true">TCC</div>
+        <div class="drawer-brand">Trade Marketing</div>
+        <div class="drawer-sub">Chopp Costa · Comodatos</div>
+      </div>
+      <nav class="main-nav">
+        <button type="button" id="navNuevoBtn" class="nav-btn active" data-mod="nuevo"><span class="nav-mono">NC</span><span class="nav-label">Nuevo Comodato</span></button>
+        <button type="button" id="navMisComodatosBtn" class="nav-btn" data-mod="misComodatos"><span class="nav-mono">MC</span><span class="nav-label">Mis Comodatos</span></button>
+        <button type="button" id="navSanitizacionesBtn" class="nav-btn" data-mod="sanitizaciones"><span class="nav-mono">SA</span><span class="nav-label">Sanitizaciones</span></button>
+        <button type="button" id="navChoperasBtn" class="nav-btn" data-mod="choperas"><span class="nav-mono">CH</span><span class="nav-label">Mis Choperas</span></button>
+        <button type="button" id="navHeladerasBtn" class="nav-btn" data-mod="heladeras"><span class="nav-mono">HE</span><span class="nav-label">Heladeras</span></button>
+      </nav>
+      <div class="drawer-foot">
+        <div class="drawer-foot-label">Conectado como</div>
+        <div class="drawer-foot-name" id="drawerTecnico">sin técnico</div>
+        <button type="button" id="logoutBtn" class="drawer-logout">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="app-main">
 
     <div id="statusBox" class="status-box mb-5"></div>
 
@@ -972,7 +1730,9 @@
 
         <div id="sanitResumen" class="kpi-grid"></div>
 
-        <div class="sanit-toolbar" id="sanitToolbar">
+        <details class="filtros-box" id="sanitToolbar">
+          <summary>Buscar y filtrar</summary>
+          <div class="sanit-toolbar">
           <div>
             <label class="field-label" for="sanitBuscar">Buscar cliente</label>
             <input id="sanitBuscar" type="text" class="field-input" placeholder="Nombre, dirección o localidad" />
@@ -990,7 +1750,8 @@
             </select>
           </div>
           <button type="button" id="sanitAltaBtn" class="secondary-btn">+ Agregar cliente</button>
-        </div>
+          </div>
+        </details>
 
         <div id="sanitLista" class="space-y-3"></div>
 
@@ -1068,7 +1829,9 @@
 
         <div id="choperasResumen" class="kpi-grid"></div>
 
-        <div class="sanit-toolbar">
+        <details class="filtros-box">
+          <summary>Buscar y filtrar</summary>
+          <div class="sanit-toolbar">
           <div>
             <label class="field-label" for="choperasBuscar">Buscar</label>
             <input id="choperasBuscar" type="text" class="field-input" placeholder="Cliente, equipo o localidad" />
@@ -1085,7 +1848,8 @@
             </select>
           </div>
           <button type="button" id="choperasNuevaBtn" class="secondary-btn">+ Agregar chopera</button>
-        </div>
+          </div>
+        </details>
 
         <div id="choperasLista" class="space-y-3"></div>
         </div>
@@ -1508,6 +2272,15 @@
 
 
     <form id="comodatoForm" class="space-y-6">
+
+      <div class="wz-progress" role="tablist" aria-label="Pasos del comodato">
+        <button type="button" class="is-current"><span class="wz-bar"></span><span class="wz-label">Logística</span></button>
+        <button type="button"><span class="wz-bar"></span><span class="wz-label">Equipos</span></button>
+        <button type="button"><span class="wz-bar"></span><span class="wz-label">Firma</span></button>
+        <button type="button"><span class="wz-bar"></span><span class="wz-label">Revisión</span></button>
+      </div>
+
+      <div class="wz-step is-current" data-step="0">
       
       <!-- 1. LOGÍSTICA -->
       <section class="section-card overflow-hidden">
@@ -1577,6 +2350,10 @@
         </div>
       </section>
 
+      </div>
+
+      <div class="wz-step" data-step="1">
+
       <!-- 2. EQUIPO/S DINÁMICOS -->
       <section class="section-card overflow-hidden">
         <div class="section-title px-5 py-4">
@@ -1585,7 +2362,11 @@
         <div class="p-4 md:p-5">
           <div class="mb-5 md:w-1/2">
             <label class="field-label" for="cantidadEquipos">Cantidad de Equipos de Chopp</label>
-            <input id="cantidadEquipos" type="number" min="1" value="1" class="field-input" onchange="renderEquipos()" />
+            <div class="stepper">
+              <button type="button" data-stepper="menos" aria-label="Quitar un equipo">−</button>
+              <input id="cantidadEquipos" type="number" min="1" value="1" inputmode="numeric" onchange="renderEquipos()" />
+              <button type="button" data-stepper="mas" aria-label="Agregar un equipo">+</button>
+            </div>
           </div>
           <div id="equiposContainer" class="space-y-6">
             <!-- Campos inyectados con JS -->
@@ -1692,6 +2473,10 @@
         </div>
       </section>
 
+      </div>
+
+      <div class="wz-step" data-step="2">
+
       <!-- 5. CIERRE Y FIRMA -->
       <section class="section-card overflow-hidden">
         <div class="section-title px-5 py-4">
@@ -1733,12 +2518,31 @@
         </div>
       </section>
 
-      <div>
-        <button id="submitBtn" type="submit" class="submit-btn">
-          Guardar comodato con firma
-        </button>
+      </div>
+
+      <div class="wz-step" data-step="3">
+
+      <!-- 6. REVISIÓN -->
+      <section class="section-card overflow-hidden">
+        <div class="section-title px-5 py-4">
+          <h2 class="text-lg md:text-xl font-bold">6. Revisión</h2>
+        </div>
+        <div class="p-4 md:p-5">
+          <div class="wz-resumen" id="wzResumen"></div>
+          <p class="small-note mt-3">Revisá los datos antes de generar el comodato. Podés volver atrás para corregir.</p>
+        </div>
+      </section>
+
+      </div>
+
+      <div class="wz-nav">
+        <button type="button" id="wzBack" style="display:none;">Atrás</button>
+        <button type="button" id="wzNext">Continuar</button>
+        <button id="submitBtn" type="submit" class="submit-btn" style="display:none;">Generar comodato</button>
       </div>
     </form>
+
+    </main>
   </div>
 
   <script>
@@ -2073,7 +2877,7 @@
       } finally {
         enviandoComodato = false;
         submitBtn.disabled = false;
-        submitBtn.textContent = "Guardar comodato con firma";
+        submitBtn.textContent = "Generar comodato";
       }
     });
 
@@ -5340,6 +6144,217 @@
         document.getElementById("loginScreen").style.display = "none";
       }
     }
+  </script>
+
+  <!-- SCRIPT DE LA CAPA VISUAL (shell mobile, wizard y tablas en tarjetas) -->
+  <script>
+    (function () {
+      "use strict";
+
+      // =========================================================
+      // 1. DRAWER + TOP BAR
+      // =========================================================
+      const drawer = document.getElementById("appDrawer");
+      const overlay = document.getElementById("drawerOverlay");
+      const toggle = document.getElementById("drawerToggle");
+      const topbarTitulo = document.getElementById("topbarTitulo");
+      const topbarTecnico = document.getElementById("topbarTecnico");
+      const topbarAvatar = document.getElementById("topbarAvatar");
+      const drawerTecnico = document.getElementById("drawerTecnico");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      function abrirDrawer(abrir) {
+        drawer.classList.toggle("is-open", abrir);
+        overlay.classList.toggle("is-open", abrir);
+        toggle.setAttribute("aria-expanded", String(abrir));
+        document.body.style.overflow = abrir ? "hidden" : "";
+      }
+
+      toggle.addEventListener("click", () => abrirDrawer(!drawer.classList.contains("is-open")));
+      overlay.addEventListener("click", () => abrirDrawer(false));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && drawer.classList.contains("is-open")) abrirDrawer(false);
+      });
+
+      // El título de la barra sigue al botón de navegación activo.
+      document.querySelectorAll(".main-nav .nav-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const label = btn.querySelector(".nav-label");
+          topbarTitulo.textContent = label ? label.textContent : btn.textContent.trim();
+          abrirDrawer(false);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+
+      // Nombre del técnico: sale del mismo localStorage que ya usa la app.
+      const TECNICO_KEY = "comodatos_tecnico_nombre";
+      function refrescarTecnico() {
+        let nombre = "";
+        try { nombre = localStorage.getItem(TECNICO_KEY) || ""; } catch (e) { nombre = ""; }
+        if (!nombre) {
+          const activo = document.querySelector(".tecnico-btn.is-active:not(.btn-todos)");
+          if (activo) nombre = activo.textContent.trim();
+        }
+        topbarTecnico.textContent = nombre || "sin técnico";
+        drawerTecnico.textContent = nombre || "sin técnico";
+        topbarAvatar.textContent = nombre ? nombre.trim().charAt(0).toUpperCase() : "·";
+      }
+      refrescarTecnico();
+      document.addEventListener("click", (e) => {
+        if (e.target.closest(".tecnico-btn")) setTimeout(refrescarTecnico, 60);
+      });
+      window.addEventListener("storage", refrescarTecnico);
+
+      function cerrarSesion() {
+        if (!confirm("¿Cerrar sesión?")) return;
+        try { sessionStorage.removeItem("comodatosAuth"); } catch (e) {}
+        location.reload();
+      }
+      topbarAvatar.addEventListener("click", cerrarSesion);
+      logoutBtn.addEventListener("click", cerrarSesion);
+
+      // =========================================================
+      // 2. STATUS COMO SNACKBAR: se esconde solo cuando es un OK
+      // =========================================================
+      const statusBox = document.getElementById("statusBox");
+      let statusTimer = null;
+      new MutationObserver(() => {
+        if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+        const visible = statusBox.style.display === "block";
+        const esOk = statusBox.classList.contains("status-ok");
+        const tieneLink = statusBox.querySelector("a");
+        if (visible && esOk && !tieneLink) {
+          statusTimer = setTimeout(() => { statusBox.style.display = "none"; statusBox.innerHTML = ""; }, 4000);
+        }
+      }).observe(statusBox, { attributes: true, childList: true, subtree: true });
+
+      // =========================================================
+      // 3. TABLAS EN TARJETAS: se copian los encabezados a cada celda
+      // =========================================================
+      function etiquetarTablas(raiz) {
+        (raiz.querySelectorAll ? raiz.querySelectorAll("table.tabla-general") : []).forEach(tabla => {
+          const encabezados = Array.from(tabla.querySelectorAll("thead th")).map(th => th.textContent.trim());
+          if (!encabezados.length) return;
+          tabla.querySelectorAll("tbody tr").forEach(fila => {
+            Array.from(fila.children).forEach((celda, i) => {
+              if (encabezados[i] && !celda.hasAttribute("data-col")) celda.setAttribute("data-col", encabezados[i]);
+            });
+          });
+        });
+      }
+      etiquetarTablas(document);
+      new MutationObserver(muts => {
+        muts.forEach(m => m.addedNodes.forEach(n => {
+          if (n.nodeType !== 1) return;
+          if (n.matches && n.matches("table.tabla-general")) etiquetarTablas(n.parentNode);
+          else etiquetarTablas(n);
+        }));
+      }).observe(document.body, { childList: true, subtree: true });
+
+      // =========================================================
+      // 4. WIZARD DE NUEVO COMODATO
+      // =========================================================
+      const form = document.getElementById("comodatoForm");
+      const pasos = Array.from(form.querySelectorAll(".wz-step"));
+      const progreso = Array.from(document.querySelectorAll(".wz-progress > button"));
+      const btnBack = document.getElementById("wzBack");
+      const btnNext = document.getElementById("wzNext");
+      const btnSubmit = document.getElementById("submitBtn");
+      const resumen = document.getElementById("wzResumen");
+      let pasoActual = 0;
+
+      const CAMPOS_RESUMEN = [
+        ["fecha", "Fecha"],
+        ["comodatoNumero", "Comodato N°"],
+        ["tecnico", "Técnico"],
+        ["distribuidor", "Distribuidor"],
+        ["codCliente", "Cod. Cliente"],
+        ["cuit", "CUIT"],
+        ["nombreFantasia", "Nombre Fantasía"],
+        ["razonSocial", "Razón Social"],
+        ["domicilio", "Domicilio"],
+        ["localidad", "Localidad"],
+        ["cantidadEquipos", "Cantidad de equipos"],
+        ["cantidadPilones", "Cantidad de pilones"],
+        ["cantPicos", "Cantidad de picos"],
+        ["aclaracion", "Aclaración"],
+        ["dni", "DNI"]
+      ];
+
+      function pintarResumen() {
+        const filas = CAMPOS_RESUMEN.map(([id, label]) => {
+          const el = document.getElementById(id);
+          if (!el) return "";
+          const valor = (el.value || "").toString().trim();
+          if (!valor) return "";
+          const seguro = valor.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+          return '<div class="wz-fila"><span>' + label + "</span><span>" + seguro + "</span></div>";
+        }).filter(Boolean);
+        const equipos = form.querySelectorAll("#equiposContainer select, #equiposContainer input");
+        if (equipos.length) filas.push('<div class="wz-fila"><span>Equipos cargados</span><span>' + document.getElementById("cantidadEquipos").value + "</span></div>");
+        const terminos = document.getElementById("acceptTerms");
+        filas.push('<div class="wz-fila"><span>Términos aceptados</span><span>' + (terminos && terminos.checked ? "Sí" : "No") + "</span></div>");
+        resumen.innerHTML = filas.join("") || '<p class="small-note">Todavía no cargaste datos.</p>';
+      }
+
+      function irAPaso(i, saltarValidacion) {
+        i = Math.max(0, Math.min(pasos.length - 1, i));
+        if (!saltarValidacion && i > pasoActual) {
+          for (let p = pasoActual; p < i; p++) {
+            if (!validarPaso(p)) return;
+          }
+        }
+        pasoActual = i;
+        pasos.forEach((el, idx) => el.classList.toggle("is-current", idx === pasoActual));
+        progreso.forEach((el, idx) => {
+          el.classList.toggle("is-current", idx === pasoActual);
+          el.classList.toggle("is-done", idx < pasoActual);
+        });
+        const ultimo = pasoActual === pasos.length - 1;
+        btnBack.style.display = pasoActual === 0 ? "none" : "";
+        btnNext.style.display = ultimo ? "none" : "";
+        btnSubmit.style.display = ultimo ? "" : "none";
+        if (ultimo) pintarResumen();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Los campos required que quedan en un paso oculto no se pueden reportar:
+      // se valida paso por paso antes de dejar avanzar.
+      function validarPaso(indice) {
+        const paso = pasos[indice];
+        if (!paso) return true;
+        const campos = paso.querySelectorAll("input, select, textarea");
+        for (const campo of campos) {
+          if (campo.disabled || campo.type === "hidden") continue;
+          if (!campo.checkValidity()) {
+            if (indice !== pasoActual) irAPaso(indice, true);
+            campo.reportValidity();
+            return false;
+          }
+        }
+        return true;
+      }
+
+      btnNext.addEventListener("click", () => irAPaso(pasoActual + 1));
+      btnBack.addEventListener("click", () => irAPaso(pasoActual - 1, true));
+      progreso.forEach((el, idx) => el.addEventListener("click", () => irAPaso(idx, idx <= pasoActual)));
+      form.addEventListener("reset", () => setTimeout(() => irAPaso(0, true), 0));
+
+      // Stepper +/- de la cantidad de equipos
+      const cantEquipos = document.getElementById("cantidadEquipos");
+      document.querySelectorAll("[data-stepper]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const delta = btn.getAttribute("data-stepper") === "mas" ? 1 : -1;
+          const actual = parseInt(cantEquipos.value, 10) || 1;
+          const nuevo = Math.max(1, actual + delta);
+          if (nuevo === actual) return;
+          cantEquipos.value = nuevo;
+          cantEquipos.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+
+      irAPaso(0, true);
+    })();
   </script>
 </body>
 </html>
