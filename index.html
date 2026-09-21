@@ -692,8 +692,13 @@
       .hel-filtros-box { border: 0; background: transparent; padding: 0; }
       .hel-filtros-box > summary { display: none; }
     }
-    .hel-filtros-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
-    .hel-filtros-acciones .secondary-btn { flex: 1 1 auto; }
+    /* Los botones van en su propia fila para que no caigan en medio de los filtros */
+    .hel-filtros-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hel-filtros-acciones .secondary-btn { flex: 1 1 100%; }
+    @media (min-width: 768px) {
+      .hel-filtros-acciones { justify-content: flex-end; }
+      .hel-filtros-acciones .secondary-btn { flex: 0 0 auto; }
+    }
     .hel-estado-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .hel-barra {
       display: flex;
@@ -1172,10 +1177,11 @@
                     <option value="tecnico">Técnico (A-Z)</option>
                   </select>
                 </div>
-                <div class="hel-filtros-acciones">
-                  <button type="button" id="helTabLimpiar" class="secondary-btn">Limpiar filtros</button>
-                  <button type="button" id="helTabCsv" class="secondary-btn">Descargar Excel (CSV)</button>
-                </div>
+              </div>
+
+              <div class="hel-filtros-acciones">
+                <button type="button" id="helTabLimpiar" class="secondary-btn">Limpiar filtros</button>
+                <button type="button" id="helTabCsv" class="secondary-btn">Descargar Excel (CSV)</button>
               </div>
 
               <div>
