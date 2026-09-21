@@ -650,9 +650,51 @@
     .hel-filtros,
     .gen-filtros { display: grid; grid-template-columns: 1fr; gap: 10px; }
     @media (min-width: 768px) {
-      .hel-filtros,
       .gen-filtros { grid-template-columns: 1fr 1fr auto; align-items: end; }
+      /* Son varios filtros: entran los que quepan y el resto baja solo */
+      .hel-filtros { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: end; }
     }
+    /* En el celular los filtros van plegados; en pantalla grande se ven siempre */
+    .hel-filtros-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 0.6rem 0.75rem;
+    }
+    .hel-filtros-box > summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: #0f172a;
+      cursor: pointer;
+      list-style: none;
+      padding: 0.25rem 0;
+    }
+    .hel-filtros-box > summary::-webkit-details-marker { display: none; }
+    .hel-filtros-box > summary::after {
+      content: "\25BE";
+      color: #64748b;
+      font-size: 0.9rem;
+      transition: transform 0.12s ease;
+    }
+    .hel-filtros-box[open] > summary::after { transform: rotate(180deg); }
+    .hel-filtros-box[open] > summary {
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 0.55rem;
+      margin-bottom: 0.75rem;
+    }
+    .hel-filtros-box > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .hel-filtros-resumen { font-weight: 700; font-size: 0.78rem; color: #475569; }
+    @media (min-width: 768px) {
+      .hel-filtros-box { border: 0; background: transparent; padding: 0; }
+      .hel-filtros-box > summary { display: none; }
+    }
+    .hel-filtros-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    .hel-filtros-acciones .secondary-btn { flex: 1 1 auto; }
+    .hel-estado-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .hel-barra {
       display: flex;
       gap: 2px;
@@ -670,7 +712,7 @@
     .hel-leyenda strong { color: #0f172a; font-variant-numeric: tabular-nums; }
     .hel-board { display: grid; grid-template-columns: 1fr; gap: 10px; }
     @media (min-width: 900px) {
-      .hel-board { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: start; }
+      .hel-board { grid-template-columns: repeat(var(--hel-cols, 5), minmax(0, 1fr)); align-items: start; }
     }
     .hel-col {
       background: #f8fafc;
@@ -769,6 +811,9 @@
       cursor: pointer;
     }
     .hel-chip:hover { border-color: var(--brand); }
+    .hel-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    /* Chip de estado prendido: toma el color de su columna del tablero */
+    .hel-chip.is-active { background: var(--chip, var(--brand)); border-color: var(--chip, var(--brand)); color: white; }
     .hel-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .hel-foto-form {
       display: flex;
@@ -1079,23 +1124,71 @@
         </div>
 
         <div id="helTablero" class="space-y-5" style="display:none;">
-          <div class="hel-filtros">
-            <div>
-              <label class="field-label" for="helTabPeriodo">Cerrados en</label>
-              <select id="helTabPeriodo" class="field-select">
-                <option value="7">Últimos 7 días</option>
-                <option value="30" selected>Últimos 30 días</option>
-                <option value="90">Últimos 90 días</option>
-                <option value="0">Todo el historial</option>
-              </select>
+          <details class="hel-filtros-box" id="helFiltrosBox">
+            <summary><span>Filtros</span><span class="hel-filtros-resumen" id="helFiltrosResumen"></span></summary>
+            <div class="space-y-4">
+
+              <div class="hel-filtros">
+                <div>
+                  <label class="field-label" for="helTabBuscar">Buscar</label>
+                  <input id="helTabBuscar" type="text" class="field-input" placeholder="Cliente, dirección, localidad, falla, equipo, boca o ID" />
+                </div>
+                <div>
+                  <label class="field-label" for="helTabPeriodo">Cerrados en</label>
+                  <select id="helTabPeriodo" class="field-select">
+                    <option value="7">Últimos 7 días</option>
+                    <option value="30" selected>Últimos 30 días</option>
+                    <option value="90">Últimos 90 días</option>
+                    <option value="0">Todo el historial</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label" for="helTabTecnico">Técnico</label>
+                  <select id="helTabTecnico" class="field-select"></select>
+                </div>
+                <div>
+                  <label class="field-label" for="helTabLocalidad">Localidad</label>
+                  <select id="helTabLocalidad" class="field-select"><option value="">Todas</option></select>
+                </div>
+                <div>
+                  <label class="field-label" for="helTabSupervisor">Supervisor</label>
+                  <select id="helTabSupervisor" class="field-select"><option value="">Todos</option></select>
+                </div>
+                <div>
+                  <label class="field-label" for="helTabEdad">Antigüedad</label>
+                  <select id="helTabEdad" class="field-select">
+                    <option value="0">Todas</option>
+                    <option value="2">2 días o más</option>
+                    <option value="5">5 días o más</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label" for="helTabOrden">Ordenar por</label>
+                  <select id="helTabOrden" class="field-select">
+                    <option value="auto">Por defecto</option>
+                    <option value="nuevos">Más nuevos</option>
+                    <option value="viejos">Más viejos</option>
+                    <option value="cliente">Cliente (A-Z)</option>
+                    <option value="tecnico">Técnico (A-Z)</option>
+                  </select>
+                </div>
+                <div class="hel-filtros-acciones">
+                  <button type="button" id="helTabLimpiar" class="secondary-btn">Limpiar filtros</button>
+                  <button type="button" id="helTabCsv" class="secondary-btn">Descargar Excel (CSV)</button>
+                </div>
+              </div>
+
+              <div>
+                <div class="field-label">Estado</div>
+                <div class="hel-estado-chips" id="helTabEstados" role="group" aria-label="Filtrar por estado"></div>
+              </div>
+
+              <p class="small-note">Los tickets abiertos se muestran siempre; el período filtra solo los cerrados. Antigüedad: lo que lleva abierto el ticket, o lo que tardó en cerrarse. Los chips de estado recortan las columnas y el Excel; los KPIs y la barra siempre resumen todos los estados.</p>
+
             </div>
-            <div>
-              <label class="field-label" for="helTabTecnico">Técnico</label>
-              <select id="helTabTecnico" class="field-select"></select>
-            </div>
-            <button type="button" id="helTabCsv" class="secondary-btn">Descargar Excel (CSV)</button>
-          </div>
-          <p class="small-note">Los tickets abiertos se muestran siempre; el período filtra solo los cerrados.</p>
+          </details>
+
+          <p class="small-note" id="helTabResultado" aria-live="polite"></p>
 
           <div id="helTabKpis" class="kpi-grid"></div>
 
@@ -4786,6 +4879,16 @@
     const helTableroBox = document.getElementById("helTablero");
     const helTabPeriodo = document.getElementById("helTabPeriodo");
     const helTabTecnico = document.getElementById("helTabTecnico");
+    const helTabBuscar = document.getElementById("helTabBuscar");
+    const helTabLocalidad = document.getElementById("helTabLocalidad");
+    const helTabSupervisor = document.getElementById("helTabSupervisor");
+    const helTabEdad = document.getElementById("helTabEdad");
+    const helTabOrden = document.getElementById("helTabOrden");
+    const helTabEstadosBox = document.getElementById("helTabEstados");
+    const helTabResultado = document.getElementById("helTabResultado");
+    const helTabLimpiar = document.getElementById("helTabLimpiar");
+    const helFiltrosBox = document.getElementById("helFiltrosBox");
+    const helFiltrosResumen = document.getElementById("helFiltrosResumen");
     const helTabCsv = document.getElementById("helTabCsv");
     const helTabKpis = document.getElementById("helTabKpis");
     const helTabBarra = document.getElementById("helTabBarra");
@@ -4802,6 +4905,8 @@
     ];
     const HEL_MINIS_VISIBLES = 8;
     let helColumnasExpandidas = {};
+    // Estados tildados en los chips. Vacio = todos.
+    let helTabEstadosSel = [];
     // Abierta/cerrada según lo que tocó el usuario; si no tocó nada, en el
     // celular arrancan abiertas solo las dos columnas que piden acción.
     let helColumnasAbiertas = {};
@@ -4830,39 +4935,173 @@
 
     const helPromedio_ = nums => nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
 
-    /** Filtro del tablero: los abiertos siempre, los cerrados según el período. */
-    function helTabFiltrados_(ignorarTecnico) {
+    /** Texto del ticket para el buscador del tablero. */
+    const helTextoTicket_ = t => [
+      t.id, t.cliente, t.codigo, t.direccion, t.localidad, t.negocio,
+      t.equipo, t.falla, t.supervisor, t.solicitante, t.tecnico, t.trabajo
+    ].join(" ").toLowerCase();
+
+    const helValor_ = v => String(v === undefined || v === null ? "" : v).trim();
+
+    /** Antigüedad en días: lo que lleva abierto, o lo que tardó en cerrarse. */
+    function helEdadDias_(t) {
+      if (!helCerrado_(t)) return helDiasDesde_(t.creado);
+      const h = helHoras_(t.creado, t.cerradoEl);
+      return h === null ? null : Math.floor(h / 24);
+    }
+
+    /**
+     * Filtro del tablero: los abiertos siempre, los cerrados según el período.
+     * ignorarTecnico lo usa la tabla por técnico (compara a todos) e
+     * ignorarEstado los KPIs y los propios chips (para poder contar).
+     */
+    function helTabFiltrados_(ignorarTecnico, ignorarEstado) {
       const tecnico = ignorarTecnico ? "" : helTabTecnico.value;
       const dias = Number(helTabPeriodo.value);
+      const localidad = helTabLocalidad.value;
+      const supervisor = helTabSupervisor.value;
+      const edad = Number(helTabEdad.value);
+      const texto = helTabBuscar.value.trim().toLowerCase();
       return heladeras.filter(t => {
         if (tecnico && t.tecnico !== tecnico) return false;
         if (helCerrado_(t) && dias > 0) {
           const d = helDiasDesde_(t.cerradoEl);
           if (d === null || d > dias) return false;
         }
+        if (!ignorarEstado && helTabEstadosSel.length && helTabEstadosSel.indexOf(t.estado) === -1) return false;
+        if (localidad && helValor_(t.localidad) !== localidad) return false;
+        if (supervisor && helValor_(t.supervisor) !== supervisor) return false;
+        if (edad > 0) {
+          const e = helEdadDias_(t);
+          if (e === null || e < edad) return false;
+        }
+        if (texto && helTextoTicket_(t).indexOf(texto) === -1) return false;
         return true;
       });
     }
 
-    function helRenderTablero_() {
-      const lista = helTabFiltrados_(false);
+    /** Agrupa los tickets por estado, respetando el orden de las columnas. */
+    function helAgrupar_(items) {
       const por = {};
       HEL_COLUMNAS.forEach(c => { por[c.estado] = []; });
-      lista.forEach(t => { if (por[t.estado]) por[t.estado].push(t); });
+      items.forEach(t => { if (por[t.estado]) por[t.estado].push(t); });
+      return por;
+    }
 
-      const resueltos = por["RESUELTO"];
-      const noResueltos = por["NO RESUELTO"];
+    /** Orden de las tarjetas dentro de cada columna. */
+    function helOrdenar_(items, cerrada) {
+      const orden = helTabOrden.value;
+      const porTexto = (a, b) => String(a || "").localeCompare(String(b || ""), "es");
+      const creado = t => String(t.creado || "");
+      if (orden === "nuevos") return items.sort((a, b) => creado(b).localeCompare(creado(a)));
+      if (orden === "viejos") return items.sort((a, b) => creado(a).localeCompare(creado(b)));
+      if (orden === "cliente") return items.sort((a, b) => porTexto(helNombre_(a), helNombre_(b)));
+      if (orden === "tecnico") return items.sort((a, b) => porTexto(a.tecnico, b.tecnico) || creado(a).localeCompare(creado(b)));
+      // Por defecto: lo abierto más viejo primero (es lo que apura) y lo cerrado más reciente
+      return items.sort((a, b) => cerrada
+        ? String(b.cerradoEl).localeCompare(String(a.cerradoEl))
+        : creado(a).localeCompare(creado(b)));
+    }
+
+    /** Rellena un select con los valores que traen los tickets, sin perder lo elegido. */
+    function helMontarOpciones_(select, valores, etiquetaTodos) {
+      const html = `<option value="">${escapeHtml_(etiquetaTodos)}</option>` +
+        valores.map(v => `<option value="${escapeHtml_(v)}">${escapeHtml_(v)}</option>`).join("");
+      if (select.innerHTML === html) return;
+      const elegido = select.value;
+      select.innerHTML = html;
+      select.value = valores.indexOf(elegido) !== -1 ? elegido : "";
+    }
+
+    function helMontarFiltros_() {
+      const unicos = campo => {
+        const vistos = [];
+        heladeras.forEach(t => {
+          const v = helValor_(t[campo]);
+          if (v && vistos.indexOf(v) === -1) vistos.push(v);
+        });
+        return vistos.sort((a, b) => a.localeCompare(b, "es"));
+      };
+      helMontarOpciones_(helTabLocalidad, unicos("localidad"), "Todas");
+      helMontarOpciones_(helTabSupervisor, unicos("supervisor"), "Todos");
+    }
+
+    /** Chips de estado, con cuántos tickets quedan en cada uno según el resto de los filtros. */
+    function helRenderEstados_() {
+      const base = helTabFiltrados_(false, true);
+      helTabEstadosBox.innerHTML = HEL_COLUMNAS.map(c => {
+        const n = base.filter(t => t.estado === c.estado).length;
+        const activo = helTabEstadosSel.indexOf(c.estado) !== -1;
+        return `<button type="button" class="hel-chip${activo ? " is-active" : ""}" style="--chip:${c.color}"
+          data-hel-estado="${escapeHtml_(c.estado)}" aria-pressed="${activo}">${escapeHtml_(c.titulo)} (${n})</button>`;
+      }).join("");
+    }
+
+    /** Cuántos filtros están puestos, para avisarlo cuando están plegados. */
+    function helContarFiltros_() {
+      let n = 0;
+      if (helTabBuscar.value.trim()) n++;
+      if (helTabPeriodo.value !== "30") n++;
+      if (helTabTecnico.value) n++;
+      if (helTabLocalidad.value) n++;
+      if (helTabSupervisor.value) n++;
+      if (helTabEdad.value !== "0") n++;
+      if (helTabOrden.value !== "auto") n++;
+      if (helTabEstadosSel.length) n++;
+      return n;
+    }
+
+    // En pantalla grande el desplegable queda siempre abierto (el título no se ve)
+    const helMqFiltros = window.matchMedia("(min-width: 768px)");
+    function helAjustarFiltros_() {
+      helFiltrosBox.open = helMqFiltros.matches;
+    }
+    if (helMqFiltros.addEventListener) helMqFiltros.addEventListener("change", helAjustarFiltros_);
+    else if (helMqFiltros.addListener) helMqFiltros.addListener(helAjustarFiltros_);
+    helAjustarFiltros_();
+
+    function helLimpiarFiltros_() {
+      helTabBuscar.value = "";
+      helTabPeriodo.value = "30";
+      helTabTecnico.value = "";
+      helTabLocalidad.value = "";
+      helTabSupervisor.value = "";
+      helTabEdad.value = "0";
+      helTabOrden.value = "auto";
+      helTabEstadosSel = [];
+      helRenderTablero_();
+    }
+
+    function helRenderTablero_() {
+      helMontarFiltros_();
+      helRenderEstados_();
+      // base ignora los chips de estado: es el resumen del resto de los filtros.
+      // lista es lo que se ve en las columnas y lo que baja el Excel.
+      const base = helTabFiltrados_(false, true);
+      const lista = helTabFiltrados_(false, false);
+      const porBase = helAgrupar_(base);
+      const por = helAgrupar_(lista);
+      helTabResultado.textContent = heladeras.length
+        ? "Mostrando " + lista.length + " de " + heladeras.length + " tickets."
+        : "";
+      const filtrosPuestos = helContarFiltros_();
+      helFiltrosResumen.textContent = filtrosPuestos
+        ? filtrosPuestos + (filtrosPuestos === 1 ? " puesto" : " puestos")
+        : "ninguno puesto";
+
+      const resueltos = porBase["RESUELTO"];
+      const noResueltos = porBase["NO RESUELTO"];
       const cerrados = resueltos.length + noResueltos.length;
       const periodo = helTabPeriodo.options[helTabPeriodo.selectedIndex].text.toLowerCase();
-      const masViejo = por["SIN ASIGNAR"].reduce((m, t) => Math.max(m, helDiasDesde_(t.creado) || 0), 0);
+      const masViejo = porBase["SIN ASIGNAR"].reduce((m, t) => Math.max(m, helDiasDesde_(t.creado) || 0), 0);
       const resolucion = helPromedio_(resueltos.map(t => helHoras_(t.creado, t.cerradoEl)).filter(h => h !== null));
-      const demoraToma = helPromedio_(lista.filter(t => t.tomadoEl).map(t => helHoras_(t.creado, t.tomadoEl)).filter(h => h !== null));
+      const demoraToma = helPromedio_(base.filter(t => t.tomadoEl).map(t => helHoras_(t.creado, t.tomadoEl)).filter(h => h !== null));
 
       const kpis = [
-        { valor: por["SIN ASIGNAR"].length, label: "Sin iniciar", clase: por["SIN ASIGNAR"].length ? "is-vencido" : "is-aldia",
+        { valor: porBase["SIN ASIGNAR"].length, label: "Sin iniciar", clase: porBase["SIN ASIGNAR"].length ? "is-vencido" : "is-aldia",
           nota: masViejo ? "el más viejo: " + masViejo + " día(s)" : "" },
-        { valor: por["ASIGNADO"].length + por["EN ESPERA"].length, label: "Pendientes (en curso)", clase: "is-porvencer",
-          nota: por["EN ESPERA"].length + " en espera" },
+        { valor: porBase["ASIGNADO"].length + porBase["EN ESPERA"].length, label: "Pendientes (en curso)", clase: "is-porvencer",
+          nota: porBase["EN ESPERA"].length + " en espera" },
         { valor: resueltos.length, label: "Resueltos", clase: "is-aldia", nota: periodo },
         { valor: noResueltos.length, label: "No resueltos", clase: "", nota: periodo },
         { valor: cerrados ? Math.round(resueltos.length * 100 / cerrados) + "%" : "—", label: "Tasa de resolución", clase: "",
@@ -4878,27 +5117,26 @@
           ${k.nota ? `<div class="small-note">${escapeHtml_(k.nota)}</div>` : ""}
         </div>`).join("");
 
-      // Barra de distribución por estado
-      const total = lista.length;
+      // Barra de distribución por estado (sobre todos los estados, no sobre los chips)
+      const total = base.length;
       const pct = n => total ? Math.round(n * 100 / total) : 0;
       helTabBarra.innerHTML = total
-        ? `<div class="hel-barra" role="img" aria-label="${escapeHtml_(HEL_COLUMNAS.map(c => c.titulo + ": " + por[c.estado].length).join(", "))}">
-            ${HEL_COLUMNAS.filter(c => por[c.estado].length).map(c => `
-              <div style="flex:${por[c.estado].length} 1 0; background:${c.color};"
-                   title="${escapeHtml_(c.titulo + ": " + por[c.estado].length + " (" + pct(por[c.estado].length) + "%)")}"></div>`).join("")}
+        ? `<div class="hel-barra" role="img" aria-label="${escapeHtml_(HEL_COLUMNAS.map(c => c.titulo + ": " + porBase[c.estado].length).join(", "))}">
+            ${HEL_COLUMNAS.filter(c => porBase[c.estado].length).map(c => `
+              <div style="flex:${porBase[c.estado].length} 1 0; background:${c.color};"
+                   title="${escapeHtml_(c.titulo + ": " + porBase[c.estado].length + " (" + pct(porBase[c.estado].length) + "%)")}"></div>`).join("")}
           </div>
           <div class="hel-leyenda">
-            ${HEL_COLUMNAS.map(c => `<span><i style="background:${c.color}"></i>${escapeHtml_(c.titulo)} <strong>${por[c.estado].length}</strong> <span class="small-note">(${pct(por[c.estado].length)}%)</span></span>`).join("")}
+            ${HEL_COLUMNAS.map(c => `<span><i style="background:${c.color}"></i>${escapeHtml_(c.titulo)} <strong>${porBase[c.estado].length}</strong> <span class="small-note">(${pct(porBase[c.estado].length)}%)</span></span>`).join("")}
           </div>`
         : `<p class="small-note mt-2">No hay tickets con estos filtros.</p>`;
 
-      // Columnas por estado
-      helTabColumnas.innerHTML = HEL_COLUMNAS.map(c => {
-        const items = por[c.estado].slice();
+      // Columnas por estado: con chips prendidos se muestran solo esas columnas
+      const columnasVisibles = HEL_COLUMNAS.filter(c => !helTabEstadosSel.length || helTabEstadosSel.indexOf(c.estado) !== -1);
+      helTabColumnas.style.setProperty("--hel-cols", String(columnasVisibles.length));
+      helTabColumnas.innerHTML = columnasVisibles.map(c => {
         const cerrada = c.estado === "RESUELTO" || c.estado === "NO RESUELTO";
-        items.sort((a, b) => cerrada
-          ? String(b.cerradoEl).localeCompare(String(a.cerradoEl))
-          : String(a.creado).localeCompare(String(b.creado)));
+        const items = helOrdenar_(por[c.estado].slice(), cerrada);
 
         const expandida = !!helColumnasExpandidas[c.estado];
         const visibles = expandida ? items : items.slice(0, HEL_MINIS_VISIBLES);
@@ -4924,12 +5162,12 @@
           </details>`;
       }).join("");
 
-      // Tabla por técnico (compara a todos: ignora el filtro de técnico)
-      const base = helTabFiltrados_(true);
+      // Tabla por técnico (compara a todos: ignora el filtro de técnico y los chips de estado)
+      const baseTecnicos = helTabFiltrados_(true, true);
       const nombres = helTecnicos.slice();
-      base.forEach(t => { if (t.tecnico && nombres.indexOf(t.tecnico) === -1) nombres.push(t.tecnico); });
+      baseTecnicos.forEach(t => { if (t.tecnico && nombres.indexOf(t.tecnico) === -1) nombres.push(t.tecnico); });
       const filas = nombres.map(nombre => {
-        const suyos = base.filter(t => t.tecnico === nombre);
+        const suyos = baseTecnicos.filter(t => t.tecnico === nombre);
         const res = suyos.filter(t => t.estado === "RESUELTO");
         const nores = suyos.filter(t => t.estado === "NO RESUELTO");
         const prom = helPromedio_(res.map(t => helHoras_(t.tomadoEl || t.creado, t.cerradoEl)).filter(h => h !== null));
@@ -4951,7 +5189,7 @@
             ${filas.map(f => `<tr><td>${escapeHtml_(f.nombre)}</td><td>${f.curso}</td><td>${f.espera}</td><td>${f.res}</td><td>${f.nores}</td><td>${f.tasa}</td><td>${escapeHtml_(f.prom)}</td></tr>`).join("")}
           </tbody>
         </table>
-        <p class="small-note mt-2">Prom. resolución: desde que el técnico lo tomó hasta que lo cerró. Sin iniciar: ${base.filter(t => t.estado === "SIN ASIGNAR").length}.</p>`;
+        <p class="small-note mt-2">Prom. resolución: desde que el técnico lo tomó hasta que lo cerró. Sin iniciar: ${baseTecnicos.filter(t => t.estado === "SIN ASIGNAR").length}.</p>`;
     }
 
     function helDescargarCsv_() {
@@ -4969,7 +5207,7 @@
       // Punto y coma y BOM: así Excel en español lo abre en columnas y con acentos
       const celda = v => '"' + String(v === undefined || v === null ? "" : v).replace(/"/g, '""') + '"';
       const lineas = [columnas.map(c => celda(c[0])).join(";")]
-        .concat(helTabFiltrados_(false).map(t => columnas.map(c => celda(c[1](t))).join(";")));
+        .concat(helTabFiltrados_(false, false).map(t => columnas.map(c => celda(c[1](t))).join(";")));
       const blob = new Blob(["﻿" + lineas.join("\r\n")], { type: "text/csv;charset=utf-8" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -5040,6 +5278,21 @@
     }, true);
     helTabPeriodo.addEventListener("change", helRenderTablero_);
     helTabTecnico.addEventListener("change", helRenderTablero_);
+    helTabLocalidad.addEventListener("change", helRenderTablero_);
+    helTabSupervisor.addEventListener("change", helRenderTablero_);
+    helTabEdad.addEventListener("change", helRenderTablero_);
+    helTabOrden.addEventListener("change", helRenderTablero_);
+    helTabBuscar.addEventListener("input", sanitDebounce_(helRenderTablero_, 250));
+    helTabLimpiar.addEventListener("click", helLimpiarFiltros_);
+    helTabEstadosBox.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-hel-estado]");
+      if (!b) return;
+      const estado = b.getAttribute("data-hel-estado");
+      const i = helTabEstadosSel.indexOf(estado);
+      if (i === -1) helTabEstadosSel.push(estado);
+      else helTabEstadosSel.splice(i, 1);
+      helRenderTablero_();
+    });
     helTabCsv.addEventListener("click", helDescargarCsv_);
     helTabColumnas.addEventListener("click", (e) => {
       const ir = e.target.closest("[data-hel-ir]");
