@@ -897,10 +897,6 @@
       display: flex;
       flex-direction: column;
     }
-    /* En pantallas grandes se ensancha para no romper tableros y tablas */
-    @media (min-width: 1024px) {
-      .app-shell { max-width: 940px; }
-    }
     .app-main {
       flex: 1;
       padding: 16px 14px 90px;
@@ -1590,6 +1586,149 @@
     }
     .hel-actions, .sanit-actions, .comodato-actions { gap: 8px; }
     ::-webkit-scrollbar { height: 6px; width: 6px; }
+
+    /* ==========================================================
+       ESCRITORIO Y TABLET — adaptacion del mismo shell
+       Mobile (<768px) queda tal cual. Tablet ensancha el
+       contenedor. Escritorio (>=1024px) convierte el drawer en
+       una barra lateral fija y usa todo el ancho disponible.
+       ========================================================== */
+
+    /* ---------- Tablet: 768px a 1023px ---------- */
+    @media (min-width: 768px) and (max-width: 1023.98px) {
+      .app-shell { max-width: 720px; }
+      .app-main { padding: 20px 20px 90px; }
+      .tecnico-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .qty-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    }
+
+    /* ---------- Escritorio: 1024px en adelante ---------- */
+    @media (min-width: 1024px) {
+      .app-shell {
+        max-width: none;
+        width: 100%;
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 264px minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-areas:
+          "sidebar topbar"
+          "sidebar main";
+        box-shadow: none;
+        overflow-x: visible;
+      }
+
+      /* El drawer deja de ser un panel flotante y pasa a ser la barra lateral */
+      .drawer {
+        grid-area: sidebar;
+        position: sticky;
+        top: 0;
+        left: auto;
+        bottom: auto;
+        height: 100vh;
+        width: auto;
+        max-width: none;
+        display: flex !important;
+        animation: none !important;
+        box-shadow: none;
+        border-right: 1px solid var(--line);
+        z-index: 30;
+      }
+      .drawer-overlay { display: none !important; }
+      .topbar-burger { display: none; }
+
+      .topbar {
+        grid-area: topbar;
+        padding: 12px 28px;
+        min-height: 68px;
+      }
+      .topbar-title { font-size: 17px; }
+      .topbar-sub { font-size: 12.5px; }
+      .topbar-logo { display: none; }
+
+      .app-main {
+        grid-area: main;
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 28px 56px;
+        gap: 20px;
+      }
+
+      /* Cabeceras y tipografia con mas aire */
+      .section-title { padding: 16px 22px !important; }
+      .section-title h1, .section-title h2 { font-size: 17px; }
+
+      /* Selector de tecnico en fila */
+      .tecnico-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      .tecnico-btn { font-size: 13.5px; min-height: 44px; }
+      /* En las vistas de listado hay ancho de sobra: una sola fila */
+      #sanitTecnicoBotones, #choperasTecnicoBotones,
+      #heladerasTecnicoBotones, #misComodatosTecnicoBotones {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+
+      /* Tabs segmentadas no ocupan todo el ancho */
+      .modo-tabs, .hel-modo {
+        grid-template-columns: repeat(2, minmax(160px, 220px));
+        justify-content: start;
+      }
+
+      /* Tablero de heladeras vuelve a columnas */
+      .hel-board {
+        display: grid !important;
+        grid-template-columns: repeat(var(--hel-cols, 4), minmax(0, 1fr));
+        align-items: start;
+        gap: 12px;
+      }
+      .hel-col { padding: 10px; }
+
+      /* Materiales con mas columnas en pantallas anchas */
+      .qty-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+
+      /* Wizard: pasos mas legibles y barra de accion alineada */
+      .wz-progress { max-width: 640px; }
+      .wz-progress .wz-label { font-size: 12px; }
+      .wz-nav {
+        bottom: 20px;
+        justify-content: flex-end;
+        background: linear-gradient(to top, var(--bg) 60%, transparent);
+        padding: 12px 0 4px;
+      }
+      #wzBack { flex: 0 0 160px; }
+      #wzNext { flex: 0 0 240px; }
+      .wz-nav #submitBtn { flex: 0 0 260px; }
+      .wz-resumen { max-width: 720px; }
+
+      /* Firma mas grande cuando hay lugar */
+      #signatureCanvas { height: 220px; }
+      .terms-box { max-height: 200px; }
+
+      /* Snackbar pegado a la derecha, fuera del camino de la sidebar */
+      .status-box {
+        left: auto;
+        right: 28px;
+        transform: none;
+        width: auto;
+        min-width: 320px;
+        max-width: 520px;
+        animation: toastInDesktop 0.15s ease-out;
+      }
+      @keyframes toastInDesktop {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* El asa del bottom sheet no va en un modal centrado */
+      .modal-box::before { display: none; }
+    }
+
+    /* ---------- Pantallas muy anchas ---------- */
+    @media (min-width: 1440px) {
+      .app-shell { grid-template-columns: 280px minmax(0, 1fr); }
+      .app-main { max-width: 1320px; padding: 28px 40px 60px; }
+    }
   </style>
 </head>
 <body>
@@ -6172,6 +6311,16 @@
 
       toggle.addEventListener("click", () => abrirDrawer(!drawer.classList.contains("is-open")));
       overlay.addEventListener("click", () => abrirDrawer(false));
+
+      // En escritorio el drawer es una barra lateral fija: si se agranda la
+      // ventana con el panel abierto, hay que soltar el scroll del body.
+      const anchoEscritorio = window.matchMedia("(min-width: 1024px)");
+      function ajustarADesktop() {
+        if (anchoEscritorio.matches) abrirDrawer(false);
+      }
+      if (anchoEscritorio.addEventListener) anchoEscritorio.addEventListener("change", ajustarADesktop);
+      else if (anchoEscritorio.addListener) anchoEscritorio.addListener(ajustarADesktop);
+      ajustarADesktop();
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && drawer.classList.contains("is-open")) abrirDrawer(false);
       });
