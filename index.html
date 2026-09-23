@@ -1326,6 +1326,18 @@
     }
     .filtros-box[open] > summary::after { content: "Ocultar"; }
     .filtros-box > .sanit-toolbar { margin-top: 10px; }
+    .toolbar-stack { display: flex; flex-direction: column; gap: 10px; }
+    .accion-alta {
+      width: 100%;
+      border-color: var(--brand);
+      color: var(--brand);
+      font-weight: 800;
+    }
+    @media (min-width: 1024px) {
+      .toolbar-stack { flex-direction: row; align-items: flex-start; }
+      .toolbar-stack > .filtros-box { flex: 1; }
+      .accion-alta { width: auto; flex: 0 0 auto; }
+    }
     .hel-filtros-box {
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -1394,7 +1406,9 @@
       text-align: left;
       flex-shrink: 0;
     }
-    .tabla-general td:empty { display: none; }
+    @media (max-width: 1023.98px) {
+      .tabla-general td:empty { display: none; }
+    }
     @media (min-width: 1024px) {
       .tabla-scroll { overflow-x: auto; }
       .tabla-general { display: table; }
@@ -1869,9 +1883,10 @@
 
         <div id="sanitResumen" class="kpi-grid"></div>
 
-        <details class="filtros-box" id="sanitToolbar">
-          <summary>Buscar y filtrar</summary>
-          <div class="sanit-toolbar">
+        <div id="sanitToolbar" class="toolbar-stack">
+          <details class="filtros-box">
+            <summary>Buscar y filtrar</summary>
+            <div class="sanit-toolbar">
           <div>
             <label class="field-label" for="sanitBuscar">Buscar cliente</label>
             <input id="sanitBuscar" type="text" class="field-input" placeholder="Nombre, dirección o localidad" />
@@ -1888,9 +1903,10 @@
               <option value="SIN REGISTRO">Sin registro</option>
             </select>
           </div>
-          <button type="button" id="sanitAltaBtn" class="secondary-btn">+ Agregar cliente</button>
-          </div>
-        </details>
+            </div>
+          </details>
+          <button type="button" id="sanitAltaBtn" class="secondary-btn accion-alta">+ Agregar cliente</button>
+        </div>
 
         <div id="sanitLista" class="space-y-3"></div>
 
@@ -1968,9 +1984,10 @@
 
         <div id="choperasResumen" class="kpi-grid"></div>
 
-        <details class="filtros-box">
-          <summary>Buscar y filtrar</summary>
-          <div class="sanit-toolbar">
+        <div class="toolbar-stack">
+          <details class="filtros-box">
+            <summary>Buscar y filtrar</summary>
+            <div class="sanit-toolbar">
           <div>
             <label class="field-label" for="choperasBuscar">Buscar</label>
             <input id="choperasBuscar" type="text" class="field-input" placeholder="Cliente, equipo o localidad" />
@@ -1986,9 +2003,10 @@
               <option value="DE BAJA">Clientes dados de baja</option>
             </select>
           </div>
-          <button type="button" id="choperasNuevaBtn" class="secondary-btn">+ Agregar chopera</button>
-          </div>
-        </details>
+            </div>
+          </details>
+          <button type="button" id="choperasNuevaBtn" class="secondary-btn accion-alta">+ Agregar chopera</button>
+        </div>
 
         <div id="choperasLista" class="space-y-3"></div>
         </div>
@@ -2839,8 +2857,16 @@
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
       const dataUrl = hasSignature ? canvas.toDataURL("image/png") : null;
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * ratio;
-      canvas.height = rect.height * ratio;
+      // Con el canvas oculto (paso del wizard cerrado) el rect da 0: redimensionar
+      // ahi vaciaria el bitmap y se perderia la firma ya trazada.
+      if (!rect.width || !rect.height) return;
+      const anchoDestino = Math.round(rect.width * ratio);
+      const altoDestino = Math.round(rect.height * ratio);
+      // Asignar width/height limpia el canvas, asi que solo se hace si el tamano
+      // cambio de verdad: si no, cada cambio de paso borraba y repintaba la firma.
+      if (canvas.width === anchoDestino && canvas.height === altoDestino) return;
+      canvas.width = anchoDestino;
+      canvas.height = altoDestino;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(ratio, ratio);
       ctx.lineWidth = 2;
@@ -6459,6 +6485,12 @@
           el.classList.toggle("is-current", idx === pasoActual);
           el.classList.toggle("is-done", idx < pasoActual);
         });
+        // El canvas de la firma solo se puede medir con el paso visible: con el
+        // paso oculto getBoundingClientRect() devuelve 0 y el trazo queda corrido.
+        // Va sincronico, no en requestAnimationFrame, porque en una pestana en
+        // segundo plano el rAF no llega a dispararse.
+        if (typeof resizeCanvas === "function") resizeCanvas();
+
         const ultimo = pasoActual === pasos.length - 1;
         btnBack.style.display = pasoActual === 0 ? "none" : "";
         btnNext.style.display = ultimo ? "none" : "";
