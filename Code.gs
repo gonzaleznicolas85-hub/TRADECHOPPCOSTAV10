@@ -410,6 +410,11 @@ function escribirComodato_(body) {
   const urlsPilones = savePhotos_(comodatoPhotosFolder, data.fotosPilones, 'PIL_' + comodatoNumero);
   const signatureFile = saveSignature_(data.firmaDataUrl, comodatoNumero);
 
+  // La plantilla tiene {{FOTOS_EQUIPOS_URLS}} y {{FOTOS_PILONES_URLS}}, que hasta
+  // ahora nadie reemplazaba: quedaban impresos tal cual en el PDF.
+  data.fotosEquiposUrls = urlsEquipos;
+  data.fotosPilonesUrls = urlsPilones;
+
   // Generamos Documento PDF y DOC con fotos incrustadas
   const archivosGenerados = generatePdfFromTemplate_(data, comodatoNumero, signatureFile);
   const pdfFile = archivosGenerados.pdfFile;
@@ -651,6 +656,8 @@ function generatePdfFromTemplate_(data, comodatoNumero, signatureFile) {
     '{{CELLI}}': safe_(data.celli),
     '{{VASERA}}': safe_(data.vasera),
     '{{DESCRIPCION}}': safe_(data.descripcion),
+    '{{FOTOS_EQUIPOS_URLS}}': listaUrlsFotos_(data.fotosEquiposUrls),
+    '{{FOTOS_PILONES_URLS}}': listaUrlsFotos_(data.fotosPilonesUrls),
     '{{ACLARACION}}': safe_(data.aclaracion),
     '{{DNI}}': safe_(data.dni),
     '{{ACEPTA_TERMINOS}}': (data.aceptaTerminos === true || data.aceptaTerminos === 'SI') ? 'SI' : 'NO'
@@ -760,6 +767,17 @@ function savePhotos_(folder, photosArray, prefix) {
     urls.push(file.getUrl());
   });
   return urls.join('\n');
+}
+
+/**
+ * Texto para los marcadores de urls de fotos de la plantilla. savePhotos_ separa
+ * las urls con saltos de linea, que replaceText no convierte en parrafos, asi que
+ * se listan en una sola linea. Sin fotos, deja una leyenda en vez del marcador.
+ */
+function listaUrlsFotos_(urls) {
+  const texto = String(urls == null ? '' : urls).trim();
+  if (!texto) return 'Sin fotos cargadas';
+  return texto.split(/[\r\n]+/).filter(function(u) { return u.trim(); }).join('  ·  ');
 }
 
 function saveSignature_(dataUrl, comodatoNumero) {
