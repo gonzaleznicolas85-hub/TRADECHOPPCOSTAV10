@@ -410,8 +410,8 @@ function escribirComodato_(body) {
   const urlsPilones = savePhotos_(comodatoPhotosFolder, data.fotosPilones, 'PIL_' + comodatoNumero);
   const signatureFile = saveSignature_(data.firmaDataUrl, comodatoNumero);
 
-  // La plantilla tiene {{FOTOS_EQUIPOS_URLS}} y {{FOTOS_PILONES_URLS}}, que hasta
-  // ahora nadie reemplazaba: quedaban impresos tal cual en el PDF.
+  // Con estas urls se pegan las fotos en {{FOTOS_EQUIPOS_URLS}} y
+  // {{FOTOS_PILONES_URLS}}, los marcadores de fotos que tiene la plantilla.
   data.fotosEquiposUrls = urlsEquipos;
   data.fotosPilonesUrls = urlsPilones;
 
@@ -656,8 +656,6 @@ function generatePdfFromTemplate_(data, comodatoNumero, signatureFile) {
     '{{CELLI}}': safe_(data.celli),
     '{{VASERA}}': safe_(data.vasera),
     '{{DESCRIPCION}}': safe_(data.descripcion),
-    '{{FOTOS_EQUIPOS_URLS}}': listaUrlsFotos_(data.fotosEquiposUrls),
-    '{{FOTOS_PILONES_URLS}}': listaUrlsFotos_(data.fotosPilonesUrls),
     '{{ACLARACION}}': safe_(data.aclaracion),
     '{{DNI}}': safe_(data.dni),
     '{{ACEPTA_TERMINOS}}': (data.aceptaTerminos === true || data.aceptaTerminos === 'SI') ? 'SI' : 'NO'
@@ -671,9 +669,11 @@ function generatePdfFromTemplate_(data, comodatoNumero, signatureFile) {
   // Pegamos la firma
   insertSignatureIntoDoc_(body, signatureFile);
 
-  // Pegamos las fotos en el documento
-  insertPhotosIntoDoc_(body, data.fotosEquipos, '\\{\\{FOTOS_EQUIPOS\\}\\}');
-  insertPhotosIntoDoc_(body, data.fotosPilones, '\\{\\{FOTOS_PILONES\\}\\}');
+  // Pegamos las fotos en el documento. La plantilla solo tiene los marcadores
+  // *_URLS: los {{FOTOS_EQUIPOS}} / {{FOTOS_PILONES}} que se buscaban antes no
+  // existen, y por eso las fotos nunca llegaban al PDF.
+  insertPhotosIntoDoc_(body, data.fotosEquiposUrls, '\\{\\{FOTOS_EQUIPOS_URLS\\}\\}');
+  insertPhotosIntoDoc_(body, data.fotosPilonesUrls, '\\{\\{FOTOS_PILONES_URLS\\}\\}');
 
   // Guardamos cambios
   doc.saveAndClose();
@@ -720,8 +720,7 @@ function generarPdfDesdeBoton() {
         if (!fila[idxFirmaId]) throw new Error("No hay ID de firma.");
         const signatureFile = DriveApp.getFileById(fila[idxFirmaId]);
 
-        // En este proceso manual (desde el botón), no tenemos los arrays de fotos en Base64
-        // por lo que las etiquetas de fotos simplemente se borrarán o mostrarán un mensaje de falta de fotos.
+        // Las fotos salen de las urls de FotosEquiposUrls / FotosPilonesUrls
         const archivosGenerados = generatePdfFromTemplate_(payload, fila[idxNum], signatureFile);
 
         sheet.getRange(i + 1, idxPdfId + 1).setValue(archivosGenerados.pdfFile.getId());
@@ -769,17 +768,6 @@ function savePhotos_(folder, photosArray, prefix) {
   return urls.join('\n');
 }
 
-/**
- * Texto para los marcadores de urls de fotos de la plantilla. savePhotos_ separa
- * las urls con saltos de linea, que replaceText no convierte en parrafos, asi que
- * se listan en una sola linea. Sin fotos, deja una leyenda en vez del marcador.
- */
-function listaUrlsFotos_(urls) {
-  const texto = String(urls == null ? '' : urls).trim();
-  if (!texto) return 'Sin fotos cargadas';
-  return texto.split(/[\r\n]+/).filter(function(u) { return u.trim(); }).join('  ·  ');
-}
-
 function saveSignature_(dataUrl, comodatoNumero) {
   const folder = DriveApp.getFolderById(CONFIG.SIGNATURE_FOLDER_ID);
   const base64 = String(dataUrl).split(',')[1];
@@ -799,9 +787,14 @@ function insertSignatureIntoDoc_(body, signatureFile) {
 }
 
 /**
- * Función para insertar un array de fotos en el documento de Google
+ * Pega en el lugar del marcador las fotos ya guardadas en Drive. Recibe las urls
+ * separadas por salto de linea, tal como las devuelve savePhotos_ y quedan en la
+ * hoja, asi sirve igual al guardar el comodato y desde generarPdfDesdeBoton.
+ *
+ * Docs rechaza algunas imagenes (mas de 25 megapixeles, formatos como HEIC o
+ * WEBP): en ese caso se deja el link de la foto para que no se pierda.
  */
-function insertPhotosIntoDoc_(body, photosData, regexTag) {
+function insertPhotosIntoDoc_(body, urls, regexTag) {
   const found = body.findText(regexTag);
   if (!found) return;
 
@@ -811,35 +804,33 @@ function insertPhotosIntoDoc_(body, photosData, regexTag) {
   // Borramos la etiqueta de texto
   textElement.deleteText(found.getStartOffset(), found.getEndOffsetInclusive());
 
-  // Verificamos si hay fotos para pegar
-  if (Array.isArray(photosData) && photosData.length > 0) {
-    if (parent.getType() === DocumentApp.ElementType.PARAGRAPH) {
-      const paragraph = parent.asParagraph();
+  // Text siempre cuelga de un Paragraph o de un ListItem: los dos aceptan imagenes
+  const tipo = parent.getType();
+  if (tipo !== DocumentApp.ElementType.PARAGRAPH && tipo !== DocumentApp.ElementType.LIST_ITEM) return;
+  const paragraph = tipo === DocumentApp.ElementType.PARAGRAPH ? parent.asParagraph() : parent.asListItem();
 
-      photosData.forEach(photo => {
-        try {
-          const base64 = photo.data;
-          const blob = Utilities.newBlob(Utilities.base64Decode(base64), photo.tipo, photo.nombre);
-          const img = paragraph.appendInlineImage(blob);
-
-          // Redimensionamos la imagen a 200px de ancho
-          const ratio = 200 / img.getWidth();
-          img.setWidth(200);
-          img.setHeight(img.getHeight() * ratio);
-
-          // Agregamos espacio
-          paragraph.appendText('   ');
-        } catch (e) {
-          console.error("Error insertando imagen: " + e.message);
-        }
-      });
-    }
-  } else {
-    // Mensaje si no hay fotos
-    if (parent.getType() === DocumentApp.ElementType.PARAGRAPH) {
-      parent.asParagraph().appendText('No se adjuntaron fotografías en este registro.');
-    }
+  const lista = safe_(urls).split(/[\r\n]+/).map(u => u.trim()).filter(String);
+  if (lista.length === 0) {
+    paragraph.appendText('Sin fotos cargadas');
+    return;
   }
+
+  lista.forEach(url => {
+    try {
+      const blob = DriveApp.getFileById(idDesdeUrlDrive_(url)).getBlob();
+      const img = paragraph.appendInlineImage(blob);
+
+      // Redimensionamos la imagen a 200px de ancho
+      const ratio = 200 / img.getWidth();
+      img.setWidth(200);
+      img.setHeight(Math.round(img.getHeight() * ratio));
+    } catch (e) {
+      console.error('Error insertando imagen ' + url + ': ' + e.message);
+      paragraph.appendText(url).setLinkUrl(url);
+    }
+    // Agregamos espacio
+    paragraph.appendText('   ');
+  });
 }
 
 /**
