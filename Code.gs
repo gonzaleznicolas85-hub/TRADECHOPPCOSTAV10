@@ -711,11 +711,7 @@ function generarPdfDesdeBoton() {
 
     if (fila[idxNum] && (!fila[idxPdfUrl] || String(fila[idxPdfUrl]).trim() === "")) {
       try {
-        const payload = {};
-        HEADERS.forEach((h, index) => {
-          let key = h.charAt(0).toLowerCase() + h.slice(1);
-          payload[key] = fila[index];
-        });
+        const payload = payloadDesdeFilaComodato_(fila);
 
         if (!fila[idxFirmaId]) throw new Error("No hay ID de firma.");
         const signatureFile = DriveApp.getFileById(fila[idxFirmaId]);
@@ -735,6 +731,192 @@ function generarPdfDesdeBoton() {
     }
   }
   SpreadsheetApp.getUi().alert(procesados > 0 ? "Se generaron " + procesados + " PDFs y Docs." : "No hay pendientes.");
+}
+
+/**
+ * Arma, desde una fila de la hoja, el mismo objeto que manda el formulario.
+ * Las columnas en mayusculas (CUIT, DNI) van enteras en minuscula: con solo la
+ * primera letra quedaban cUIT y dNI, y el PDF salia sin esos datos.
+ * La Fecha vuelve con la forma del formulario (yyyy-MM-dd): la hoja la guarda
+ * como fecha y, pasada tal cual, el PDF mostraba "Wed Sep 23 2026 00:00:00...".
+ */
+function payloadDesdeFilaComodato_(fila) {
+  const payload = {};
+  HEADERS.forEach((h, index) => {
+    const key = h === h.toUpperCase() ? h.toLowerCase() : h.charAt(0).toLowerCase() + h.slice(1);
+    payload[key] = fila[index];
+  });
+  if (payload.fecha instanceof Date) payload.fecha = isoDate_(payload.fecha);
+  return payload;
+}
+
+/**
+ * Reparacion de los comodatos guardados antes de que las fotos salieran en el
+ * PDF. Se corre a mano desde el editor:
+ *   1) revisarFotosEnPdfs: solo lista que haria, no toca nada.
+ *   2) repararFotosEnPdfs: regenera cada PDF con fotos. Si se corta por tiempo,
+ *      se vuelve a correr y sigue desde donde quedo.
+ *
+ * El PDF nuevo reemplaza el contenido del archivo viejo, asi el link que ya
+ * tiene el cliente (WhatsApp, Mis Comodatos) muestra la version con fotos.
+ * El Doc editable si es nuevo: el viejo va a la papelera de Drive, de donde se
+ * puede recuperar durante 30 dias.
+ */
+const REPARACION_FOTOS_PROP = 'REPARACION_FOTOS_ULTIMA_FILA';
+const REPARACION_FOTOS_TERMINADA = 'TERMINADO';
+
+function revisarFotosEnPdfs() {
+  return repararFotosEnPdfs_(true);
+}
+
+function repararFotosEnPdfs() {
+  return repararFotosEnPdfs_(false);
+}
+
+/** Para volver a correr la reparacion desde la primera fila. */
+function reiniciarReparacionFotos() {
+  PropertiesService.getScriptProperties().deleteProperty(REPARACION_FOTOS_PROP);
+  Logger.log('Reparación de fotos reiniciada: la próxima corrida arranca desde la fila 2.');
+}
+
+function repararFotosEnPdfs_(soloRevisar) {
+  const inicio = Date.now();
+  // Apps Script corta a los 6 minutos: dejamos margen para el comodato en curso
+  const LIMITE_MS = 4 * 60 * 1000;
+  const props = PropertiesService.getScriptProperties();
+  const progreso = props.getProperty(REPARACION_FOTOS_PROP);
+  const log = [];
+
+  if (!soloRevisar && progreso === REPARACION_FOTOS_TERMINADA) {
+    const texto = 'La reparación ya se completó. Para repetirla, corré reiniciarReparacionFotos.';
+    Logger.log(texto);
+    return texto;
+  }
+
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 'No hay comodatos.';
+  const datos = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+
+  const iNum = HEADERS.indexOf('ComodatoNumero');
+  const iFotosEq = HEADERS.indexOf('FotosEquiposUrls');
+  const iFotosPil = HEADERS.indexOf('FotosPilonesUrls');
+  const iFirma = HEADERS.indexOf('FirmaFileId');
+  const iDocId = HEADERS.indexOf('DocFileId');
+  const iDocUrl = HEADERS.indexOf('DocUrl');
+  const iPdfId = HEADERS.indexOf('PdfFileId');
+  const iPdfUrl = HEADERS.indexOf('PdfUrl');
+
+  const desdeFila = soloRevisar ? 2 : Math.max(Number(progreso) || 1, 1) + 1;
+  let reparados = 0, aRevisar = 0, fallaron = 0, cortado = false;
+
+  for (let r = desdeFila; r <= lastRow; r++) {
+    if (!soloRevisar && Date.now() - inicio > LIMITE_MS) {
+      cortado = true;
+      break;
+    }
+    const fila = datos[r - 2];
+    const num = safe_(fila[iNum]).trim();
+    const tieneFotos = [fila[iFotosEq], fila[iFotosPil]].some(c => safe_(c).indexOf('drive.google.com') !== -1);
+
+    if (esNumeroComodatoValido_(num) && tieneFotos) {
+      try {
+        // Validamos que la fila tenga el orden de columnas actual: en las filas
+        // muy viejas (ver urlArchivoDrive_) las columnas estan corridas y un PDF
+        // armado con eso saldria con los datos mezclados.
+        const pdfId = safe_(fila[iPdfId]).trim() || idDesdeUrlDrive_(fila[iPdfUrl]);
+        if (!pdfId) throw new Error('no tiene PDF');
+        const pdfOriginal = DriveApp.getFileById(pdfId);
+        if (pdfOriginal.getMimeType() !== MimeType.PDF || pdfOriginal.getName().indexOf('Comodato_' + num) !== 0) {
+          throw new Error('el PDF de la fila (' + pdfOriginal.getName() + ') no coincide con el comodato');
+        }
+        const firmaId = safe_(fila[iFirma]).trim();
+        if (!firmaId) throw new Error('no tiene firma');
+        const signatureFile = DriveApp.getFileById(firmaId);
+
+        if (soloRevisar) {
+          log.push('  fila ' + r + ' ' + num + ': se regeneraría ' + pdfOriginal.getName());
+          reparados++;
+        } else {
+          reemplazarPdfConFotos_(sheet, r, fila, num, pdfOriginal, signatureFile, iDocId, iDocUrl);
+          log.push('  fila ' + r + ' ' + num + ': PDF actualizado');
+          reparados++;
+        }
+      } catch (err) {
+        const motivo = 'fila ' + r + ' ' + (num || '(sin número)') + ': ' + err.message;
+        if (/no tiene|no coincide/.test(err.message)) {
+          aRevisar++;
+          log.push('  REVISAR A MANO ' + motivo);
+        } else {
+          fallaron++;
+          log.push('  ERROR ' + motivo);
+        }
+      }
+    }
+    if (!soloRevisar) props.setProperty(REPARACION_FOTOS_PROP, String(r));
+  }
+
+  if (!soloRevisar && !cortado) props.setProperty(REPARACION_FOTOS_PROP, REPARACION_FOTOS_TERMINADA);
+
+  log.unshift(soloRevisar
+    ? 'REVISIÓN (no se modificó nada). Comodatos con fotos para regenerar: ' + reparados
+    : 'Comodatos actualizados en esta corrida: ' + reparados);
+  log.push('Para revisar a mano: ' + aRevisar);
+  if (fallaron) log.push('Con error (se pueden reintentar con reiniciarReparacionFotos): ' + fallaron);
+  if (cortado) log.push('Se cortó por tiempo. Volvé a correr repararFotosEnPdfs para seguir.');
+  else if (!soloRevisar) log.push('Reparación completa.');
+
+  const texto = log.join('\n');
+  Logger.log(texto);
+  return texto;
+}
+
+/**
+ * Regenera el comodato de la fila r y pisa el contenido del PDF original, que
+ * conserva su id y su link. Si algo falla, borra lo que alcanzo a crear y deja
+ * la fila como estaba.
+ */
+function reemplazarPdfConFotos_(sheet, r, fila, num, pdfOriginal, signatureFile, iDocId, iDocUrl) {
+  const generados = generatePdfFromTemplate_(payloadDesdeFilaComodato_(fila), num, signatureFile);
+  try {
+    reemplazarContenidoArchivo_(pdfOriginal.getId(), generados.pdfFile.getBlob());
+  } catch (err) {
+    generados.pdfFile.setTrashed(true);
+    generados.docFile.setTrashed(true);
+    throw err;
+  }
+  // El PDF recien creado era solo el molde: su contenido ya esta en el original
+  generados.pdfFile.setTrashed(true);
+
+  const docViejo = safe_(fila[iDocId]).trim();
+  sheet.getRange(r, iDocId + 1).setValue(generados.docFile.getId());
+  sheet.getRange(r, iDocUrl + 1).setValue(generados.docFile.getUrl());
+  if (docViejo && docViejo !== generados.docFile.getId()) {
+    try {
+      DriveApp.getFileById(docViejo).setTrashed(true);
+    } catch (err) {
+      Logger.log('No se pudo mover a la papelera el Doc viejo de ' + num + ': ' + err.message);
+    }
+  }
+}
+
+/**
+ * Reemplaza el contenido de un archivo de Drive sin cambiarle el id. DriveApp no
+ * lo permite, asi que va por la API de Drive con el token del propio script.
+ */
+function reemplazarContenidoArchivo_(fileId, blob) {
+  const resp = UrlFetchApp.fetch(
+    'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media&supportsAllDrives=true', {
+      method: 'patch',
+      contentType: blob.getContentType(),
+      payload: blob.getBytes(),
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    });
+  const code = resp.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Drive respondió ' + code + ': ' + resp.getContentText().slice(0, 200));
+  }
 }
 
 /**
