@@ -517,6 +517,33 @@
       font-weight: 800;
       color: var(--brand);
     }
+    .ficha-fotos {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .ficha-foto {
+      position: relative;
+      display: block;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+    }
+    .ficha-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ficha-foto .ficha-foto-tag {
+      position: absolute;
+      left: 4px;
+      bottom: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(17, 24, 39, 0.75);
+      color: #fff;
+    }
     .modal-actions {
       display: flex;
       gap: 8px;
@@ -2239,7 +2266,38 @@
         <h3 id="choperaFichaTitulo">Ficha del cliente</h3>
         <div id="choperaFichaContenido" class="mt-3 space-y-1 text-sm"></div>
         <div class="modal-actions">
+          <button type="button" id="choperaFichaFotos" class="secondary-btn">+ Agregar fotos</button>
           <button type="button" id="choperaFichaCerrar" class="secondary-btn">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: AGREGAR FOTOS A LA CHOPERA -->
+    <div id="choperaFotosModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>Agregar fotos</h3>
+        <p id="choperaFotosCliente" class="text-sm text-gray-600 mt-1"></p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="choperaFotosTipo">¿Qué vas a fotografiar?</label>
+            <select id="choperaFotosTipo" class="field-select">
+              <option value="COMODATO_PAPEL">Comodato en papel (firmado)</option>
+              <option value="EQUIPO">Equipo</option>
+              <option value="PILON">Pilón</option>
+            </select>
+          </div>
+          <p id="choperaFotosAviso" class="small-note"></p>
+          <div>
+            <label class="field-label" for="choperaFotosInput">Fotos</label>
+            <input id="choperaFotosInput" type="file" accept="image/*" multiple class="field-input" />
+            <p class="small-note mt-1">Podés sacarlas con la cámara o elegirlas de la galería. Para el comodato en papel, una foto por hoja, derecha y con buena luz.</p>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="choperaFotosCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="choperaFotosGuardar" class="submit-btn" style="width:auto;">Guardar fotos</button>
         </div>
       </div>
     </div>
@@ -4231,6 +4289,7 @@
               <button type="button" class="btn-comodato" data-ficha-chopera="${escapeHtml_(c.cliente)}">Ver ficha</button>
               ${urlPdf_(c.pdfUrl) ? `<a class="btn-comodato" href="${escapeHtml_(urlPdf_(c.pdfUrl))}" target="_blank" rel="noopener">Ver PDF comodato</a>` : ""}
               <button type="button" class="btn-comodato" data-editar-chopera="${escapeHtml_(c.cliente)}">Editar</button>
+              <button type="button" class="btn-comodato" data-fotos-chopera="${escapeHtml_(c.cliente)}">+ Fotos${c.fotos && c.fotos.length ? " (" + c.fotos.length + ")" : ""}</button>
               <button type="button" class="btn-checkin" data-nueva-int="${escapeHtml_(c.cliente)}">+ Arreglo o cambio</button>
               <button type="button" class="btn-baja" data-baja-cliente="${escapeHtml_(c.cliente)}">Dar de baja</button>
             </div>
@@ -4279,6 +4338,35 @@
     const choperaFichaTitulo = document.getElementById("choperaFichaTitulo");
     const choperaFichaContenido = document.getElementById("choperaFichaContenido");
 
+    const FOTO_TIPOS = { COMODATO_PAPEL: "Comodato en papel", EQUIPO: "Equipo", PILON: "Pilón" };
+    let choperaFichaAbierta = "";
+
+    /** Miniatura de Drive. Los archivos se comparten por link, así que cargan sin sesión. */
+    function miniaturaDrive_(url) {
+      const m = String(url || "").match(/[-\w]{25,}/);
+      return m ? "https://drive.google.com/thumbnail?id=" + m[0] + "&sz=w300" : "";
+    }
+
+    /** Galería de la ficha, agrupada por tipo (comodato en papel, equipo, pilón). */
+    function choperaFichaFotosHtml_(c) {
+      const fotos = c.fotos || [];
+      if (!fotos.length) {
+        return `<div class="detalle-fila"><span class="etiqueta">Sin fotos. Podés sumar el comodato en papel o las del equipo y el pilón.</span></div>`;
+      }
+      return Object.keys(FOTO_TIPOS).map(tipo => {
+        const grupo = fotos.filter(f => f.tipo === tipo);
+        if (!grupo.length) return "";
+        const items = grupo.map((f, n) => `
+          <a class="ficha-foto" href="${escapeHtml_(f.url)}" target="_blank" rel="noopener"
+             title="${escapeHtml_(FOTO_TIPOS[tipo] + " " + (n + 1) + (f.fecha ? " · " + formatFechaCorta_(f.fecha) : ""))}">
+            <img src="${escapeHtml_(miniaturaDrive_(f.url))}" alt="${escapeHtml_(FOTO_TIPOS[tipo] + " " + (n + 1))}" loading="lazy" />
+            ${f.enPdf ? `<span class="ficha-foto-tag">En PDF</span>` : ""}
+          </a>`).join("");
+        return `<div class="detalle-fila mt-2"><span class="etiqueta">${escapeHtml_(FOTO_TIPOS[tipo])} (${grupo.length})</span></div>
+                <div class="ficha-fotos">${items}</div>`;
+      }).join("");
+    }
+
     /** Ficha del cliente: datos del comodato (si tiene) + datos de la chopera. */
     function choperaAbrirFicha(cliente) {
       const c = choperas.filter(x => x.cliente === cliente)[0];
@@ -4311,7 +4399,9 @@
         fila("Picos", c.cantPicos || 0),
         fila("Sanitización", c.estadoSanitizacion),
         fila("Última", formatFechaCorta_(c.ultimaSanitizacion)),
-        fila("Próxima", formatFechaCorta_(c.proximaSanitizacion))
+        fila("Próxima", formatFechaCorta_(c.proximaSanitizacion)),
+        titulo("Fotos"),
+        choperaFichaFotosHtml_(c)
       ];
 
       const acciones = [
@@ -4319,6 +4409,7 @@
         ubicacion ? `<a class="link-pdf" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.cliente + " " + ubicacion)}">Cómo llegar</a>` : ""
       ].filter(Boolean).join("");
 
+      choperaFichaAbierta = c.cliente;
       choperaFichaTitulo.textContent = c.cliente;
       choperaFichaContenido.innerHTML = partes.join("") +
         (acciones ? `<div class="comodato-actions mt-3">${acciones}</div>` : "");
@@ -4382,6 +4473,86 @@
       } finally {
         choperaEditGuardar.disabled = false;
         choperaEditGuardar.textContent = "Guardar";
+      }
+    }
+
+    const choperaFotosModal = document.getElementById("choperaFotosModal");
+    const choperaFotosClienteBox = document.getElementById("choperaFotosCliente");
+    const choperaFotosTipo = document.getElementById("choperaFotosTipo");
+    const choperaFotosAviso = document.getElementById("choperaFotosAviso");
+    const choperaFotosInput = document.getElementById("choperaFotosInput");
+    const choperaFotosGuardar = document.getElementById("choperaFotosGuardar");
+    let choperaFotosDe = null;
+
+    /** Explica adónde van a ir las fotos según el tipo y si hay comodato digital. */
+    function choperaFotosActualizarAviso_() {
+      const c = choperaFotosDe;
+      if (!c) return;
+      const tipo = choperaFotosTipo.value;
+      if (tipo !== "COMODATO_PAPEL" && c.tieneComodato) {
+        choperaFotosAviso.textContent = "Se suman al PDF del comodato " + c.comodatoNumero +
+          " (el link no cambia) y quedan en la ficha. Regenerar el PDF tarda hasta un minuto.";
+      } else if (tipo === "COMODATO_PAPEL") {
+        choperaFotosAviso.textContent = "Quedan guardadas en la ficha del cliente.";
+      } else {
+        choperaFotosAviso.textContent = "Este cliente no tiene comodato digital: las fotos quedan en la ficha.";
+      }
+    }
+
+    function choperaFotosAbrir(cliente) {
+      const c = choperas.filter(x => x.cliente === cliente)[0];
+      if (!c) return;
+      choperaFotosDe = c;
+      choperaFotosClienteBox.textContent = c.cliente + (c.tieneComodato ? " · Comodato " + c.comodatoNumero : " · Sin comodato digital");
+      // Sin comodato digital lo más probable es que haya uno en papel; con comodato, que falten fotos del equipo
+      choperaFotosTipo.value = c.tieneComodato ? "EQUIPO" : "COMODATO_PAPEL";
+      choperaFotosInput.value = "";
+      choperaFotosGuardar.disabled = false;
+      choperaFotosGuardar.textContent = "Guardar fotos";
+      choperaFotosActualizarAviso_();
+      choperaFichaModal.style.display = "none";
+      choperaFotosModal.style.display = "flex";
+    }
+
+    function choperaFotosCerrar_() {
+      if (choperaFotosGuardar.disabled) return;
+      choperaFotosModal.style.display = "none";
+      choperaFotosDe = null;
+    }
+
+    async function choperaFotosEnviar() {
+      const c = choperaFotosDe;
+      if (!c) return;
+      if (!choperaFotosInput.files || !choperaFotosInput.files.length) {
+        showStatus("Elegí al menos una foto.", true);
+        return;
+      }
+
+      choperaFotosGuardar.disabled = true;
+      choperaFotosGuardar.textContent = "Guardando...";
+
+      try {
+        const fotos = await getBase64Files("choperaFotosInput");
+        const result = await sanitPost_({
+          action: "agregarFotosChopera",
+          tecnico: choperasTecnicoInput.value,
+          cliente: c.cliente,
+          comodatoNumero: c.tieneComodato ? c.comodatoNumero : "",
+          tipo: choperaFotosTipo.value,
+          fotos: fotos
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudieron guardar las fotos.");
+
+        choperaFotosGuardar.disabled = false;
+        choperaFotosCerrar_();
+        showStatus(result.message || "Fotos guardadas.");
+        await cargarChoperas();
+        choperaAbrirFicha(c.cliente);
+      } catch (error) {
+        showStatus("Error al guardar las fotos: " + error.message, true);
+      } finally {
+        choperaFotosGuardar.disabled = false;
+        choperaFotosGuardar.textContent = "Guardar fotos";
       }
     }
 
@@ -4557,6 +4728,9 @@
       const editar = e.target.closest("[data-editar-chopera]");
       if (editar) { choperaAbrirEditar(editar.getAttribute("data-editar-chopera")); return; }
 
+      const fotos = e.target.closest("[data-fotos-chopera]");
+      if (fotos) { choperaFotosAbrir(fotos.getAttribute("data-fotos-chopera")); return; }
+
       const nueva = e.target.closest("[data-nueva-int]");
       if (nueva) { intervencionAbrir(nueva.getAttribute("data-nueva-int")); return; }
 
@@ -4599,6 +4773,11 @@
     choperasNuevaBtn.addEventListener("click", () => choperaAbrirEditar(""));
 
     document.getElementById("choperaFichaCerrar").addEventListener("click", () => { choperaFichaModal.style.display = "none"; });
+    document.getElementById("choperaFichaFotos").addEventListener("click", () => choperaFotosAbrir(choperaFichaAbierta));
+    choperaFotosTipo.addEventListener("change", choperaFotosActualizarAviso_);
+    choperaFotosGuardar.addEventListener("click", choperaFotosEnviar);
+    document.getElementById("choperaFotosCancelar").addEventListener("click", choperaFotosCerrar_);
+    choperaFotosModal.addEventListener("click", (e) => { if (e.target === choperaFotosModal) choperaFotosCerrar_(); });
     choperaFichaModal.addEventListener("click", (e) => {
       if (e.target === choperaFichaModal) choperaFichaModal.style.display = "none";
     });

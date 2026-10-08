@@ -38,6 +38,10 @@ const CONFIG = {
   SANIT_CICLO_DIAS: 28,
   SANIT_AVISO_DIAS: 7,
   INTERVENCIONES_SHEET_NAME: 'Intervenciones',
+  // Fotos que se suman desde Mis Choperas: el comodato en papel firmado, o las
+  // del equipo y el pilon que le faltaron al comodato digital.
+  FOTOS_CHOPERAS_SHEET_NAME: 'Fotos_Choperas',
+  FOTOS_CHOPERAS_FOLDER_NAME: 'Fotos Choperas',
 
   // Por que no se pudo sanitizar. La visita queda registrada pero NO cuenta
   // como sanitizacion: el ciclo de 28 dias sigue corriendo desde la ultima
@@ -172,6 +176,13 @@ const INTERVENCIONES_HEADERS = [
   'IntervencionId', 'Fecha', 'Tecnico', 'Cliente', 'Tipo',
   'Detalle', 'Repuestos', 'FotosUrls', 'Estado', 'Timestamp'
 ];
+
+// Encabezados de las fotos agregadas desde Mis Choperas. EnPdf = SI cuando la
+// foto tambien se pego en el PDF del comodato digital.
+const FOTOS_CHOPERAS_HEADERS = [
+  'FotoId', 'Fecha', 'Tecnico', 'Cliente', 'ComodatoNumero', 'Tipo', 'Url', 'EnPdf', 'Timestamp'
+];
+const TIPOS_FOTO_CHOPERA = ['COMODATO_PAPEL', 'EQUIPO', 'PILON'];
 
 // Encabezados del registro de bajas de clientes (una fila por baja)
 const BAJAS_HEADERS = [
@@ -334,6 +345,7 @@ function doPost(e) {
       case 'guardarChopera':  return jsonOutput_(guardarChopera_(body));
       case 'nuevaIntervencion': return jsonOutput_(nuevaIntervencion_(body));
       case 'cerrarIntervencion': return jsonOutput_(cerrarIntervencion_(body));
+      case 'agregarFotosChopera': return jsonOutput_(agregarFotosChopera_(body));
       case 'sanitBajaCliente':return jsonOutput_(sanitBajaCliente_(body));
       case 'bajaCliente':     return jsonOutput_(bajaCliente_(body));
       case 'reactivarCliente':return jsonOutput_(reactivarCliente_(body));
@@ -1230,7 +1242,9 @@ function leerComodatosAgrupados_() {
     docUrl: HEADERS.indexOf('DocUrl'),
     equiposDetalle: HEADERS.indexOf('EquiposDetalle'),
     pilonesDetalle: HEADERS.indexOf('PilonesDetalle'),
-    cantPicos: HEADERS.indexOf('CantPicos')
+    cantPicos: HEADERS.indexOf('CantPicos'),
+    fotosEquiposUrls: HEADERS.indexOf('FotosEquiposUrls'),
+    fotosPilonesUrls: HEADERS.indexOf('FotosPilonesUrls')
   };
 
   data.forEach(fila => {
@@ -1258,6 +1272,8 @@ function leerComodatosAgrupados_() {
       equipo: resumirEquipos_(fila[idx.equiposDetalle]),
       pilon: resumirPilones_(fila[idx.pilonesDetalle]),
       cantPicos: toNumber_(fila[idx.cantPicos]),
+      fotosEquiposUrls: safe_(fila[idx.fotosEquiposUrls]),
+      fotosPilonesUrls: safe_(fila[idx.fotosPilonesUrls]),
       timestamp: ts instanceof Date ? ts.getTime() : 0
     });
   });
@@ -1421,6 +1437,7 @@ function crearHojasSanitizacion() {
   CONFIG.TECNICOS.forEach(t => getSanitSheet_(t));
   getClientesSheet_();
   getIntervencionesSheet_();
+  getFotosChoperasSheet_();
   getBajasSheet_();
   getHeladerasSheet_();
   Logger.log('Hojas de sanitización listas.');
@@ -1581,7 +1598,9 @@ function construirCartera_(tecnico, comodatos, clientesManuales, sanitRows, baja
             localidad: c.localidad,
             aclaracion: c.aclaracion,
             dni: c.dni,
-            pdfUrl: c.pdfUrl
+            pdfUrl: c.pdfUrl,
+            fotosEquiposUrls: c.fotosEquiposUrls,
+            fotosPilonesUrls: c.fotosPilonesUrls
           });
   });
 
@@ -2203,7 +2222,40 @@ function sanitVisitaFallida_(body) {
  * de sanitizacion, los datos del equipo y las intervenciones de cada PDV.
  */
 function getChoperas_(tecnico) {
-  return armarChoperas_(getCarteraSanitizacion_(tecnico), readIntervenciones_(tecnico));
+  const choperas = armarChoperas_(getCarteraSanitizacion_(tecnico), readIntervenciones_(tecnico));
+  const extra = {};
+  readFotosChoperas_(tecnico).forEach(f => {
+    const key = norm_(f.Cliente);
+    if (!key) return;
+    if (!extra[key]) extra[key] = [];
+    extra[key].push(f);
+  });
+  choperas.forEach(c => { c.fotos = fotosDeChopera_(c, extra[norm_(c.cliente)] || []); });
+  return choperas;
+}
+
+/**
+ * Todas las fotos de una chopera para la ficha: las que tiene el comodato
+ * digital y las que se fueron sumando desde Mis Choperas. Las que se sumaron
+ * al PDF figuran en las dos fuentes, por eso se deduplica por url.
+ */
+function fotosDeChopera_(c, extra) {
+  const fotos = [];
+  const vistas = {};
+  const sumar = (tipo, url, fecha, enPdf) => {
+    url = safe_(url).trim();
+    if (!url || vistas[url]) return;
+    vistas[url] = true;
+    fotos.push({ tipo: tipo, url: url, fecha: fecha, enPdf: enPdf });
+  };
+  const lineas = txt => safe_(txt).split(/[\r\n]+/).map(u => u.trim()).filter(u => u.indexOf('http') === 0);
+
+  if (c.ficha) {
+    lineas(c.ficha.fotosEquiposUrls).forEach(u => sumar('EQUIPO', u, c.ficha.fecha, true));
+    lineas(c.ficha.fotosPilonesUrls).forEach(u => sumar('PILON', u, c.ficha.fecha, true));
+  }
+  extra.forEach(f => sumar(safe_(f.Tipo), f.Url, isoDate_(toDate_(f.Fecha)), safe_(f.EnPdf) === 'SI'));
+  return fotos;
 }
 
 /**
@@ -2345,6 +2397,12 @@ function propagarRenombre_(tecnico, viejo, nuevo) {
   readIntervenciones_(tecnico).forEach(i => {
     if (norm_(i.Cliente) === norm_(viejo)) intSheet.getRange(i._row, colIntCliente).setValue(nuevo);
   });
+
+  const fotosSheet = getFotosChoperasSheet_();
+  const colFotoCliente = FOTOS_CHOPERAS_HEADERS.indexOf('Cliente') + 1;
+  readFotosChoperas_(tecnico).forEach(f => {
+    if (norm_(f.Cliente) === norm_(viejo)) fotosSheet.getRange(f._row, colFotoCliente).setValue(nuevo);
+  });
 }
 
 /** Registra un arreglo o cambio sobre la chopera de un PDV. */
@@ -2408,6 +2466,162 @@ function getIntervencionPhotosFolder_(tecnico) {
   const parent = raiz.hasNext() ? raiz.next() : base.createFolder('Fotos Intervenciones');
   const sub = parent.getFoldersByName(tecnico);
   return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/* ==========================================================================
+ * 9.a FOTOS DE LA CHOPERA
+ *
+ * Desde Mis Choperas se suman fotos a la ficha del cliente:
+ *   - COMODATO_PAPEL: el comodato fisico firmado. Queda en la ficha.
+ *   - EQUIPO / PILON: si el cliente tiene comodato digital, las fotos se suman
+ *     a FotosEquiposUrls / FotosPilonesUrls y se regenera su PDF. El PDF nuevo
+ *     pisa el contenido del original, asi el link que ya tiene el cliente sigue
+ *     sirviendo. Sin comodato digital quedan solo en la ficha.
+ * ========================================================================== */
+
+function getFotosChoperasSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.FOTOS_CHOPERAS_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.FOTOS_CHOPERAS_SHEET_NAME);
+  escribirCabecera_(sheet, FOTOS_CHOPERAS_HEADERS);
+  return sheet;
+}
+
+/** Lee las fotos agregadas como objetos, opcionalmente filtradas por tecnico. */
+function readFotosChoperas_(tecnico) {
+  const sheet = getFotosChoperasSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const filtro = tecnico ? keyTecnico_(tecnico) : '';
+  const values = sheet.getRange(2, 1, lastRow - 1, FOTOS_CHOPERAS_HEADERS.length).getValues();
+
+  const filas = [];
+  values.forEach((fila, i) => {
+    const obj = { _row: i + 2 };
+    FOTOS_CHOPERAS_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
+    if (filtro && keyTecnico_(obj.Tecnico) !== filtro) return;
+    filas.push(obj);
+  });
+  return filas;
+}
+
+/** Carpeta de fotos de choperas sin comodato digital, con subcarpeta por tecnico. */
+function getChoperaPhotosFolder_(tecnico) {
+  const base = getPhotosParentFolder_();
+  const raiz = base.getFoldersByName(CONFIG.FOTOS_CHOPERAS_FOLDER_NAME);
+  const parent = raiz.hasNext() ? raiz.next() : base.createFolder(CONFIG.FOTOS_CHOPERAS_FOLDER_NAME);
+  const sub = parent.getFoldersByName(tecnico);
+  return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+/**
+ * Busca la fila del comodato digital del cliente. Exige que coincidan el
+ * numero, el tecnico y el cliente, para no tocar el comodato de otro.
+ */
+function filaComodatoDeCliente_(comodatoNumero, tecnico, cliente) {
+  if (!esNumeroComodatoValido_(comodatoNumero)) return null;
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+
+  const datos = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  const iNum = HEADERS.indexOf('ComodatoNumero');
+  const iTec = HEADERS.indexOf('Tecnico');
+  const iFant = HEADERS.indexOf('NombreFantasia');
+  const iRazon = HEADERS.indexOf('RazonSocial');
+
+  for (let i = datos.length - 1; i >= 0; i--) {
+    const fila = datos[i];
+    if (safe_(fila[iNum]).trim() !== comodatoNumero) continue;
+    if (keyTecnico_(fila[iTec]) !== keyTecnico_(tecnico)) continue;
+    if (norm_(fila[iFant] || fila[iRazon]) !== norm_(cliente)) continue;
+    return { r: i + 2, fila: fila };
+  }
+  return null;
+}
+
+/**
+ * Regenera el PDF del comodato con las fotos nuevas sumadas. Devuelve '' si
+ * salio bien o el motivo por el que no se pudo (las fotos quedan igual en la
+ * ficha).
+ *
+ * La regeneracion tarda entre 20 y 60 segundos: se hace sin el lock para no
+ * frenar a los demas tecnicos. El lock se toma solo para escribir la celda de
+ * urls, releyendola, por si otro sumo fotos al mismo comodato en ese rato.
+ */
+function sumarFotosAlPdfComodato_(encontrado, num, tipo, urlsNuevas) {
+  const sheet = getSheet_();
+  const fila = encontrado.fila.slice();
+  const col = HEADERS.indexOf(tipo === 'EQUIPO' ? 'FotosEquiposUrls' : 'FotosPilonesUrls');
+  const unir = previas => safe_(previas).split(/[\r\n]+/).map(u => u.trim()).filter(String)
+    .concat(urlsNuevas).join('\n');
+
+  // Mismas validaciones que repararFotosEnPdfs_: en las filas muy viejas las
+  // columnas estan corridas y el PDF saldria con los datos mezclados.
+  const pdfId = safe_(fila[HEADERS.indexOf('PdfFileId')]).trim() || idDesdeUrlDrive_(fila[HEADERS.indexOf('PdfUrl')]);
+  if (!pdfId) return 'el comodato no tiene PDF';
+  const pdfOriginal = DriveApp.getFileById(pdfId);
+  if (pdfOriginal.getMimeType() !== MimeType.PDF || pdfOriginal.getName().indexOf('Comodato_' + num) !== 0) {
+    return 'el PDF de la fila no coincide con el comodato';
+  }
+  const firmaId = safe_(fila[HEADERS.indexOf('FirmaFileId')]).trim();
+  if (!firmaId) return 'el comodato no tiene firma guardada';
+
+  fila[col] = unir(fila[col]);
+  reemplazarPdfConFotos_(sheet, encontrado.r, fila, num, pdfOriginal, DriveApp.getFileById(firmaId),
+                         HEADERS.indexOf('DocFileId'), HEADERS.indexOf('DocUrl'));
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const celda = sheet.getRange(encontrado.r, col + 1);
+    celda.setValue(unir(celda.getValue()));
+  } finally {
+    lock.releaseLock();
+  }
+  return '';
+}
+
+/** Suma fotos a la ficha de una chopera y, si corresponde, al PDF de su comodato. */
+function agregarFotosChopera_(body) {
+  const tecnico = resolveTecnico_(body.tecnico);
+  const cliente = safe_(body.cliente).trim();
+  const tipo = safe_(body.tipo).trim().toUpperCase();
+  if (!cliente) throw new Error('Falta el cliente.');
+  if (TIPOS_FOTO_CHOPERA.indexOf(tipo) === -1) throw new Error('Tipo de foto no válido: ' + tipo);
+  if (!body.fotos || !body.fotos.length) throw new Error('No llegó ninguna foto.');
+
+  const num = safe_(body.comodatoNumero).trim();
+  const encontrado = num ? filaComodatoDeCliente_(num, tecnico, cliente) : null;
+
+  const ahora = new Date();
+  const id = 'FCH-' + ahora.getTime().toString(36).toUpperCase();
+  const folder = encontrado ? getComodatoPhotosFolder_(num) : getChoperaPhotosFolder_(tecnico);
+  const prefijo = { COMODATO_PAPEL: 'PAPEL_', EQUIPO: 'EQ_', PILON: 'PIL_' }[tipo] + (encontrado ? num + '_' + id : id);
+  const urls = savePhotos_(folder, body.fotos, prefijo).split('\n').filter(String);
+
+  let enPdf = false;
+  let aviso = '';
+  if (encontrado && tipo !== 'COMODATO_PAPEL') {
+    try {
+      aviso = sumarFotosAlPdfComodato_(encontrado, num, tipo, urls);
+      enPdf = !aviso;
+    } catch (err) {
+      console.error('No se pudo regenerar el PDF de ' + num + ': ' + err.message);
+      aviso = err.message;
+    }
+  }
+
+  const sheet = getFotosChoperasSheet_();
+  const filas = urls.map(u => [id, ahora, tecnico, cliente, encontrado ? num : '', tipo, u, enPdf ? 'SI' : 'NO', ahora]);
+  sheet.getRange(sheet.getLastRow() + 1, 1, filas.length, FOTOS_CHOPERAS_HEADERS.length).setValues(filas);
+
+  let message = urls.length === 1 ? 'Foto guardada en la ficha.' : urls.length + ' fotos guardadas en la ficha.';
+  if (enPdf) message += ' El PDF del comodato ' + num + ' ya las muestra.';
+  else if (aviso) message += ' No se pudo actualizar el PDF del comodato (' + aviso + ').';
+
+  return { ok: true, message: message, enPdf: enPdf, cantidad: urls.length };
 }
 
 /* ==========================================================================
