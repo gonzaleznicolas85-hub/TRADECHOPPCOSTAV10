@@ -63,6 +63,7 @@ const CONFIG = {
     'Cambio de regulador',
     'Instalación',
     'Retiro de equipo',
+    'Arreglo en depósito',
     'Otro'
   ],
 
@@ -112,6 +113,20 @@ const CONFIG = {
   WHATSAPP_META_IDIOMA: 'es_AR',
   // URL publica de la app (Netlify). Si esta, el aviso trae el link al ticket.
   APP_URL: 'https://comodatoschoppcosta.netlify.app/',
+
+  // --- TRABAJOS EN DEPOSITO (sin cliente de por medio) ---
+  DEPOSITO_SHEET_NAME: 'Trabajos_Deposito',
+  DEPOSITO_PHOTOS_FOLDER_NAME: 'Fotos Deposito',
+  // Los terminados mas viejos que esto no se mandan a la app (siguen en la hoja)
+  DEPOSITO_DIAS_TERMINADOS_VISIBLES: 90,
+  TIPOS_EQUIPO_DEPOSITO: [
+    'Chopera',
+    'Heladera',
+    'Pilón',
+    'Regulador / tubo de gas',
+    'Mangueras / canillas',
+    'Otro'
+  ],
 
   HELADERAS_MOTIVOS_NO_RESUELTO: [
     'Falta de repuesto',
@@ -198,6 +213,13 @@ const HELADERAS_HEADERS = [
   'TicketId', 'Cliente', 'Estado', 'Tecnico', 'TomadoEl', 'CerradoEl',
   'TrabajoRealizado', 'Repuestos', 'MotivoNoResuelto', 'NotaEspera',
   'FotosUrls', 'Historial', 'Actualizado'
+];
+
+// Encabezados de los trabajos hechos en el deposito (una fila por trabajo)
+const DEPOSITO_HEADERS = [
+  'TrabajoId', 'Fecha', 'Tecnico', 'TipoEquipo', 'Equipo', 'Destino',
+  'Trabajo', 'Repuestos', 'Horas', 'Estado', 'TerminadoEl', 'NotaCierre',
+  'FotosUrls', 'Timestamp'
 ];
 
 // Encabezados del padrón manual de clientes a sanitizar
@@ -307,6 +329,10 @@ function doGet(e) {
       });
     }
 
+    if (action === 'deposito') {
+      return jsonOutput_({ ok: true, trabajos: getTrabajosDeposito_(), tiposEquipo: CONFIG.TIPOS_EQUIPO_DEPOSITO });
+    }
+
     if (action === 'comodatosGeneral') {
       return jsonOutput_({ ok: true, general: getComodatosGeneral_() });
     }
@@ -351,6 +377,8 @@ function doPost(e) {
       case 'reactivarCliente':return jsonOutput_(reactivarCliente_(body));
       case 'heladeraAccion':  return jsonOutput_(heladeraAccion_(body));
       case 'heladeraFinalizar': return jsonOutput_(heladeraFinalizar_(body));
+      case 'nuevoTrabajoDeposito': return jsonOutput_(nuevoTrabajoDeposito_(body));
+      case 'terminarTrabajoDeposito': return jsonOutput_(terminarTrabajoDeposito_(body));
     }
 
     return jsonOutput_(altaComodato_(body));
@@ -1440,6 +1468,7 @@ function crearHojasSanitizacion() {
   getFotosChoperasSheet_();
   getBajasSheet_();
   getHeladerasSheet_();
+  getDepositoSheet_();
   Logger.log('Hojas de sanitización listas.');
 }
 
@@ -2925,11 +2954,13 @@ function generarPdfBaja_(d, fotos) {
  * Tickets_Heladeras, una fila por ticket que alguien toco. Un ticket sin fila
  * ahi esta SIN ASIGNAR: es el pool.
  *
- * Estados: SIN ASIGNAR -> ASIGNADO <-> EN ESPERA -> RESUELTO | NO RESUELTO.
+ * Estados: SIN ASIGNAR -> ASIGNADO <-> EN ESPERA | EN DEPÓSITO -> RESUELTO | NO RESUELTO.
+ * EN DEPÓSITO: el equipo se llevo al taller. El ticket sigue siendo del
+ * tecnico; al reinstalarlo lo retoma o lo cierra directo.
  * Un cerrado se puede reabrir y vuelve al pool.
  * ========================================================================== */
 
-const HEL_ESTADOS_ACTIVOS = ['ASIGNADO', 'EN ESPERA'];
+const HEL_ESTADOS_ACTIVOS = ['ASIGNADO', 'EN ESPERA', 'EN DEPÓSITO'];
 const HEL_ESTADOS_CERRADOS = ['RESUELTO', 'NO RESUELTO'];
 
 /**
@@ -3279,7 +3310,7 @@ function exigirTicketPropio_(actual, tecnico) {
 }
 
 /**
- * Acciones sobre un ticket: tomar, liberar, espera, retomar, reabrir.
+ * Acciones sobre un ticket: tomar, liberar, espera, deposito, retomar, reabrir.
  * Todo bajo lock: dos tecnicos tocando "Tomar" a la vez no pueden quedarse
  * los dos con el mismo ticket.
  */
@@ -3324,10 +3355,18 @@ function heladeraAccion_(body) {
       return { ok: true, message: 'Ticket en espera.' };
     }
 
+    if (accion === 'deposito') {
+      exigirTicketPropio_(actual, tecnico);
+      if (!nota) throw new Error('Contá qué se le va a hacer en el depósito.');
+      guardarGestionHeladera_(t, actual.previa, { Estado: 'EN DEPÓSITO', NotaEspera: nota },
+        'Llevó el equipo al depósito: ' + nota, tecnico);
+      return { ok: true, message: 'Ticket en depósito.' };
+    }
+
     if (accion === 'retomar') {
       exigirTicketPropio_(actual, tecnico);
       guardarGestionHeladera_(t, actual.previa, { Estado: 'ASIGNADO', NotaEspera: '' },
-        'Lo retomó', tecnico);
+        actual.estado === 'EN DEPÓSITO' ? 'El equipo volvió del depósito' : 'Lo retomó', tecnico);
       return { ok: true, message: 'Ticket retomado.' };
     }
 
@@ -3411,6 +3450,149 @@ function probarHeladeras() {
   log.push('Técnicos de heladeras: ' + tecnicosHeladeras_().join(', '));
   leerTicketsForm_().slice(-3).forEach(t => log.push(t.id + ' · ' + t.cliente + ' · ' + t.falla));
   Logger.log(log.join('\n'));
+}
+
+/* ==========================================================================
+ * 12. TRABAJOS EN DEPOSITO
+ *
+ * Registro de lo que se hace en el deposito sin un cliente de por medio:
+ * reparar una chopera o heladera retirada, armar un equipo, preparar pilones.
+ * Una fila por trabajo en Trabajos_Deposito. Queda PENDIENTE hasta que el
+ * tecnico lo marca TERMINADO.
+ *
+ * Los arreglos en deposito de un cliente o ticket puntual van por su lado:
+ * en choperas como intervencion "Arreglo en depósito", en heladeras con el
+ * estado EN DEPÓSITO del ticket.
+ * ========================================================================== */
+
+function getDepositoSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.DEPOSITO_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.DEPOSITO_SHEET_NAME);
+  escribirCabecera_(sheet, DEPOSITO_HEADERS);
+  return sheet;
+}
+
+function readTrabajosDeposito_() {
+  const sheet = getDepositoSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 1, lastRow - 1, DEPOSITO_HEADERS.length).getValues().map((fila, i) => {
+    const obj = { _row: i + 2 };
+    DEPOSITO_HEADERS.forEach((h, c) => { obj[h] = fila[c]; });
+    return obj;
+  }).filter(o => safe_(o.TrabajoId).trim());
+}
+
+/**
+ * Los pendientes van todos; los terminados, solo los de los ultimos
+ * DEPOSITO_DIAS_TERMINADOS_VISIBLES dias (siguen en la hoja).
+ */
+function getTrabajosDeposito_() {
+  const limite = addDays_(new Date(), -CONFIG.DEPOSITO_DIAS_TERMINADOS_VISIBLES);
+  return readTrabajosDeposito_()
+    .filter(o => {
+      if (safe_(o.Estado) !== 'TERMINADO') return true;
+      const fin = toDate_(o.TerminadoEl) || toDate_(o.Fecha);
+      return !fin || fin >= limite;
+    })
+    .map(o => ({
+      trabajoId: safe_(o.TrabajoId),
+      fecha: isoDate_(toDate_(o.Fecha)),
+      tecnico: safe_(o.Tecnico),
+      tipoEquipo: safe_(o.TipoEquipo),
+      equipo: safe_(o.Equipo),
+      destino: safe_(o.Destino),
+      trabajo: safe_(o.Trabajo),
+      repuestos: safe_(o.Repuestos),
+      horas: toNumber_(o.Horas),
+      estado: safe_(o.Estado) || 'PENDIENTE',
+      terminadoEl: isoDate_(toDate_(o.TerminadoEl)),
+      notaCierre: safe_(o.NotaCierre),
+      fotosUrls: safe_(o.FotosUrls).split('\n').filter(String)
+    }))
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+}
+
+/** Carpeta de fotos del deposito, con subcarpeta por tecnico. */
+function getDepositoPhotosFolder_(tecnico) {
+  const base = getPhotosParentFolder_();
+  const raiz = base.getFoldersByName(CONFIG.DEPOSITO_PHOTOS_FOLDER_NAME);
+  const parent = raiz.hasNext() ? raiz.next() : base.createFolder(CONFIG.DEPOSITO_PHOTOS_FOLDER_NAME);
+  const sub = parent.getFoldersByName(tecnico);
+  return sub.hasNext() ? sub.next() : parent.createFolder(tecnico);
+}
+
+function nuevoTrabajoDeposito_(body) {
+  const tecnico = resolveTecnico_(body.tecnico);
+  const tipoEquipo = safe_(body.tipoEquipo).trim();
+  const trabajo = safe_(body.trabajo).trim();
+  if (CONFIG.TIPOS_EQUIPO_DEPOSITO.indexOf(tipoEquipo) === -1) throw new Error('Elegí qué equipo es.');
+  if (!trabajo) throw new Error('Contá qué trabajo se hizo o hay que hacer.');
+
+  const horas = Number(String(body.horas || '').replace(',', '.'));
+  if (body.horas !== '' && body.horas !== undefined && (isNaN(horas) || horas < 0 || horas > 200)) {
+    throw new Error('Las horas tienen que ser un número entre 0 y 200.');
+  }
+
+  const ahora = new Date();
+  const id = 'DEP-' + ahora.getTime().toString(36).toUpperCase();
+  const terminado = safe_(body.estado).trim().toUpperCase() === 'TERMINADO';
+
+  // Las fotos se suben antes del lock: es lo que mas tarda
+  const urls = body.fotos && body.fotos.length
+    ? savePhotos_(getDepositoPhotosFolder_(tecnico), body.fotos, id)
+    : '';
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    getDepositoSheet_().appendRow([
+      id, ahora, tecnico, tipoEquipo, safe_(body.equipo).trim(), safe_(body.destino).trim(),
+      trabajo, safe_(body.repuestos).trim(), isNaN(horas) ? '' : horas,
+      terminado ? 'TERMINADO' : 'PENDIENTE', terminado ? ahora : '', '', urls, ahora
+    ]);
+  } finally {
+    lock.releaseLock();
+  }
+  return { ok: true, message: terminado ? 'Trabajo registrado como terminado.' : 'Trabajo registrado como pendiente.', trabajoId: id };
+}
+
+/** Marca terminado un trabajo pendiente, con una nota y fotos opcionales. */
+function terminarTrabajoDeposito_(body) {
+  const tecnico = resolveTecnico_(body.tecnico);
+  const id = safe_(body.trabajoId).trim();
+  if (!id) throw new Error('Falta el ID del trabajo.');
+
+  const urls = body.fotos && body.fotos.length
+    ? savePhotos_(getDepositoPhotosFolder_(tecnico), body.fotos, id + '_FIN')
+    : '';
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const fila = readTrabajosDeposito_().filter(o => safe_(o.TrabajoId) === id)[0];
+    if (!fila) throw new Error('No se encontró el trabajo ' + id + '. Actualizá la lista.');
+    if (safe_(fila.Estado) === 'TERMINADO') return { ok: false, message: 'Ese trabajo ya estaba terminado.' };
+
+    const sheet = getDepositoSheet_();
+    const col = h => DEPOSITO_HEADERS.indexOf(h) + 1;
+    const nota = safe_(body.nota).trim();
+    sheet.getRange(fila._row, col('Estado')).setValue('TERMINADO');
+    sheet.getRange(fila._row, col('TerminadoEl')).setValue(new Date());
+    sheet.getRange(fila._row, col('NotaCierre')).setValue(nota ? tecnico + ': ' + nota : 'Terminado por ' + tecnico);
+    if (urls) {
+      sheet.getRange(fila._row, col('FotosUrls'))
+        .setValue([safe_(fila.FotosUrls).trim(), urls].filter(String).join('\n'));
+    }
+    const horas = Number(String(body.horas || '').replace(',', '.'));
+    if (body.horas !== '' && body.horas !== undefined && !isNaN(horas) && horas >= 0) {
+      sheet.getRange(fila._row, col('Horas')).setValue(horas);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return { ok: true, message: 'Trabajo marcado como terminado.' };
 }
 
 /* ==========================================================================

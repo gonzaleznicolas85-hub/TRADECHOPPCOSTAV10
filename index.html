@@ -637,6 +637,8 @@
     .hel-cierre.is-noresuelto { color: #334155; background: #f8fafc; border-color: #cbd5e1; }
     .badge-asignado { background: #dbeafe; color: #1d4ed8; }
     .badge-enespera { background: #fef3c7; color: #b45309; }
+    .badge-endeposito { background: #ede9fe; color: #6d28d9; }
+    .hel-espera.is-deposito { color: #5b21b6; background: #f5f3ff; border-color: #ddd6fe; }
     .badge-sinasignar { background: #e2e8f0; color: #334155; }
     .badge-resuelto { background: #d1fae5; color: #047857; }
     .badge-noresuelto { background: #f1f5f9; color: #475569; }
@@ -902,6 +904,7 @@
       --mod-sanitizaciones: #b45309;
       --mod-choperas: #7c3aed;
       --mod-heladeras: #059669;
+      --mod-deposito: #475569;
     }
 
     html, body {
@@ -1129,6 +1132,7 @@
     .nav-btn[data-mod="sanitizaciones"] { --mod-color: var(--mod-sanitizaciones); }
     .nav-btn[data-mod="choperas"] { --mod-color: var(--mod-choperas); }
     .nav-btn[data-mod="heladeras"] { --mod-color: var(--mod-heladeras); }
+    .nav-btn[data-mod="deposito"] { --mod-color: var(--mod-deposito); }
     @media (max-width: 480px) {
       .nav-btn { font-size: 14.5px; padding: 13px 12px; }
     }
@@ -1815,6 +1819,7 @@
         <button type="button" id="navSanitizacionesBtn" class="nav-btn" data-mod="sanitizaciones"><span class="nav-mono">SA</span><span class="nav-label">Sanitizaciones</span></button>
         <button type="button" id="navChoperasBtn" class="nav-btn" data-mod="choperas"><span class="nav-mono">CH</span><span class="nav-label">Mis Choperas</span></button>
         <button type="button" id="navHeladerasBtn" class="nav-btn" data-mod="heladeras"><span class="nav-mono">HE</span><span class="nav-label">Heladeras</span></button>
+        <button type="button" id="navDepositoBtn" class="nav-btn" data-mod="deposito"><span class="nav-mono">DE</span><span class="nav-label">Depósito</span></button>
       </nav>
       <div class="drawer-foot">
         <div class="drawer-foot-label">Conectado como</div>
@@ -2040,6 +2045,53 @@
       </div>
     </section>
 
+    <section id="viewDeposito" class="section-card overflow-hidden" style="display:none;">
+      <div class="section-title px-5 py-4">
+        <h2 class="text-lg md:text-xl font-bold">Trabajos en depósito</h2>
+      </div>
+      <div class="p-4 md:p-5 space-y-5">
+        <p class="small-note">Lo que se hace en el depósito sin un cliente de por medio: reparar equipos retirados, armar choperas, preparar pilones. Si el arreglo es de un cliente, cargalo en Mis Choperas como "Arreglo en depósito"; si es de un ticket de heladera, usá "Llevar a depósito" en el ticket.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_auto] gap-3 items-end">
+          <div>
+            <label class="field-label">Técnico</label>
+            <input type="hidden" id="depositoTecnico" />
+            <div class="tecnico-picker" id="depositoTecnicoBotones" role="group" aria-label="Técnico"></div>
+          </div>
+          <button type="button" id="depositoRefreshBtn" class="submit-btn" style="width:auto;">Actualizar</button>
+        </div>
+
+        <div id="depositoResumen" class="kpi-grid"></div>
+
+        <div class="toolbar-stack">
+          <details class="filtros-box">
+            <summary>Buscar y filtrar</summary>
+            <div class="sanit-toolbar">
+              <div>
+                <label class="field-label" for="depositoBuscar">Buscar</label>
+                <input id="depositoBuscar" type="text" class="field-input" placeholder="Equipo, serie, trabajo o repuesto" />
+              </div>
+              <div>
+                <label class="field-label" for="depositoFiltro">Ver</label>
+                <select id="depositoFiltro" class="field-select">
+                  <option value="PENDIENTE">Pendientes</option>
+                  <option value="TERMINADO">Terminados</option>
+                  <option value="TODOS">Todos</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="depositoTipoFiltro">Equipo</label>
+                <select id="depositoTipoFiltro" class="field-select"><option value="">Todos</option></select>
+              </div>
+            </div>
+          </details>
+          <button type="button" id="depositoNuevoBtn" class="secondary-btn accion-alta">+ Trabajo en depósito</button>
+        </div>
+
+        <div id="depositoLista" class="space-y-3"></div>
+      </div>
+    </section>
+
     <section id="viewHeladeras" class="section-card overflow-hidden" style="display:none;">
       <div class="section-title px-5 py-4">
         <h2 class="text-lg md:text-xl font-bold">Arreglo de heladeras</h2>
@@ -2256,6 +2308,87 @@
         <div class="modal-actions">
           <button type="button" id="choperaEditCancelar" class="secondary-btn">Cancelar</button>
           <button type="button" id="choperaEditGuardar" class="submit-btn" style="width:auto;">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NUEVO TRABAJO EN DEPÓSITO -->
+    <div id="depositoModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>Trabajo en depósito</h3>
+        <p id="depositoModalTecnico" class="text-sm text-gray-600 mt-1"></p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="depositoTipoEquipo">Equipo</label>
+            <select id="depositoTipoEquipo" class="field-select"></select>
+          </div>
+          <div>
+            <label class="field-label" for="depositoEquipo">Marca, modelo, N° de serie o activo fijo</label>
+            <input id="depositoEquipo" type="text" class="field-input" placeholder="Ej: Celli T4, serie 12345" />
+          </div>
+          <div>
+            <label class="field-label" for="depositoDestino">De dónde vino / para dónde va (opcional)</label>
+            <input id="depositoDestino" type="text" class="field-input" placeholder="Ej: retirado de Bar Centro, para instalar en..." />
+          </div>
+          <div>
+            <label class="field-label" for="depositoTrabajo">Trabajo</label>
+            <textarea id="depositoTrabajo" rows="3" class="field-input" placeholder="Qué se hizo o qué falta hacer"></textarea>
+          </div>
+          <div>
+            <label class="field-label" for="depositoRepuestos">Repuestos usados</label>
+            <input id="depositoRepuestos" type="text" class="field-input" placeholder="Ej: 1 compresor, 2 m manguera" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="field-label" for="depositoHoras">Horas de trabajo</label>
+              <input id="depositoHoras" type="number" min="0" max="200" step="0.5" inputmode="decimal" class="field-input" />
+            </div>
+            <div>
+              <label class="field-label" for="depositoEstado">Estado</label>
+              <select id="depositoEstado" class="field-select">
+                <option value="TERMINADO">Terminado</option>
+                <option value="PENDIENTE">Pendiente</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="depositoFotos">Fotos</label>
+            <input id="depositoFotos" type="file" accept="image/*" multiple class="field-input" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="depositoCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="depositoGuardar" class="submit-btn" style="width:auto;">Registrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: TERMINAR TRABAJO EN DEPÓSITO -->
+    <div id="depositoFinModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box">
+        <h3>Terminar trabajo</h3>
+        <p id="depositoFinDetalle" class="text-sm text-gray-600 mt-1"></p>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="field-label" for="depositoFinNota">Qué se terminó haciendo (opcional)</label>
+            <textarea id="depositoFinNota" rows="3" class="field-input"></textarea>
+          </div>
+          <div>
+            <label class="field-label" for="depositoFinHoras">Horas en total (opcional)</label>
+            <input id="depositoFinHoras" type="number" min="0" max="200" step="0.5" inputmode="decimal" class="field-input" />
+          </div>
+          <div>
+            <label class="field-label" for="depositoFinFotos">Fotos del equipo terminado</label>
+            <input id="depositoFinFotos" type="file" accept="image/*" multiple class="field-input" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="depositoFinCancelar" class="secondary-btn">Cancelar</button>
+          <button type="button" id="depositoFinGuardar" class="btn-checkout">Marcar terminado</button>
         </div>
       </div>
     </div>
@@ -3123,6 +3256,8 @@
     const viewChoperas = document.getElementById("viewChoperas");
     const navHeladerasBtn = document.getElementById("navHeladerasBtn");
     const viewHeladeras = document.getElementById("viewHeladeras");
+    const navDepositoBtn = document.getElementById("navDepositoBtn");
+    const viewDeposito = document.getElementById("viewDeposito");
 
     function mostrarVista(vista) {
       hideStatus();
@@ -3131,7 +3266,8 @@
         misComodatos: { el: viewMisComodatos, btn: navMisComodatosBtn },
         sanitizaciones: { el: viewSanitizaciones, btn: navSanitizacionesBtn },
         choperas: { el: viewChoperas, btn: navChoperasBtn },
-        heladeras: { el: viewHeladeras, btn: navHeladerasBtn }
+        heladeras: { el: viewHeladeras, btn: navHeladerasBtn },
+        deposito: { el: viewDeposito, btn: navDepositoBtn }
       };
       const activa = vistas[vista] ? vista : "nuevo";
 
@@ -3147,6 +3283,7 @@
         helTomarTecnicoCompartido_();
         cargarHeladeras();
       }
+      if (activa === "deposito") cargarDeposito();
     }
 
     navNuevoBtn.addEventListener("click", () => mostrarVista("nuevo"));
@@ -3154,6 +3291,7 @@
     navSanitizacionesBtn.addEventListener("click", () => mostrarVista("sanitizaciones"));
     navChoperasBtn.addEventListener("click", () => mostrarVista("choperas"));
     navHeladerasBtn.addEventListener("click", () => mostrarVista("heladeras"));
+    navDepositoBtn.addEventListener("click", () => mostrarVista("deposito"));
 
     // Lista fija de tecnicos. Debe coincidir exactamente con CONFIG.TECNICOS del Code.gs.
     const TECNICOS = [
@@ -3208,7 +3346,8 @@
       [["tecnico", "tecnicoBotones"],
        ["misComodatosTecnico", "misComodatosTecnicoBotones"],
        ["sanitTecnico", "sanitTecnicoBotones"],
-       ["choperasTecnico", "choperasTecnicoBotones"]].forEach(par => {
+       ["choperasTecnico", "choperasTecnicoBotones"],
+       ["depositoTecnico", "depositoTecnicoBotones"]].forEach(par => {
         const input = document.getElementById(par[0]);
         const contenedor = document.getElementById(par[1]);
         if (!input || !contenedor) return;
@@ -3222,7 +3361,7 @@
 
     /** Fija el tecnico en los tres grupos a la vez. */
     function fijarTecnico_(nombre) {
-      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico"].forEach(id => {
+      ["tecnico", "misComodatosTecnico", "sanitTecnico", "choperasTecnico", "depositoTecnico"].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.value = nombre;
       });
@@ -3253,6 +3392,7 @@
       montarBotonesTecnico_("misComodatosTecnico", "misComodatosTecnicoBotones", {});
       montarBotonesTecnico_("sanitTecnico", "sanitTecnicoBotones", { todos: true, etiquetaTodos: "Todos" });
       montarBotonesTecnico_("choperasTecnico", "choperasTecnicoBotones", {});
+      montarBotonesTecnico_("depositoTecnico", "depositoTecnicoBotones", { todos: true, etiquetaTodos: "Todos" });
       sincronizarBotonesTecnico_();
     }
 
@@ -3438,7 +3578,7 @@
     }
 
     function estadoClase_(estado) {
-      return String(estado || "").toLowerCase().replace(/\s+/g, "");
+      return String(estado || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
     }
 
     function textoDias_(item) {
@@ -4132,6 +4272,7 @@
       "Cambio de regulador",
       "Instalación",
       "Retiro de equipo",
+      "Arreglo en depósito",
       "Otro"
     ];
 
@@ -5372,7 +5513,7 @@
       return !!heladerasTecnicoInput.value && t.tecnico === heladerasTecnicoInput.value;
     }
 
-    const helActivo_ = t => t.estado === "ASIGNADO" || t.estado === "EN ESPERA";
+    const helActivo_ = t => t.estado === "ASIGNADO" || t.estado === "EN ESPERA" || t.estado === "EN DEPÓSITO";
     const helCerrado_ = t => t.estado === "RESUELTO" || t.estado === "NO RESUELTO";
 
     // En "Mis tareas" los cerrados se limitan a los últimos 60 días, igual que
@@ -5401,7 +5542,9 @@
         { vista: "pool", valor: pool.length, label: "Sin asignar", clase: pool.length ? "is-vencido" : "is-aldia",
           nota: pool.length && masViejo ? "el más viejo: " + masViejo + " día(s)" : "" },
         { vista: "mios", valor: mios.length, label: "Mis tickets", clase: "",
-          nota: heladerasTecnicoInput.value ? mios.filter(t => t.estado === "EN ESPERA").length + " en espera" : "elegí tu nombre" },
+          nota: heladerasTecnicoInput.value
+            ? mios.filter(t => t.estado === "EN ESPERA").length + " en espera · " + mios.filter(t => t.estado === "EN DEPÓSITO").length + " en depósito"
+            : "elegí tu nombre" },
         { vista: "equipo", valor: equipo.length, label: "En curso (todos)", clase: "", nota: "" },
         { vista: "cerrados", valor: cerrados.length, label: "Cerrados", clase: "is-aldia",
           nota: cerrados.filter(t => t.estado === "RESUELTO").length + " resueltos" }
@@ -5465,9 +5608,15 @@
         if (t.estado === "EN ESPERA") {
           botones.push(`<button type="button" class="btn-checkin" data-hel-accion="retomar" data-hel-id="${id}">Retomar</button>`);
         }
+        if (t.estado === "EN DEPÓSITO") {
+          botones.push(`<button type="button" class="btn-checkin" data-hel-accion="retomar" data-hel-id="${id}">Volvió del depósito</button>`);
+        }
         botones.push(`<button type="button" class="btn-checkout" data-hel-finalizar="${id}">Finalizar</button>`);
         if (t.estado === "ASIGNADO") {
           botones.push(`<button type="button" class="btn-fallida" data-hel-nota="espera" data-hel-id="${id}">En espera</button>`);
+        }
+        if (t.estado === "ASIGNADO" || t.estado === "EN ESPERA") {
+          botones.push(`<button type="button" class="btn-fallida" data-hel-nota="deposito" data-hel-id="${id}">Llevar a depósito</button>`);
         }
         botones.push(`<button type="button" class="btn-liberar" data-hel-nota="liberar" data-hel-id="${id}">Liberar</button>`);
       } else if (helCerrado_(t) && heladerasTecnicoInput.value) {
@@ -5534,7 +5683,9 @@
           : "";
         const espera = t.estado === "EN ESPERA" && t.notaEspera
           ? `<div class="hel-espera">En espera: ${escapeHtml_(t.notaEspera)}</div>`
-          : "";
+          : t.estado === "EN DEPÓSITO" && t.notaEspera
+            ? `<div class="hel-espera is-deposito">En depósito: ${escapeHtml_(t.notaEspera)}</div>`
+            : "";
 
         let cierre = "";
         if (cerrado) {
@@ -5705,6 +5856,10 @@
       espera: {
         titulo: "Poner en espera", label: "¿Qué se está esperando?", obligatoria: true, boton: "Poner en espera",
         ayuda: "El ticket sigue siendo tuyo. Usalo cuando falta un repuesto o hay que volver otro día."
+      },
+      deposito: {
+        titulo: "Llevar a depósito", label: "¿Qué se le va a hacer en el depósito?", obligatoria: true, boton: "Llevar a depósito",
+        ayuda: "El ticket sigue siendo tuyo. Cuando reinstales el equipo, tocá \"Volvió del depósito\" o cerralo con Finalizar."
       },
       liberar: {
         titulo: "Liberar ticket", label: "Motivo (opcional)", obligatoria: false, boton: "Devolver al pool",
@@ -6054,6 +6209,7 @@
       { estado: "SIN ASIGNAR", titulo: "Sin iniciar", color: "#94a3b8" },
       { estado: "ASIGNADO", titulo: "En curso", color: "#2563eb" },
       { estado: "EN ESPERA", titulo: "En espera", color: "#f59e0b" },
+      { estado: "EN DEPÓSITO", titulo: "En depósito", color: "#7c3aed" },
       { estado: "RESUELTO", titulo: "Resueltos", color: "#10b981" },
       { estado: "NO RESUELTO", titulo: "No resueltos", color: "#475569" }
     ];
@@ -6254,8 +6410,8 @@
       const kpis = [
         { valor: porBase["SIN ASIGNAR"].length, label: "Sin iniciar", clase: porBase["SIN ASIGNAR"].length ? "is-vencido" : "is-aldia",
           nota: masViejo ? "el más viejo: " + masViejo + " día(s)" : "" },
-        { valor: porBase["ASIGNADO"].length + porBase["EN ESPERA"].length, label: "Pendientes (en curso)", clase: "is-porvencer",
-          nota: porBase["EN ESPERA"].length + " en espera" },
+        { valor: porBase["ASIGNADO"].length + porBase["EN ESPERA"].length + porBase["EN DEPÓSITO"].length, label: "Pendientes (en curso)", clase: "is-porvencer",
+          nota: porBase["EN ESPERA"].length + " en espera · " + porBase["EN DEPÓSITO"].length + " en depósito" },
         { valor: resueltos.length, label: "Resueltos", clase: "is-aldia", nota: periodo },
         { valor: noResueltos.length, label: "No resueltos", clase: "", nota: periodo },
         { valor: cerrados ? Math.round(resueltos.length * 100 / cerrados) + "%" : "—", label: "Tasa de resolución", clase: "",
@@ -6329,18 +6485,19 @@
           nombre: nombre,
           curso: suyos.filter(t => t.estado === "ASIGNADO").length,
           espera: suyos.filter(t => t.estado === "EN ESPERA").length,
+          deposito: suyos.filter(t => t.estado === "EN DEPÓSITO").length,
           res: res.length,
           nores: nores.length,
           tasa: res.length + nores.length ? Math.round(res.length * 100 / (res.length + nores.length)) + "%" : "—",
           prom: helTextoHoras_(prom)
         };
-      }).sort((a, b) => (b.res - a.res) || ((b.curso + b.espera) - (a.curso + a.espera)));
+      }).sort((a, b) => (b.res - a.res) || ((b.curso + b.espera + b.deposito) - (a.curso + a.espera + a.deposito)));
 
       helTabTecnicos.innerHTML = `
         <table class="hel-tabla">
-          <thead><tr><th>Técnico</th><th>En curso</th><th>En espera</th><th>Resueltos</th><th>No resueltos</th><th>Tasa</th><th>Prom. resolución</th></tr></thead>
+          <thead><tr><th>Técnico</th><th>En curso</th><th>En espera</th><th>En depósito</th><th>Resueltos</th><th>No resueltos</th><th>Tasa</th><th>Prom. resolución</th></tr></thead>
           <tbody>
-            ${filas.map(f => `<tr><td>${escapeHtml_(f.nombre)}</td><td>${f.curso}</td><td>${f.espera}</td><td>${f.res}</td><td>${f.nores}</td><td>${f.tasa}</td><td>${escapeHtml_(f.prom)}</td></tr>`).join("")}
+            ${filas.map(f => `<tr><td>${escapeHtml_(f.nombre)}</td><td>${f.curso}</td><td>${f.espera}</td><td>${f.deposito}</td><td>${f.res}</td><td>${f.nores}</td><td>${f.tasa}</td><td>${escapeHtml_(f.prom)}</td></tr>`).join("")}
           </tbody>
         </table>
         <p class="small-note mt-2">Prom. resolución: desde que el técnico lo tomó hasta que lo cerró. Sin iniciar: ${baseTecnicos.filter(t => t.estado === "SIN ASIGNAR").length}.</p>`;
@@ -6468,6 +6625,235 @@
     });
 
     helIniciarTimer_();
+
+    // =========================================================
+    // TRABAJOS EN DEPÓSITO
+    // =========================================================
+    const depositoTecnicoInput = document.getElementById("depositoTecnico");
+    const depositoResumenBox = document.getElementById("depositoResumen");
+    const depositoListaBox = document.getElementById("depositoLista");
+    const depositoBuscarInput = document.getElementById("depositoBuscar");
+    const depositoFiltro = document.getElementById("depositoFiltro");
+    const depositoTipoFiltro = document.getElementById("depositoTipoFiltro");
+
+    const depositoModal = document.getElementById("depositoModal");
+    const depositoTipoEquipo = document.getElementById("depositoTipoEquipo");
+    const depositoGuardarBtn = document.getElementById("depositoGuardar");
+    const depositoFinModal = document.getElementById("depositoFinModal");
+    const depositoFinGuardarBtn = document.getElementById("depositoFinGuardar");
+
+    // Debe coincidir con CONFIG.TIPOS_EQUIPO_DEPOSITO del Code.gs; el backend la manda igual
+    let depositoTipos = ["Chopera", "Heladera", "Pilón", "Regulador / tubo de gas", "Mangueras / canillas", "Otro"];
+    let depositoTrabajos = [];
+    let depositoCargando = false;
+    let depositoTerminando = "";
+
+    function depositoMontarTipos_() {
+      const previo = depositoTipoFiltro.value;
+      depositoTipoFiltro.innerHTML = `<option value="">Todos</option>` +
+        depositoTipos.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`).join("");
+      depositoTipoFiltro.value = depositoTipos.indexOf(previo) !== -1 ? previo : "";
+      depositoTipoEquipo.innerHTML = depositoTipos.map(t => `<option value="${escapeHtml_(t)}">${escapeHtml_(t)}</option>`).join("");
+    }
+
+    /** Los del técnico elegido; con "Todos", los de todos. */
+    function depositoDelTecnico_() {
+      const t = depositoTecnicoInput.value;
+      return depositoTrabajos.filter(x => !t || x.tecnico === t);
+    }
+
+    function depositoRenderResumen_() {
+      const base = depositoDelTecnico_();
+      const recientes = base.filter(x => x.estado === "TERMINADO" && (helDiasDesde_(x.terminadoEl || x.fecha) || 0) <= 30);
+      const horas = recientes.reduce((a, x) => a + (Number(x.horas) || 0), 0);
+      const cards = [
+        { valor: base.filter(x => x.estado === "PENDIENTE").length, label: "Pendientes", clase: "is-porvencer" },
+        { valor: recientes.length, label: "Terminados (30 días)", clase: "is-aldia" },
+        { valor: Math.round(horas * 10) / 10, label: "Horas (30 días)", clase: "" }
+      ];
+      depositoResumenBox.innerHTML = cards.map(c => `
+        <div class="kpi-card ${c.clase}">
+          <div class="kpi-value">${escapeHtml_(String(c.valor))}</div>
+          <div class="kpi-label">${escapeHtml_(c.label)}</div>
+        </div>`).join("");
+    }
+
+    function depositoRenderLista_() {
+      depositoRenderResumen_();
+      const filtro = depositoFiltro.value;
+      const tipo = depositoTipoFiltro.value;
+      const texto = depositoBuscarInput.value.trim().toLowerCase();
+
+      const lista = depositoDelTecnico_().filter(x => {
+        if (filtro !== "TODOS" && x.estado !== filtro) return false;
+        if (tipo && x.tipoEquipo !== tipo) return false;
+        if (!texto) return true;
+        return [x.tipoEquipo, x.equipo, x.destino, x.trabajo, x.repuestos, x.tecnico, x.notaCierre]
+          .join(" ").toLowerCase().indexOf(texto) !== -1;
+      });
+
+      if (!lista.length) {
+        const vacio = filtro === "PENDIENTE" ? "No hay trabajos pendientes en el depósito." : "No hay trabajos para mostrar.";
+        depositoListaBox.innerHTML = `<p class="small-note">${texto || tipo ? "Ningún trabajo coincide con el filtro." : vacio}</p>`;
+        return;
+      }
+
+      depositoListaBox.innerHTML = lista.map(x => {
+        const pendiente = x.estado === "PENDIENTE";
+        const meta = [formatFechaCorta_(x.fecha), x.tecnico, x.horas ? x.horas + " h" : ""].filter(Boolean).join(" · ");
+        const fotos = x.fotosUrls.map((u, n) =>
+          `<a class="link-pdf" href="${escapeHtml_(u)}" target="_blank" rel="noopener">Foto ${n + 1}</a>`).join(" ");
+        return `
+          <div class="sanit-card ${pendiente ? "estado-porvencer" : "estado-aldia"}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="sanit-cliente">${escapeHtml_(x.tipoEquipo)}${x.equipo ? " · " + escapeHtml_(x.equipo) : ""}</div>
+              <span class="badge ${pendiente ? "badge-porvencer" : "badge-aldia"}">${escapeHtml_(x.estado)}</span>
+            </div>
+            <div class="sanit-meta">${escapeHtml_(meta)}</div>
+            ${x.destino ? `<div class="text-xs text-gray-600">${escapeHtml_(x.destino)}</div>` : ""}
+            <div class="text-sm text-gray-700">${escapeHtml_(x.trabajo)}</div>
+            ${x.repuestos ? `<div class="text-xs text-gray-600">Repuestos: ${escapeHtml_(x.repuestos)}</div>` : ""}
+            ${!pendiente && x.notaCierre ? `<div class="text-xs text-gray-600">Cierre (${escapeHtml_(formatFechaCorta_(x.terminadoEl))}): ${escapeHtml_(x.notaCierre)}</div>` : ""}
+            <div class="sanit-actions">
+              ${fotos}
+              ${pendiente ? `<button type="button" class="btn-checkout" data-dep-terminar="${escapeHtml_(x.trabajoId)}">Marcar terminado</button>` : ""}
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    async function cargarDeposito() {
+      if (depositoCargando) return;
+      depositoCargando = true;
+      depositoListaBox.innerHTML = `<p class="small-note">Cargando trabajos...</p>`;
+      try {
+        const res = await fetch(APP_SCRIPT_URL + "?action=deposito").then(r => r.json());
+        if (!res.ok) throw new Error(res.message || "No se pudieron leer los trabajos.");
+        depositoTrabajos = res.trabajos || [];
+        if (res.tiposEquipo && res.tiposEquipo.length) depositoTipos = res.tiposEquipo;
+        depositoMontarTipos_();
+        depositoRenderLista_();
+      } catch (error) {
+        depositoResumenBox.innerHTML = "";
+        depositoListaBox.innerHTML = `<p class="small-note" style="color:#991b1b;">Error: ${escapeHtml_(error.message)}</p>`;
+      } finally {
+        depositoCargando = false;
+      }
+    }
+
+    async function depositoFotos_(inputId) {
+      const archivos = Array.from(document.getElementById(inputId).files || []);
+      return (await Promise.all(archivos.map(helComprimirFoto_))).filter(Boolean);
+    }
+
+    function depositoAbrirNuevo_() {
+      if (!depositoTecnicoInput.value) { showStatus("Elegí tu nombre arriba para registrar el trabajo.", true); return; }
+      depositoMontarTipos_();
+      document.getElementById("depositoModalTecnico").textContent = depositoTecnicoInput.value;
+      ["depositoEquipo", "depositoDestino", "depositoTrabajo", "depositoRepuestos", "depositoHoras", "depositoFotos"]
+        .forEach(id => { document.getElementById(id).value = ""; });
+      document.getElementById("depositoEstado").value = "TERMINADO";
+      depositoGuardarBtn.disabled = false;
+      depositoGuardarBtn.textContent = "Registrar";
+      depositoModal.style.display = "flex";
+    }
+
+    async function depositoRegistrar_() {
+      const trabajo = document.getElementById("depositoTrabajo").value.trim();
+      if (!trabajo) { showStatus("Contá qué trabajo se hizo o hay que hacer.", true); return; }
+
+      depositoGuardarBtn.disabled = true;
+      depositoGuardarBtn.textContent = "Guardando...";
+      try {
+        const result = await sanitPost_({
+          action: "nuevoTrabajoDeposito",
+          tecnico: depositoTecnicoInput.value,
+          tipoEquipo: depositoTipoEquipo.value,
+          equipo: document.getElementById("depositoEquipo").value.trim(),
+          destino: document.getElementById("depositoDestino").value.trim(),
+          trabajo: trabajo,
+          repuestos: document.getElementById("depositoRepuestos").value.trim(),
+          horas: document.getElementById("depositoHoras").value.trim(),
+          estado: document.getElementById("depositoEstado").value,
+          fotos: await depositoFotos_("depositoFotos")
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo registrar.");
+        depositoModal.style.display = "none";
+        showStatus(result.message);
+        await cargarDeposito();
+      } catch (error) {
+        showStatus("Error al registrar: " + error.message, true);
+      } finally {
+        depositoGuardarBtn.disabled = false;
+        depositoGuardarBtn.textContent = "Registrar";
+      }
+    }
+
+    function depositoAbrirTerminar_(id) {
+      const x = depositoTrabajos.filter(t => t.trabajoId === id)[0];
+      if (!x) return;
+      if (!depositoTecnicoInput.value) { showStatus("Elegí tu nombre arriba para cerrar el trabajo.", true); return; }
+      depositoTerminando = id;
+      document.getElementById("depositoFinDetalle").textContent =
+        x.tipoEquipo + (x.equipo ? " · " + x.equipo : "") + " — " + x.trabajo;
+      document.getElementById("depositoFinNota").value = "";
+      document.getElementById("depositoFinHoras").value = x.horas || "";
+      document.getElementById("depositoFinFotos").value = "";
+      depositoFinGuardarBtn.disabled = false;
+      depositoFinGuardarBtn.textContent = "Marcar terminado";
+      depositoFinModal.style.display = "flex";
+    }
+
+    async function depositoTerminar_() {
+      if (!depositoTerminando) return;
+      depositoFinGuardarBtn.disabled = true;
+      depositoFinGuardarBtn.textContent = "Guardando...";
+      try {
+        const result = await sanitPost_({
+          action: "terminarTrabajoDeposito",
+          tecnico: depositoTecnicoInput.value,
+          trabajoId: depositoTerminando,
+          nota: document.getElementById("depositoFinNota").value.trim(),
+          horas: document.getElementById("depositoFinHoras").value.trim(),
+          fotos: await depositoFotos_("depositoFinFotos")
+        });
+        if (!result.ok) throw new Error(result.message || "No se pudo cerrar.");
+        depositoFinModal.style.display = "none";
+        depositoTerminando = "";
+        showStatus(result.message);
+        await cargarDeposito();
+      } catch (error) {
+        showStatus("Error: " + error.message, true);
+      } finally {
+        depositoFinGuardarBtn.disabled = false;
+        depositoFinGuardarBtn.textContent = "Marcar terminado";
+      }
+    }
+
+    depositoTecnicoInput.addEventListener("change", () => {
+      if (depositoTecnicoInput.value) {
+        localStorage.setItem(TECNICO_STORAGE_KEY, depositoTecnicoInput.value);
+        fijarTecnico_(depositoTecnicoInput.value);
+      }
+      depositoRenderLista_();
+    });
+    document.getElementById("depositoRefreshBtn").addEventListener("click", cargarDeposito);
+    document.getElementById("depositoNuevoBtn").addEventListener("click", depositoAbrirNuevo_);
+    depositoFiltro.addEventListener("change", depositoRenderLista_);
+    depositoTipoFiltro.addEventListener("change", depositoRenderLista_);
+    depositoBuscarInput.addEventListener("input", sanitDebounce_(depositoRenderLista_, 250));
+    depositoListaBox.addEventListener("click", (e) => {
+      const fin = e.target.closest("[data-dep-terminar]");
+      if (fin) depositoAbrirTerminar_(fin.getAttribute("data-dep-terminar"));
+    });
+    depositoGuardarBtn.addEventListener("click", depositoRegistrar_);
+    document.getElementById("depositoCancelar").addEventListener("click", () => {
+      if (!depositoGuardarBtn.disabled) depositoModal.style.display = "none";
+    });
+    depositoFinGuardarBtn.addEventListener("click", depositoTerminar_);
+    document.getElementById("depositoFinCancelar").addEventListener("click", () => {
+      if (!depositoFinGuardarBtn.disabled) { depositoFinModal.style.display = "none"; depositoTerminando = ""; }
+    });
 
   </script>
 
