@@ -2256,6 +2256,29 @@
     </div>
 
     <!-- MODAL: NOTA (espera / liberar / reabrir) -->
+    <div id="helAvisoModal" class="modal-backdrop" style="display:none;">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="helAvisoTitulo">
+        <h3 id="helAvisoTitulo">Avisar por WhatsApp</h3>
+        <p id="helAvisoCliente" class="text-sm text-gray-600 mt-1"></p>
+        <p class="small-note mt-2">Se abre tu WhatsApp con el mensaje listo para mandar a quien cargó el ticket. Podés corregir el número o el texto antes.</p>
+        <div class="mt-3 space-y-3">
+          <div>
+            <label class="field-label" for="helAvisoTelefono">Celular</label>
+            <input id="helAvisoTelefono" type="tel" inputmode="tel" class="field-input" placeholder="Ej: 223 15 123-4567" />
+            <p id="helAvisoTelAyuda" class="small-note mt-1"></p>
+          </div>
+          <div>
+            <label class="field-label" for="helAvisoTexto">Mensaje</label>
+            <textarea id="helAvisoTexto" rows="9" class="field-input"></textarea>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="helAvisoCancelar" class="secondary-btn">Ahora no</button>
+          <button type="button" id="helAvisoEnviar" class="btn-checkout">Abrir WhatsApp</button>
+        </div>
+      </div>
+    </div>
+
     <div id="helNotaModal" class="modal-backdrop" style="display:none;">
       <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="helNotaTitulo">
         <h3 id="helNotaTitulo"></h3>
@@ -5418,6 +5441,11 @@
     const helFinalizarCancelar = document.getElementById("helFinalizarCancelar");
 
     const helNotaModal = document.getElementById("helNotaModal");
+    const helAvisoModal = document.getElementById("helAvisoModal");
+    const helAvisoTelefono = document.getElementById("helAvisoTelefono");
+    const helAvisoTelAyuda = document.getElementById("helAvisoTelAyuda");
+    const helAvisoTexto = document.getElementById("helAvisoTexto");
+    let helAvisoId = "";
     const helNotaTitulo = document.getElementById("helNotaTitulo");
     const helNotaCliente = document.getElementById("helNotaCliente");
     const helNotaAyuda = document.getElementById("helNotaAyuda");
@@ -5622,6 +5650,9 @@
       } else if (helCerrado_(t) && heladerasTecnicoInput.value) {
         botones.push(`<button type="button" class="btn-liberar" data-hel-nota="reabrir" data-hel-id="${id}">Reabrir</button>`);
       }
+      if (helCerrado_(t)) {
+        botones.push(`<button type="button" class="link-wa" data-hel-aviso="${id}">${helAvisado_(t) ? "Volver a avisar" : "Avisar por WhatsApp"}</button>`);
+      }
 
       const destino = [t.cliente, t.direccion, t.localidad].filter(Boolean).join(" ");
       if (t.direccion || t.localidad) {
@@ -5692,6 +5723,7 @@
           const resuelto = t.estado === "RESUELTO";
           cierre = `
             <div class="hel-cierre${resuelto ? "" : " is-noresuelto"}">${resuelto ? "✔ Resuelto" : "✖ No resuelto: " + escapeHtml_(t.motivoNoResuelto)} por <strong>${escapeHtml_(t.tecnico)}</strong> el ${escapeHtml_(helFecha_(t.cerradoEl))}${t.trabajo ? "\n" + escapeHtml_(t.trabajo) : ""}${t.repuestos ? "\nRepuestos: " + escapeHtml_(t.repuestos) : ""}</div>
+            ${helAvisado_(t) ? `<div class="small-note">📲 Resolución avisada por WhatsApp</div>` : ""}
             ${t.fotosCierre.length ? `<div class="comodato-actions">${helLinks_(t.fotosCierre, "Foto cierre")}</div>` : ""}`;
         }
 
@@ -5743,7 +5775,8 @@
     }
 
     function helModalAbierto_() {
-      return helFinalizarModal.style.display !== "none" || helNotaModal.style.display !== "none";
+      return helFinalizarModal.style.display !== "none" || helNotaModal.style.display !== "none" ||
+        helAvisoModal.style.display !== "none";
     }
 
     /**
@@ -6024,6 +6057,9 @@
         showStatus(escapeHtml_(r.message));
         helAbiertos[id] = false;
         await cargarHeladeras(true);
+        // Recién cerrado: se ofrece avisarle a quien lo pidió
+        const cerrado = helBuscar_(id);
+        if (cerrado && helCerrado_(cerrado)) helAbrirAviso_(id);
       } catch (error) {
         showStatus("Error al cerrar: " + escapeHtml_(error.message), true);
       }
@@ -6059,6 +6095,9 @@
       }
       const nota = e.target.closest("[data-hel-nota]");
       if (nota) { helAbrirNota_(nota.getAttribute("data-hel-nota"), nota.getAttribute("data-hel-id")); return; }
+
+      const aviso = e.target.closest("[data-hel-aviso]");
+      if (aviso) { helAbrirAviso_(aviso.getAttribute("data-hel-aviso")); return; }
 
       const fin = e.target.closest("[data-hel-finalizar]");
       if (fin) { helAbrirFinalizar_(fin.getAttribute("data-hel-finalizar")); return; }
@@ -6177,6 +6216,102 @@
 
     helFinalizarCancelar.addEventListener("click", helCerrarFinalizar_);
     helFinalizarConfirmar.addEventListener("click", helConfirmarFinalizar_);
+
+    // --- Aviso de resolución por WhatsApp a quien cargó el ticket ---
+    // Sale del WhatsApp del técnico con un link wa.me: CallMeBot solo le
+    // escribe a quien activó su clave, así que no sirve para el solicitante.
+
+    /** Celular argentino a formato wa.me (549 + característica + número, sin 0 ni 15). */
+    function helNumeroWhatsApp_(tel) {
+      let d = String(tel || "").replace(/\D/g, "");
+      if (d.startsWith("00")) d = d.slice(2);
+      if (d.startsWith("54")) d = d.slice(2);
+      if (d.startsWith("9") && d.length === 11) d = d.slice(1);
+      if (d.startsWith("0")) d = d.slice(1);
+      // "223 15 4567890": el 15 va después de la característica, que tiene de 2 a 4 dígitos
+      if (d.length === 12) {
+        for (const n of [2, 3, 4]) {
+          if (d.substr(n, 2) === "15") { d = d.slice(0, n) + d.slice(n + 2); break; }
+        }
+      }
+      return d.length === 10 ? "549" + d : "";
+    }
+
+    function helAvisado_(t) {
+      return (t.historial || []).some(h => h.indexOf("Avisó la resolución por WhatsApp") !== -1);
+    }
+
+    function helTextoResolucion_(t) {
+      const resuelto = t.estado === "RESUELTO";
+      const nombre = String(t.solicitante || "").trim().split(/\s+/)[0];
+      const lugar = [t.direccion, t.localidad].filter(Boolean).join(", ");
+      const lineas = [
+        "Hola" + (nombre ? " " + nombre : "") + ", te escribimos del servicio técnico de Chopp Costa por el ticket " +
+          t.id + " de " + helNombre_(t) + (lugar ? " (" + lugar + ")" : "") + ".",
+        "",
+        resuelto
+          ? "✅ La heladera quedó resuelta el " + helFecha_(t.cerradoEl) + "."
+          : "⚠️ No se pudo resolver: " + (t.motivoNoResuelto || "sin motivo") + ".",
+        t.trabajo ? (resuelto ? "Trabajo realizado: " : "Detalle: ") + t.trabajo : null,
+        t.repuestos ? "Repuestos: " + t.repuestos : null,
+        t.tecnico ? "Técnico: " + t.tecnico : null,
+        "",
+        resuelto
+          ? "Si vuelve a fallar, cargá un ticket nuevo en el formulario. ¡Gracias!"
+          : "Te vamos a avisar cuando haya novedades. ¡Gracias!"
+      ];
+      return lineas.filter(l => l !== null).join("\n");
+    }
+
+    function helValidarTelAviso_() {
+      const numero = helNumeroWhatsApp_(helAvisoTelefono.value);
+      helAvisoTelAyuda.textContent = numero
+        ? "Se envía a +" + numero
+        : (helAvisoTelefono.value.trim()
+            ? "No parece un celular válido: poné característica y número, sin 0 ni 15 (ej: 223 4567890)."
+            : "El ticket no trae celular: cargalo a mano.");
+      helAvisoTelAyuda.style.color = numero ? "" : "#991b1b";
+      return numero;
+    }
+
+    function helAbrirAviso_(id) {
+      const t = helBuscar_(id);
+      if (!t) return;
+      helAvisoId = id;
+      document.getElementById("helAvisoCliente").textContent =
+        helNombre_(t) + " · " + t.id + (t.solicitante ? " · pidió " + t.solicitante : "");
+      helAvisoTelefono.value = t.telefono || "";
+      helAvisoTexto.value = helTextoResolucion_(t);
+      helValidarTelAviso_();
+      helAvisoModal.style.display = "flex";
+    }
+
+    function helCerrarAviso_() {
+      helAvisoModal.style.display = "none";
+      helAvisoId = "";
+    }
+
+    function helEnviarAviso_() {
+      const numero = helValidarTelAviso_();
+      if (!numero) { helAvisoTelefono.focus(); return; }
+      const texto = helAvisoTexto.value.trim();
+      if (!texto) { helAvisoTexto.focus(); return; }
+
+      // Se abre en el mismo toque: si se espera al servidor, el navegador lo bloquea como popup
+      window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank", "noopener");
+
+      const id = helAvisoId;
+      helCerrarAviso_();
+      if (!heladerasTecnicoInput.value) return;
+      helPost_({ action: "heladeraAccion", accion: "avisoWhatsApp", tecnico: heladerasTecnicoInput.value, ticketId: id, telefono: numero })
+        .then(() => cargarHeladeras(true))
+        .catch(error => console.warn("No se pudo registrar el aviso:", error.message));
+    }
+
+    helAvisoTelefono.addEventListener("input", helValidarTelAviso_);
+    document.getElementById("helAvisoEnviar").addEventListener("click", helEnviarAviso_);
+    document.getElementById("helAvisoCancelar").addEventListener("click", helCerrarAviso_);
+    helAvisoModal.addEventListener("click", (e) => { if (e.target === helAvisoModal) helCerrarAviso_(); });
 
     helNotaCancelar.addEventListener("click", helCerrarNota_);
     helNotaConfirmar.addEventListener("click", helConfirmarNota_);

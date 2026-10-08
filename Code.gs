@@ -3310,7 +3310,8 @@ function exigirTicketPropio_(actual, tecnico) {
 }
 
 /**
- * Acciones sobre un ticket: tomar, liberar, espera, deposito, retomar, reabrir.
+ * Acciones sobre un ticket: tomar, liberar, espera, deposito, retomar, reabrir,
+ * avisoWhatsApp.
  * Todo bajo lock: dos tecnicos tocando "Tomar" a la vez no pueden quedarse
  * los dos con el mismo ticket.
  */
@@ -3368,6 +3369,17 @@ function heladeraAccion_(body) {
       guardarGestionHeladera_(t, actual.previa, { Estado: 'ASIGNADO', NotaEspera: '' },
         actual.estado === 'EN DEPÓSITO' ? 'El equipo volvió del depósito' : 'Lo retomó', tecnico);
       return { ok: true, message: 'Ticket retomado.' };
+    }
+
+    // El aviso al que pidio el ticket sale del WhatsApp del propio tecnico
+    // (link wa.me): la app no puede confirmar que se mando, solo deja
+    // constancia de que el tecnico lo abrio con el mensaje armado.
+    if (accion === 'avisoWhatsApp') {
+      if (HEL_ESTADOS_CERRADOS.indexOf(actual.estado) === -1) throw new Error('Solo se avisa la resolución de un ticket cerrado.');
+      const numero = safe_(body.telefono).replace(/[^\d]/g, '');
+      guardarGestionHeladera_(t, actual.previa, {},
+        'Avisó la resolución por WhatsApp' + (numero ? ' al +' + numero : ''), tecnico);
+      return { ok: true, message: 'Aviso registrado.' };
     }
 
     if (accion === 'reabrir') {
